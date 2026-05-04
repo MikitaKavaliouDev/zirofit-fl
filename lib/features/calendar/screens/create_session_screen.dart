@@ -130,14 +130,24 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
     );
 
     final data = {
-      'name': _titleController.text,
-      'client_id': _selectedClientId,
-      'workout_template_id': _selectedTemplateId,
-      'start_time': startDateTime.millisecondsSinceEpoch,
-      'end_time': endDateTime.millisecondsSinceEpoch,
-      'notes': _notesController.text.isNotEmpty ? _notesController.text : null,
-      'is_recurring': _isRecurring,
-      if (_isRecurring) 'recurrence_pattern': _recurrencePattern,
+      'name': _titleController.text.trim(),
+      'clientId': _selectedClientId,
+      if (_selectedTemplateId != null) 'templateId': _selectedTemplateId,
+      'startTime': startDateTime.toIso8601String(),
+      'endTime': endDateTime.toIso8601String(),
+      if (_notesController.text.isNotEmpty)
+        'notes': _notesController.text.trim(),
+      'repeats': _isRecurring,
+      if (_isRecurring) ...{
+        'repeatWeeks': _recurrencePattern == 'daily'
+            ? 0
+            : _recurrencePattern == 'weekly'
+                ? 1
+                : _recurrencePattern == 'biweekly'
+                    ? 2
+                    : 4,
+        'repeatDays': [startDateTime.weekday % 7],
+      },
     };
 
     final success = await ref.read(calendarProvider.notifier).createSession(data);

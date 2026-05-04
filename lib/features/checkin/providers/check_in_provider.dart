@@ -68,21 +68,21 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 
     try {
       final body = <String, dynamic>{
-        'date': date.millisecondsSinceEpoch,
         'weight': weight,
       };
 
-      if (waistCm != null) body['waist_cm'] = waistCm;
-      if (sleepHours != null) body['sleep_hours'] = sleepHours;
-      if (energyLevel != null) body['energy_level'] = energyLevel;
-      if (stressLevel != null) body['stress_level'] = stressLevel;
-      if (hungerLevel != null) body['hunger_level'] = hungerLevel;
-      if (digestionLevel != null) body['digestion_level'] = digestionLevel;
+      if (waistCm != null) body['waistCm'] = waistCm;
+      if (sleepHours != null) body['sleepHours'] = sleepHours;
+      if (energyLevel != null) body['energyLevel'] = energyLevel;
+      if (stressLevel != null) body['stressLevel'] = stressLevel;
+      if (hungerLevel != null) body['hungerLevel'] = hungerLevel;
+      if (digestionLevel != null) body['digestionLevel'] = digestionLevel;
       if (nutritionCompliance != null) {
-        body['nutrition_compliance'] = nutritionCompliance;
+        final parsed = int.tryParse(nutritionCompliance);
+        if (parsed != null) body['nutritionCompliance'] = parsed;
       }
       if (clientNotes != null && clientNotes.isNotEmpty) {
-        body['client_notes'] = clientNotes;
+        body['clientNotes'] = clientNotes;
       }
 
       CheckIn? created;

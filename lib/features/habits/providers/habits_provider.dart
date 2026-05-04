@@ -99,9 +99,9 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
       final Map<String, dynamic> _ = await _apiClient.post(
         ApiConstants.logHabit(habitId),
         body: {
-          'date': date.millisecondsSinceEpoch,
-          'is_completed': isCompleted,
-          'note': note,
+          'date': date.toIso8601String().split('T')[0],
+          'isCompleted': isCompleted,
+          if (note != null) 'note': note,
         },
       );
 

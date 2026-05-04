@@ -140,15 +140,15 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final response = await _apiClient.get(
+      final Map<String, dynamic> response = await _apiClient.get(
         ApiConstants.trainerCalendar,
         queryParams: {
-          'start': start.millisecondsSinceEpoch,
-          'end': end.millisecondsSinceEpoch,
+          'startDate': start.toIso8601String(),
+          'endDate': end.toIso8601String(),
         },
       );
 
-      final data = response.data['data'] as Map<String, dynamic>;
+      final data = response['data'] as Map<String, dynamic>;
       final bookingsData = data['bookings'] as List<dynamic>? ?? [];
       final sessionsData = data['sessions'] as List<dynamic>? ?? [];
 
@@ -182,12 +182,12 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final response = await _apiClient.post(
+      final Map<String, dynamic> response = await _apiClient.post(
         ApiConstants.trainerCalendar,
         body: data,
       );
 
-      final sessionData = response.data['data'] as Map<String, dynamic>;
+      final sessionData = response['data'] as Map<String, dynamic>;
       final session = WorkoutSession.fromJson(sessionData);
       final event = CalendarEvent.fromSession(session);
 
@@ -211,12 +211,12 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final response = await _apiClient.put(
+      final Map<String, dynamic> response = await _apiClient.put(
         ApiConstants.calendarSession(id),
         body: data,
       );
 
-      final sessionData = response.data['data'] as Map<String, dynamic>;
+      final sessionData = response['data'] as Map<String, dynamic>;
       final updatedSession = WorkoutSession.fromJson(sessionData);
       final updatedEvent = CalendarEvent.fromSession(updatedSession);
 

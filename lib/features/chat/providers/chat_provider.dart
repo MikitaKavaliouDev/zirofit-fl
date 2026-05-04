@@ -4,6 +4,7 @@ import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/conversation.dart';
 import 'package:zirofit_fl/data/models/message.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
 // ---------------------------------------------------------------------------
 // State
@@ -55,8 +56,9 @@ class ChatState {
 
 class ChatNotifier extends StateNotifier<ChatState> {
   final ApiClient _api;
+  final String? currentUserId;
 
-  ChatNotifier({required ApiClient api}) : _api = api, super(const ChatState());
+  ChatNotifier({required ApiClient api, this.currentUserId}) : _api = api, super(const ChatState());
 
   /// Fetches the list of conversations for the current user.
   Future<void> fetchConversations() async {
@@ -214,5 +216,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final apiClient = ApiClient.instance;
-  return ChatNotifier(api: apiClient);
+  final authState = ref.watch(authProvider);
+  final userId = authState.user?.id;
+  return ChatNotifier(api: apiClient, currentUserId: userId);
 });

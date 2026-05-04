@@ -24,7 +24,7 @@ class WorkoutRemoteSource {
   Future<WorkoutSession> startWorkout({String? templateId}) async {
     final body = <String, dynamic>{};
     if (templateId != null) {
-      body['workout_template_id'] = templateId;
+      body['templateId'] = templateId;
     }
 
     final response = await _apiClient.post<ApiResponse<WorkoutSession>>(

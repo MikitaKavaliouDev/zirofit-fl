@@ -163,12 +163,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
 
     try {
-      final response = await _apiClient.post(
+      final Map<String, dynamic> response = await _apiClient.post(
         ApiConstants.login,
         body: {'email': email, 'password': password},
       );
 
-      final data = response.data['data'] as Map<String, dynamic>;
+      final data = response['data'] as Map<String, dynamic>;
       final accessToken = data['accessToken'] as String;
       final refreshToken = data['refreshToken'] as String;
       final userData = data['user'] as Map<String, dynamic>;
@@ -270,12 +270,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     try {
-      final response = await _apiClient.post(
+      final Map<String, dynamic> response = await _apiClient.post(
         ApiConstants.refresh,
         body: {'refreshToken': refreshToken},
       );
 
-      final data = response.data['data'] as Map<String, dynamic>;
+      final data = response['data'] as Map<String, dynamic>;
       final newAccessToken = data['accessToken'] as String;
       final newRefreshToken = data['refreshToken'] as String;
 
@@ -367,9 +367,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // -- Fetch Me --
 
   Future<Map<String, dynamic>> fetchMe() async {
-    final response = await _apiClient.get(ApiConstants.me);
-    return (response.data['data'] as Map<String, dynamic>?)
-        ?? (response.data as Map<String, dynamic>);
+    final Map<String, dynamic> response = await _apiClient.get(ApiConstants.me);
+    return (response['data'] as Map<String, dynamic>?)
+        ?? (response);
   }
 
   // -- Helpers --

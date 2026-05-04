@@ -160,11 +160,12 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
       await _apiClient.post(
         '${ApiConstants.clients}/$clientId/measurements',
         body: {
-          'measurement_date':
-              measurementDate.millisecondsSinceEpoch,
-          'weight_kg': ?weightKg,
-          'body_fat_percentage': ?bodyFatPercentage,
-          'notes': ?notes,
+          'measurementDate':
+              measurementDate.toIso8601String().split('T')[0],
+          if (weightKg != null) 'weightKg': weightKg,
+          if (bodyFatPercentage != null)
+            'bodyFatPercentage': bodyFatPercentage,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
         },
       );
       await fetchMeasurements();
@@ -206,10 +207,11 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
   }) async {
     try {
       final formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(imagePath),
-        'photo_date':
-            (photoDate ?? DateTime.now()).millisecondsSinceEpoch,
-        'caption': ?caption,
+        'photo': await MultipartFile.fromFile(imagePath),
+        'photoDate': (photoDate ?? DateTime.now())
+            .toIso8601String()
+            .split('T')[0],
+        if (caption != null) 'caption': caption,
       });
 
       await _apiClient.dio.post(

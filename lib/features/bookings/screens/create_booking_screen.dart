@@ -156,10 +156,10 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
       await apiClient.post(
         ApiConstants.bookings,
         body: {
-          'trainer_id': _trainerIdController.text.trim(),
-          'start_time': startDateTime.millisecondsSinceEpoch,
-          'end_time': endDateTime.millisecondsSinceEpoch,
-          'client_notes': _notesController.text.trim(),
+          'trainerId': _trainerIdController.text.trim(),
+          'startTime': startDateTime.toIso8601String(),
+          'endTime': endDateTime.toIso8601String(),
+          'clientNotes': _notesController.text.trim(),
         },
       );
 

@@ -265,9 +265,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     final data = <String, dynamic>{
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'start_time': startDateTime.millisecondsSinceEpoch,
-      'end_time': endDateTime.millisecondsSinceEpoch,
-      'location_name': _locationController.text.trim(),
+      'startTime': startDateTime.toIso8601String(),
+      'endTime': endDateTime.toIso8601String(),
+      'locationName': _locationController.text.trim(),
       'address': _addressController.text.trim(),
       'city': _cityController.text.trim(),
       'price': double.tryParse(_priceController.text) ?? 0,
