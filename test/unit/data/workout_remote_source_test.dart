@@ -34,18 +34,17 @@ void main() {
   Map<String, dynamic> workoutSessionJson({
     String id = 'test-session-id',
     String status = 'IN_PROGRESS',
-  }) =>
-      {
-        'id': id,
-        'client_id': 'test-client-id',
-        'trainer_id': 'test-trainer-id',
-        'status': status,
-        'start_time': 1700000000000,
-        'end_time': null,
-        'notes': null,
-        'created_at': 1700000000000,
-        'updated_at': 1700000000000,
-      };
+  }) => {
+    'id': id,
+    'client_id': 'test-client-id',
+    'trainer_id': 'test-trainer-id',
+    'status': status,
+    'start_time': 1700000000000,
+    'end_time': null,
+    'notes': null,
+    'created_at': 1700000000000,
+    'updated_at': 1700000000000,
+  };
 
   Map<String, dynamic> exerciseLogJson({
     String id = 'test-log-id',
@@ -55,57 +54,62 @@ void main() {
     double? weight,
     String side = 'BOTH',
     int? order,
-  }) =>
-      {
-        'id': id,
-        'client_id': 'test-client-id',
-        'exercise_id': exerciseId,
-        'workout_session_id': workoutSessionId,
-        'reps': reps,
-        'weight': weight,
-        'side': side,
-        'order': order,
-        'is_completed': null,
-        'tempo': null,
-        'superset_key': null,
-        'order_in_superset': null,
-        'sets': null,
-        'created_at': 1700000000000,
-        'updated_at': 1700000000000,
-        'deleted_at': null,
-      };
+  }) => {
+    'id': id,
+    'client_id': 'test-client-id',
+    'exercise_id': exerciseId,
+    'workout_session_id': workoutSessionId,
+    'reps': reps,
+    'weight': weight,
+    'side': side,
+    'order': order,
+    'is_completed': null,
+    'tempo': null,
+    'superset_key': null,
+    'order_in_superset': null,
+    'sets': null,
+    'created_at': 1700000000000,
+    'updated_at': 1700000000000,
+    'deleted_at': null,
+  };
 
   // ===========================================================================
   // startWorkout
   // ===========================================================================
 
   group('startWorkout', () {
-    test('without templateId sends empty body and returns WorkoutSession',
-        () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
+    test(
+      'without templateId sends empty body and returns WorkoutSession',
+      () async {
+        when(
+          () => mockApiClient.post<ApiResponse<WorkoutSession>>(
             ApiConstants.workoutStart,
             body: <String, dynamic>{},
             fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
-        final fromJson =
-            invocation.namedArguments[#fromJson]
-                as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-        return fromJson({'data': workoutSessionJson()});
-      });
+          ),
+        ).thenAnswer((invocation) async {
+          final fromJson =
+              invocation.namedArguments[#fromJson]
+                  as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
+          return fromJson({'data': workoutSessionJson()});
+        });
 
-      final result = await remoteSource.startWorkout();
+        final result = await remoteSource.startWorkout();
 
-      expect(result, isA<WorkoutSession>());
-      expect(result.id, 'test-session-id');
-      expect(result.clientId, 'test-client-id');
-    });
+        expect(result, isA<WorkoutSession>());
+        expect(result.id, 'test-session-id');
+        expect(result.clientId, 'test-client-id');
+      },
+    );
 
-    test('with templateId includes workout_template_id in body', () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-            ApiConstants.workoutStart,
-            body: {'workout_template_id': 'template-1'},
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+    test('with templateId includes templateId in body', () async {
+      when(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          ApiConstants.workoutStart,
+          body: {'templateId': 'template-1'},
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
@@ -114,19 +118,23 @@ void main() {
 
       await remoteSource.startWorkout(templateId: 'template-1');
 
-      verify(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-        ApiConstants.workoutStart,
-        body: {'workout_template_id': 'template-1'},
-        fromJson: any(named: 'fromJson'),
-      )).called(1);
+      verify(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          ApiConstants.workoutStart,
+          body: {'templateId': 'template-1'},
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).called(1);
     });
 
     test('response.data is null throws ApiException', () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-            any(),
-            body: any(named: 'body'),
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          any(),
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
@@ -135,18 +143,17 @@ void main() {
         });
       });
 
-      expect(
-        () => remoteSource.startWorkout(),
-        throwsA(isA<ApiException>()),
-      );
+      expect(() => remoteSource.startWorkout(), throwsA(isA<ApiException>()));
     });
 
     test('calls correct endpoint', () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-            any(),
-            body: any(named: 'body'),
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          any(),
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
@@ -155,11 +162,13 @@ void main() {
 
       await remoteSource.startWorkout();
 
-      verify(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-        ApiConstants.workoutStart,
-        body: any(named: 'body'),
-        fromJson: any(named: 'fromJson'),
-      )).called(1);
+      verify(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          ApiConstants.workoutStart,
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).called(1);
     });
   });
 
@@ -169,15 +178,19 @@ void main() {
 
   group('getActiveSession', () {
     test('returns session and logs when data key is present', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutLive,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'session': workoutSessionJson(),
-              'logs': [exerciseLogJson()],
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutLive,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {
+            'session': workoutSessionJson(),
+            'logs': [exerciseLogJson()],
+          },
+        },
+      );
 
       final (:session, :logs) = await remoteSource.getActiveSession();
 
@@ -188,13 +201,17 @@ void main() {
     });
 
     test('handles flat response when data key is absent', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutLive,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'session': workoutSessionJson(id: 'flat-session'),
-            'logs': [exerciseLogJson(id: 'flat-log')],
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutLive,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'session': workoutSessionJson(id: 'flat-session'),
+          'logs': [exerciseLogJson(id: 'flat-log')],
+        },
+      );
 
       final (:session, :logs) = await remoteSource.getActiveSession();
 
@@ -204,15 +221,16 @@ void main() {
     });
 
     test('defaults logs to empty list when logs is null', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutLive,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'session': workoutSessionJson(),
-              'logs': null,
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutLive,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {'session': workoutSessionJson(), 'logs': null},
+        },
+      );
 
       final (:session, :logs) = await remoteSource.getActiveSession();
 
@@ -221,22 +239,28 @@ void main() {
     });
 
     test('calls correct endpoint', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            any(),
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'session': workoutSessionJson(),
-              'logs': <Map<String, dynamic>>[],
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          any(),
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {
+            'session': workoutSessionJson(),
+            'logs': <Map<String, dynamic>>[],
+          },
+        },
+      );
 
       await remoteSource.getActiveSession();
 
-      verify(() => mockApiClient.get<Map<String, dynamic>>(
-        ApiConstants.workoutLive,
-        queryParams: any(named: 'queryParams'),
-      )).called(1);
+      verify(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutLive,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).called(1);
     });
   });
 
@@ -246,15 +270,18 @@ void main() {
 
   group('logExercise', () {
     test('sends only exerciseId when other params are omitted', () async {
-      when(() => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
-            ApiConstants.workoutLive,
-            body: {'exercise_id': 'ex-1'},
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          ApiConstants.workoutLive,
+          body: {'exercise_id': 'ex-1'},
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<ClientExerciseLog> Function(
-                    Map<String, dynamic>);
+                  Map<String, dynamic>,
+                );
         return fromJson({'data': exerciseLogJson(exerciseId: 'ex-1')});
       });
 
@@ -265,21 +292,24 @@ void main() {
     });
 
     test('sends all optional params when provided', () async {
-      when(() => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
-            ApiConstants.workoutLive,
-            body: {
-              'exercise_id': 'ex-1',
-              'reps': 10,
-              'weight': 50.0,
-              'side': 'LEFT',
-              'order': 1,
-            },
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          ApiConstants.workoutLive,
+          body: {
+            'exercise_id': 'ex-1',
+            'reps': 10,
+            'weight': 50.0,
+            'side': 'LEFT',
+            'order': 1,
+          },
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<ClientExerciseLog> Function(
-                    Map<String, dynamic>);
+                  Map<String, dynamic>,
+                );
         return fromJson({
           'data': exerciseLogJson(
             exerciseId: 'ex-1',
@@ -306,15 +336,18 @@ void main() {
     });
 
     test('response.data is null throws ApiException', () async {
-      when(() => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
-            any(),
-            body: any(named: 'body'),
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          any(),
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<ClientExerciseLog> Function(
-                    Map<String, dynamic>);
+                  Map<String, dynamic>,
+                );
         return fromJson({
           'error': {'message': 'Log failed', 'statusCode': 500},
         });
@@ -327,25 +360,30 @@ void main() {
     });
 
     test('calls correct endpoint', () async {
-      when(() => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
-            any(),
-            body: any(named: 'body'),
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          any(),
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<ClientExerciseLog> Function(
-                    Map<String, dynamic>);
+                  Map<String, dynamic>,
+                );
         return fromJson({'data': exerciseLogJson()});
       });
 
       await remoteSource.logExercise(exerciseId: 'ex-1');
 
-      verify(() => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
-        ApiConstants.workoutLive,
-        body: any(named: 'body'),
-        fromJson: any(named: 'fromJson'),
-      )).called(1);
+      verify(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          ApiConstants.workoutLive,
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).called(1);
     });
   });
 
@@ -354,30 +392,37 @@ void main() {
   // ===========================================================================
 
   group('finishWorkout', () {
-    test('includes session_id in body and returns WorkoutSession', () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
+    test(
+      'includes workoutSessionId in body and returns WorkoutSession',
+      () async {
+        when(
+          () => mockApiClient.post<ApiResponse<WorkoutSession>>(
             ApiConstants.workoutFinish,
-            body: {'session_id': 'test-session-id'},
+            body: {'workoutSessionId': 'test-session-id'},
             fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
-        final fromJson =
-            invocation.namedArguments[#fromJson]
-                as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-        return fromJson({'data': workoutSessionJson(status: 'COMPLETED')});
-      });
+          ),
+        ).thenAnswer((invocation) async {
+          final fromJson =
+              invocation.namedArguments[#fromJson]
+                  as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
+          return fromJson({'data': workoutSessionJson(status: 'COMPLETED')});
+        });
 
-      final result = await remoteSource.finishWorkout('test-session-id');
+        final result = await remoteSource.finishWorkout('test-session-id');
 
-      expect(result, isA<WorkoutSession>());
-      expect(result.id, 'test-session-id');
-    });
+        expect(result, isA<WorkoutSession>());
+        expect(result.id, 'test-session-id');
+      },
+    );
 
     test('response.data is null throws ApiException', () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-            any(),
-            body: any(named: 'body'),
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          any(),
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
@@ -393,11 +438,13 @@ void main() {
     });
 
     test('calls correct endpoint', () async {
-      when(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-            any(),
-            body: any(named: 'body'),
-            fromJson: any(named: 'fromJson'),
-          )).thenAnswer((invocation) async {
+      when(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          any(),
+          body: any(named: 'body'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
@@ -406,11 +453,13 @@ void main() {
 
       await remoteSource.finishWorkout('test-session-id');
 
-      verify(() => mockApiClient.post<ApiResponse<WorkoutSession>>(
-        ApiConstants.workoutFinish,
-        body: {'session_id': 'test-session-id'},
-        fromJson: any(named: 'fromJson'),
-      )).called(1);
+      verify(
+        () => mockApiClient.post<ApiResponse<WorkoutSession>>(
+          ApiConstants.workoutFinish,
+          body: {'workoutSessionId': 'test-session-id'},
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).called(1);
     });
   });
 
@@ -420,15 +469,19 @@ void main() {
 
   group('getHistory', () {
     test('returns sessions without cursor', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutHistory,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'sessions': [workoutSessionJson(id: 'h-1')],
-              'has_more': false,
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {
+            'sessions': [workoutSessionJson(id: 'h-1')],
+            'has_more': false,
+          },
+        },
+      );
 
       final (:sessions, :hasMore) = await remoteSource.getHistory();
 
@@ -438,34 +491,41 @@ void main() {
     });
 
     test('includes cursor in query params when provided', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutHistory,
-            queryParams: {'limit': 20, 'cursor': 'cursor-1'},
-          )).thenAnswer((_) async => {
-            'data': {
-              'sessions': [workoutSessionJson()],
-              'has_more': false,
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: {'limit': 20, 'cursor': 'cursor-1'},
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {
+            'sessions': [workoutSessionJson()],
+            'has_more': false,
+          },
+        },
+      );
 
       await remoteSource.getHistory(cursor: 'cursor-1');
 
-      verify(() => mockApiClient.get<Map<String, dynamic>>(
-        ApiConstants.workoutHistory,
-        queryParams: {'limit': 20, 'cursor': 'cursor-1'},
-      )).called(1);
+      verify(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: {'limit': 20, 'cursor': 'cursor-1'},
+        ),
+      ).called(1);
     });
 
     test('returns empty list when response has no sessions', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutHistory,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'sessions': <Map<String, dynamic>>[],
-              'has_more': false,
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {'sessions': <Map<String, dynamic>>[], 'has_more': false},
+        },
+      );
 
       final (:sessions, :hasMore) = await remoteSource.getHistory();
 
@@ -474,15 +534,19 @@ void main() {
     });
 
     test('hasMore is true when response has_more is true', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutHistory,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'sessions': [workoutSessionJson()],
-              'has_more': true,
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {
+            'sessions': [workoutSessionJson()],
+            'has_more': true,
+          },
+        },
+      );
 
       final (:sessions, :hasMore) = await remoteSource.getHistory();
 
@@ -491,14 +555,18 @@ void main() {
     });
 
     test('hasMore is false when response has_more is null', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.workoutHistory,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'sessions': [workoutSessionJson()],
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {
+            'sessions': [workoutSessionJson()],
+          },
+        },
+      );
 
       final (:sessions, :hasMore) = await remoteSource.getHistory();
 
@@ -507,22 +575,25 @@ void main() {
     });
 
     test('calls correct endpoint with default limit', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            any(),
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => {
-            'data': {
-              'sessions': <Map<String, dynamic>>[],
-              'has_more': false,
-            },
-          });
+      when(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          any(),
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'data': {'sessions': <Map<String, dynamic>>[], 'has_more': false},
+        },
+      );
 
       await remoteSource.getHistory();
 
-      verify(() => mockApiClient.get<Map<String, dynamic>>(
-        ApiConstants.workoutHistory,
-        queryParams: {'limit': 20},
-      )).called(1);
+      verify(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.workoutHistory,
+          queryParams: {'limit': 20},
+        ),
+      ).called(1);
     });
   });
 
@@ -531,30 +602,18 @@ void main() {
   // ===========================================================================
 
   group('startRest', () {
-    test('includes session_id and completes successfully', () async {
-      when(() => mockApiClient.post(
-            ApiConstants.workoutRestStart,
-            body: {'session_id': 'test-session-id'},
-          )).thenAnswer((_) async => <String, dynamic>{});
-
-      await expectLater(
-        remoteSource.startRest('test-session-id'),
-        completes,
-      );
-    });
-
-    test('calls correct endpoint', () async {
-      when(() => mockApiClient.post(
-            any(),
-            body: any(named: 'body'),
-          )).thenAnswer((_) async => <String, dynamic>{});
+    test('calls correct endpoint without body', () async {
+      when(
+        () => mockApiClient.post(any(), body: any(named: 'body')),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await remoteSource.startRest('test-session-id');
 
-      verify(() => mockApiClient.post(
-        ApiConstants.workoutRestStart,
-        body: {'session_id': 'test-session-id'},
-      )).called(1);
+      verify(
+        () => mockApiClient.post(
+          ApiConstants.workoutRestStart('test-session-id'),
+        ),
+      ).called(1);
     });
   });
 
@@ -563,30 +622,17 @@ void main() {
   // ===========================================================================
 
   group('endRest', () {
-    test('includes session_id and completes successfully', () async {
-      when(() => mockApiClient.post(
-            ApiConstants.workoutRestEnd,
-            body: {'session_id': 'test-session-id'},
-          )).thenAnswer((_) async => <String, dynamic>{});
-
-      await expectLater(
-        remoteSource.endRest('test-session-id'),
-        completes,
-      );
-    });
-
-    test('calls correct endpoint', () async {
-      when(() => mockApiClient.post(
-            any(),
-            body: any(named: 'body'),
-          )).thenAnswer((_) async => <String, dynamic>{});
+    test('calls correct endpoint without body', () async {
+      when(
+        () => mockApiClient.post(any(), body: any(named: 'body')),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await remoteSource.endRest('test-session-id');
 
-      verify(() => mockApiClient.post(
-        ApiConstants.workoutRestEnd,
-        body: {'session_id': 'test-session-id'},
-      )).called(1);
+      verify(
+        () =>
+            mockApiClient.post(ApiConstants.workoutRestEnd('test-session-id')),
+      ).called(1);
     });
   });
 
@@ -595,30 +641,16 @@ void main() {
   // ===========================================================================
 
   group('cancelWorkout', () {
-    test('includes session_id and completes successfully', () async {
-      when(() => mockApiClient.post(
-            ApiConstants.workoutCancel,
-            body: {'session_id': 'test-session-id'},
-          )).thenAnswer((_) async => <String, dynamic>{});
-
-      await expectLater(
-        remoteSource.cancelWorkout('test-session-id'),
-        completes,
-      );
-    });
-
-    test('calls correct endpoint', () async {
-      when(() => mockApiClient.post(
-            any(),
-            body: any(named: 'body'),
-          )).thenAnswer((_) async => <String, dynamic>{});
+    test('calls correct endpoint without body', () async {
+      when(
+        () => mockApiClient.post(any(), body: any(named: 'body')),
+      ).thenAnswer((_) async => <String, dynamic>{});
 
       await remoteSource.cancelWorkout('test-session-id');
 
-      verify(() => mockApiClient.post(
-        ApiConstants.workoutCancel,
-        body: {'session_id': 'test-session-id'},
-      )).called(1);
+      verify(
+        () => mockApiClient.post(ApiConstants.workoutCancel('test-session-id')),
+      ).called(1);
     });
   });
 }

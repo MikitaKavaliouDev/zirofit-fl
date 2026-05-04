@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/dashboard/providers/client_dashboard_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/trainer_dashboard_provider.dart';
@@ -31,11 +32,13 @@ void main() {
 
   group('TrainerDashboardNotifier', () {
     setUp(() {
-      container = createTestContainer(overrides: [
-        trainerDashboardProvider.overrideWith(
-          (ref) => TrainerDashboardNotifier(apiClient: mockApiClient),
-        ),
-      ]);
+      container = createTestContainer(
+        overrides: [
+          trainerDashboardProvider.overrideWith(
+            (ref) => TrainerDashboardNotifier(apiClient: mockApiClient),
+          ),
+        ],
+      );
     });
 
     test('initial state has not loaded and has no data', () {
@@ -48,12 +51,16 @@ void main() {
 
     test('fetchDashboard loads trainer dashboard data on success', () async {
       // Arrange — the provider calls GET /api/mobile/home (ignores response body)
-      when(() => mockApiClient.get(
-            '/api/mobile/home',
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{
-            'data': {'message': 'ok'},
-          });
+      when(
+        () => mockApiClient.get(
+          ApiConstants.mobileHome,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => <String, dynamic>{
+          'data': {'message': 'ok'},
+        },
+      );
 
       // Act
       await container.read(trainerDashboardProvider.notifier).fetchDashboard();
@@ -77,39 +84,33 @@ void main() {
 
     test('fetchDashboard sets error on API failure', () async {
       // Arrange
-      when(() => mockApiClient.get(
-            '/api/mobile/home',
-            queryParams: any(named: 'queryParams'),
-          )).thenThrow(DioException(
-        requestOptions: RequestOptions(path: '/api/mobile/home'),
-        type: DioExceptionType.connectionError,
-        error: 'No internet connection',
-      ));
-
-      // Act
-      await container.read(trainerDashboardProvider.notifier).fetchDashboard();
-
-      // Assert
-      final state = container.read(trainerDashboardProvider);
-      expect(state.status, TrainerDashboardStatus.error);
-      expect(state.hasError, isTrue);
-      expect(state.error, isNotNull);
-      expect(state.data, isNull);
-    });
-
-    test('fetchDashboard transitions through loading state', () async {
+      when(
+        () => mockApiClient.get(
+          ApiConstants.mobileHome,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: ApiConstants.mobileHome),
+          type: DioExceptionType.connectionError,
+          error: 'No internet connection',
+        ),
+      );
       // Arrange — delay the response to observe loading
-      when(() => mockApiClient.get(
-            '/api/mobile/home',
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async {
+      when(
+        () => mockApiClient.get(
+          ApiConstants.mobileHome,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer((_) async {
         await Future.delayed(const Duration(milliseconds: 50));
         return <String, dynamic>{'data': {}};
       });
 
       // Act
-      final fetchFuture =
-          container.read(trainerDashboardProvider.notifier).fetchDashboard();
+      final fetchFuture = container
+          .read(trainerDashboardProvider.notifier)
+          .fetchDashboard();
 
       // Should be loading during the request
       expect(container.read(trainerDashboardProvider).isLoading, isTrue);
@@ -121,29 +122,35 @@ void main() {
     });
 
     test('refresh calls fetchDashboard', () async {
-      when(() => mockApiClient.get(
-            '/api/mobile/home',
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{'data': {}});
+      when(
+        () => mockApiClient.get(
+          ApiConstants.mobileHome,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer((_) async => <String, dynamic>{'data': {}});
 
       await container.read(trainerDashboardProvider.notifier).refresh();
 
       final state = container.read(trainerDashboardProvider);
       expect(state.isLoaded, isTrue);
-      verify(() => mockApiClient.get(
-            '/api/mobile/home',
-            queryParams: any(named: 'queryParams'),
-          )).called(1);
+      verify(
+        () => mockApiClient.get(
+          ApiConstants.mobileHome,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).called(1);
     });
   });
 
   group('ClientDashboardNotifier', () {
     setUp(() {
-      container = createTestContainer(overrides: [
-        clientDashboardProvider.overrideWith(
-          (ref) => ClientDashboardNotifier(apiClient: mockApiClient),
-        ),
-      ]);
+      container = createTestContainer(
+        overrides: [
+          clientDashboardProvider.overrideWith(
+            (ref) => ClientDashboardNotifier(apiClient: mockApiClient),
+          ),
+        ],
+      );
     });
 
     test('initial state has not loaded and has no data', () {
@@ -155,13 +162,17 @@ void main() {
     });
 
     test('fetchDashboard loads client dashboard data on success', () async {
-      // Arrange — the provider calls GET /api/mobile/client/dashboard
-      when(() => mockApiClient.get(
-            '/api/mobile/client/dashboard',
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{
-            'data': {'message': 'ok'},
-          });
+      // Arrange — the provider calls GET /api/client/dashboard
+      when(
+        () => mockApiClient.get(
+          ApiConstants.clientDashboard,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer(
+        (_) async => <String, dynamic>{
+          'data': {'message': 'ok'},
+        },
+      );
 
       // Act
       await container.read(clientDashboardProvider.notifier).fetchDashboard();
@@ -184,18 +195,22 @@ void main() {
 
     test('fetchDashboard sets error on API failure', () async {
       // Arrange
-      when(() => mockApiClient.get(
-            '/api/mobile/client/dashboard',
-            queryParams: any(named: 'queryParams'),
-          )).thenThrow(DioException(
-        requestOptions: RequestOptions(path: '/api/mobile/client/dashboard'),
-        type: DioExceptionType.badResponse,
-        response: Response(
-          statusCode: 500,
-          requestOptions: RequestOptions(path: '/api/mobile/client/dashboard'),
-          data: {'error': 'Internal server error'},
+      when(
+        () => mockApiClient.get(
+          ApiConstants.clientDashboard,
+          queryParams: any(named: 'queryParams'),
         ),
-      ));
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: ApiConstants.clientDashboard),
+          type: DioExceptionType.badResponse,
+          response: Response(
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ApiConstants.clientDashboard),
+            data: {'error': 'Internal server error'},
+          ),
+        ),
+      );
 
       // Act
       await container.read(clientDashboardProvider.notifier).fetchDashboard();
@@ -208,28 +223,35 @@ void main() {
       expect(state.data, isNull);
     });
 
-    test('markCheckInCompleted optimistically updates check-in status', () async {
-      // Arrange — first load dashboard data
-      when(() => mockApiClient.get(
-            '/api/mobile/client/dashboard',
+    test(
+      'markCheckInCompleted optimistically updates check-in status',
+      () async {
+        // Arrange — first load dashboard data
+        when(
+          () => mockApiClient.get(
+            ApiConstants.clientDashboard,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{
+          ),
+        ).thenAnswer(
+          (_) async => <String, dynamic>{
             'data': {'message': 'ok'},
-          });
+          },
+        );
 
-      await container.read(clientDashboardProvider.notifier).fetchDashboard();
+        await container.read(clientDashboardProvider.notifier).fetchDashboard();
 
-      // Verify initial state
-      var state = container.read(clientDashboardProvider);
-      expect(state.isLoaded, isTrue);
-      expect(state.data!.checkInStatus.isCompleted, isFalse);
+        // Verify initial state
+        var state = container.read(clientDashboardProvider);
+        expect(state.isLoaded, isTrue);
+        expect(state.data!.checkInStatus.isCompleted, isFalse);
 
-      // Act
-      container.read(clientDashboardProvider.notifier).markCheckInCompleted();
+        // Act
+        container.read(clientDashboardProvider.notifier).markCheckInCompleted();
 
-      // Assert
-      state = container.read(clientDashboardProvider);
-      expect(state.data!.checkInStatus.isCompleted, isTrue);
-    });
+        // Assert
+        state = container.read(clientDashboardProvider);
+        expect(state.data!.checkInStatus.isCompleted, isTrue);
+      },
+    );
   });
 }

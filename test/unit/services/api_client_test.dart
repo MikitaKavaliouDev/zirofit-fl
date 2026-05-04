@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/core/network/secure_storage.dart';
 
@@ -34,9 +35,9 @@ void main() {
       final storage = SecureStorage();
       ApiClient.configure(secureStorage: storage);
       final client = ApiClient.instance;
-      expect(client.dio.options.baseUrl, 'https://www.ziro.fit/api');
-      expect(client.dio.options.connectTimeout, const Duration(seconds: 30));
-      expect(client.dio.options.receiveTimeout, const Duration(seconds: 60));
+      expect(client.dio.options.baseUrl, ApiConstants.baseUrl);
+      expect(client.dio.options.connectTimeout, ApiConstants.connectTimeout);
+      expect(client.dio.options.receiveTimeout, ApiConstants.receiveTimeout);
     });
 
     test('configured client has auth and retry interceptors', () {

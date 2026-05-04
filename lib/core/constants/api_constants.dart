@@ -1,7 +1,26 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'https://www.ziro.fit/api';
+  static const bool useLocal = bool.fromEnvironment(
+    'LOCAL',
+    defaultValue: false,
+  );
+  static const String _prodUrl = 'https://www.ziro.fit/api';
+
+  static String get baseUrl {
+    if (useLocal) {
+      // Android emulators see the host loopback at 10.0.2.2
+      if (!kIsWeb && Platform.isAndroid) {
+        return 'http://10.0.2.2:3321/api';
+      }
+      return 'http://localhost:3321/api';
+    }
+    return const String.fromEnvironment('API_BASE_URL', defaultValue: _prodUrl);
+  }
+
   static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 60);
 
@@ -14,6 +33,7 @@ class ApiConstants {
   static const String syncUser = '/auth/sync-user';
   static const String forgotPassword = '/auth/forgot-password';
   static const String updatePassword = '/auth/update-password';
+  static const String completeOnboarding = '/auth/complete-onboarding';
 
   // Sync
   static const String syncPull = '/sync/pull';
@@ -24,13 +44,15 @@ class ApiConstants {
   static const String workoutFinish = '/workout-sessions/finish';
   static const String workoutLive = '/workout-sessions/live';
   static const String workoutHistory = '/workout-sessions/history';
-  static const String workoutRestStart = '/workout-sessions/rest/start';
-  static const String workoutRestEnd = '/workout-sessions/rest/end';
-  static const String workoutCancel = '/workout-sessions/cancel';
+  static String workoutRestStart(String id) =>
+      '/workout-sessions/$id/rest/start';
+  static String workoutRestEnd(String id) => '/workout-sessions/$id/rest/end';
+  static String workoutCancel(String id) => '/workout-sessions/$id/cancel';
 
   // Clients
   static const String clients = '/clients';
   static const String exercises = '/exercises';
+  static const String clientDashboard = '/client/dashboard';
 
   // Explore
   static const String exploreFeatured = '/explore/featured';
@@ -52,15 +74,15 @@ class ApiConstants {
   // Habits
   static const String clientHabits = '/client/habits';
   static String logHabit(String id) => '/client/habits/$id/log';
-  static String trainerClientHabits(String cId) => '/trainer/clients/$cId/habits';
+  static String trainerClientHabits(String cId) =>
+      '/trainer/clients/$cId/habits';
 
   // Check-Ins
   static const String clientCheckIn = '/client/check-in';
   static const String trainerCheckIns = '/trainer/check-ins';
 
   /// Builds the trainer check-in detail path.
-  static String trainerCheckInDetail(String id) =>
-      '/trainer/check-ins/$id';
+  static String trainerCheckInDetail(String id) => '/trainer/check-ins/$id';
 
   /// Builds the trainer check-in review path.
   static String trainerCheckInReview(String id) =>
@@ -72,8 +94,10 @@ class ApiConstants {
   // Nutrition / Recipes
   static const String trainerRecipes = '/trainer/recipes';
   static String trainerRecipe(String id) => '/trainer/recipes/$id';
-  static String templateExercises(String tId) => '/trainer/programs/templates/$tId/exercises';
-  static String templateCopy(String tId) => '/trainer/programs/templates/$tId/copy';
+  static String templateExercises(String tId) =>
+      '/trainer/programs/templates/$tId/exercises';
+  static String templateCopy(String tId) =>
+      '/trainer/programs/templates/$tId/copy';
 
   // Chat
   static const String chat = '/chat';
@@ -92,7 +116,8 @@ class ApiConstants {
   // Resource Vault
   static const String trainerResourceVault = '/trainer/resource-vault';
   static String trainerResource(String id) => '/trainer/resource-vault/$id';
-  static String assignResource(String id) => '/trainer/resource-vault/$id/assign';
+  static String assignResource(String id) =>
+      '/trainer/resource-vault/$id/assign';
 
   // Billing
   static const String createCheckoutSession = '/checkout/session';
@@ -109,7 +134,8 @@ class ApiConstants {
   // Calendar & Scheduling
   static const String trainerCalendar = '/trainer/calendar';
   static String calendarSession(String id) => '/trainer/calendar/$id';
-  static String sessionRemind(String id) => '/trainer/calendar/sessions/$id/remind';
+  static String sessionRemind(String id) =>
+      '/trainer/calendar/sessions/$id/remind';
   static const String clientsSummary = '/trainer/calendar/clients-summary';
   static const String sessionCreationData = '/trainer/session-creation-data';
 
@@ -123,9 +149,10 @@ class ApiConstants {
   static const String adminTickets = '/admin/tickets';
   static String adminTicket(String id) => '/admin/tickets/$id';
 
-  // AI Coach
+  // AI Coach & Mobile
   static const String aiCoachGenerate = '/mobile/ai-coach/generate';
   static const String aiCoachRefine = '/mobile/ai-coach/refine';
+  static const String mobileHome = '/mobile/home';
 
   // Support Tickets
   static const String supportTickets = '/support/tickets';

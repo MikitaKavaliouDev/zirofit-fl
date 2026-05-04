@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
@@ -191,8 +192,8 @@ class ClientDashboardNotifier extends StateNotifier<ClientDashboardState> {
   final ApiClient _apiClient;
 
   ClientDashboardNotifier({required ApiClient apiClient})
-      : _apiClient = apiClient,
-        super(const ClientDashboardState());
+    : _apiClient = apiClient,
+      super(const ClientDashboardState());
 
   /// Fetch dashboard data - uses mock data for now
   Future<void> fetchDashboard() async {
@@ -206,14 +207,11 @@ class ClientDashboardNotifier extends StateNotifier<ClientDashboardState> {
       await Future.delayed(const Duration(milliseconds: 600));
 
       // Call API (mocked in tests; returns mock data until backend is ready)
-      await _apiClient.get('/api/mobile/client/dashboard');
+      await _apiClient.get(ApiConstants.clientDashboard);
 
       final data = ClientDashboardData.mock();
 
-      state = state.copyWith(
-        status: ClientDashboardStatus.loaded,
-        data: data,
-      );
+      state = state.copyWith(status: ClientDashboardStatus.loaded, data: data);
     } catch (e) {
       state = state.copyWith(
         status: ClientDashboardStatus.error,
@@ -251,8 +249,8 @@ class ClientDashboardNotifier extends StateNotifier<ClientDashboardState> {
 // Provider
 // ---------------------------------------------------------------------------
 
-final clientDashboardProvider = StateNotifierProvider<
-    ClientDashboardNotifier, ClientDashboardState>((ref) {
-  final apiClient = ApiClient.instance;
-  return ClientDashboardNotifier(apiClient: apiClient);
-});
+final clientDashboardProvider =
+    StateNotifierProvider<ClientDashboardNotifier, ClientDashboardState>((ref) {
+      final apiClient = ApiClient.instance;
+      return ClientDashboardNotifier(apiClient: apiClient);
+    });

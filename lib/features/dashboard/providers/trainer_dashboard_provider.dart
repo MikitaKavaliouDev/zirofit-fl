@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
@@ -65,13 +66,7 @@ class ActivityItem {
   }
 }
 
-enum ActivityType {
-  checkIn,
-  session,
-  client,
-  payment,
-  other,
-}
+enum ActivityType { checkIn, session, client, payment, other }
 
 /// Complete trainer dashboard data
 class TrainerDashboardData {
@@ -257,8 +252,8 @@ class TrainerDashboardNotifier extends StateNotifier<TrainerDashboardState> {
   final ApiClient _apiClient;
 
   TrainerDashboardNotifier({required ApiClient apiClient})
-      : _apiClient = apiClient,
-        super(const TrainerDashboardState());
+    : _apiClient = apiClient,
+      super(const TrainerDashboardState());
 
   /// Fetch dashboard data - uses mock data for now
   Future<void> fetchDashboard() async {
@@ -272,14 +267,11 @@ class TrainerDashboardNotifier extends StateNotifier<TrainerDashboardState> {
       await Future.delayed(const Duration(milliseconds: 800));
 
       // Call API (mocked in tests; returns mock data until backend is ready)
-      await _apiClient.get('/mobile/home');
+      await _apiClient.get(ApiConstants.mobileHome);
 
       final data = TrainerDashboardData.mock();
 
-      state = state.copyWith(
-        status: TrainerDashboardStatus.loaded,
-        data: data,
-      );
+      state = state.copyWith(status: TrainerDashboardStatus.loaded, data: data);
     } catch (e) {
       state = state.copyWith(
         status: TrainerDashboardStatus.error,
@@ -298,8 +290,10 @@ class TrainerDashboardNotifier extends StateNotifier<TrainerDashboardState> {
 // Provider
 // ---------------------------------------------------------------------------
 
-final trainerDashboardProvider = StateNotifierProvider<
-    TrainerDashboardNotifier, TrainerDashboardState>((ref) {
-  final apiClient = ApiClient.instance;
-  return TrainerDashboardNotifier(apiClient: apiClient);
-});
+final trainerDashboardProvider =
+    StateNotifierProvider<TrainerDashboardNotifier, TrainerDashboardState>((
+      ref,
+    ) {
+      final apiClient = ApiClient.instance;
+      return TrainerDashboardNotifier(apiClient: apiClient);
+    });

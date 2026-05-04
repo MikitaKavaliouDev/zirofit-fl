@@ -33,11 +33,11 @@ class User {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'name': name,
-        'emailConfirmedAt': emailConfirmedAt,
-      };
+    'id': id,
+    'email': email,
+    'name': name,
+    'emailConfirmedAt': emailConfirmedAt,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -112,8 +112,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient.instance;
 });
 
-final authProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   final secureStorage = ref.watch(secureStorageProvider);
   return AuthNotifier(apiClient: apiClient, secureStorage: secureStorage);
@@ -130,9 +129,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier({
     required ApiClient apiClient,
     required SecureStorage secureStorage,
-  })  : _apiClient = apiClient,
-        _secureStorage = secureStorage,
-        super(const AuthState());
+  }) : _apiClient = apiClient,
+       _secureStorage = secureStorage,
+       super(const AuthState());
 
   // -- Initialize: check stored tokens, attempt auto-login --
 
@@ -191,15 +190,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: role ?? meData['role'] as String?,
         hasCompletedOnboarding:
             meData['hasCompletedOnboarding'] as bool? ?? false,
-        isFreeAccessMode:
-            meData['isFreeAccessModeEnabled'] as bool? ?? false,
+        isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
         tier: meData['tier'] as String?,
       );
 
       return AsyncValue.data(user);
     } catch (e, st) {
       final message = _extractErrorMessage(e);
-      state = state.copyWith(status: AuthStatus.unauthenticated, error: message);
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: message,
+      );
       return AsyncValue.error(message, st);
     }
   }
@@ -230,7 +231,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return const AsyncValue.data(null);
     } catch (e, st) {
       final message = _extractErrorMessage(e);
-      state = state.copyWith(status: AuthStatus.unauthenticated, error: message);
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: message,
+      );
       return AsyncValue.error(message, st);
     }
   }
@@ -299,8 +303,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: meData['role'] as String?,
         hasCompletedOnboarding:
             meData['hasCompletedOnboarding'] as bool? ?? false,
-        isFreeAccessMode:
-            meData['isFreeAccessModeEnabled'] as bool? ?? false,
+        isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
         tier: meData['tier'] as String?,
       );
     } catch (e) {
@@ -356,7 +359,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> completeOnboarding() async {
     try {
-      await _apiClient.post('/auth/complete-onboarding');
+      await _apiClient.post(ApiConstants.completeOnboarding);
       state = state.copyWith(hasCompletedOnboarding: true);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
@@ -368,8 +371,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<Map<String, dynamic>> fetchMe() async {
     final Map<String, dynamic> response = await _apiClient.get(ApiConstants.me);
-    return (response['data'] as Map<String, dynamic>?)
-        ?? (response);
+    return (response['data'] as Map<String, dynamic>?) ?? (response);
   }
 
   // -- Helpers --

@@ -16,8 +16,7 @@ final workoutRemoteSourceProvider = Provider<WorkoutRemoteSource>((ref) {
 class WorkoutRemoteSource {
   final ApiClient _apiClient;
 
-  WorkoutRemoteSource({required ApiClient apiClient})
-      : _apiClient = apiClient;
+  WorkoutRemoteSource({required ApiClient apiClient}) : _apiClient = apiClient;
 
   /// POST /api/workout-sessions/start
   /// Starts a new workout session, optionally from a template.
@@ -30,8 +29,7 @@ class WorkoutRemoteSource {
     final response = await _apiClient.post<ApiResponse<WorkoutSession>>(
       ApiConstants.workoutStart,
       body: body,
-      fromJson: (json) =>
-          ApiResponse.fromJson(json, WorkoutSession.fromJson),
+      fromJson: (json) => ApiResponse.fromJson(json, WorkoutSession.fromJson),
     );
 
     if (response.data == null) {
@@ -43,18 +41,18 @@ class WorkoutRemoteSource {
   /// GET /api/workout-sessions/live
   /// Returns the currently active workout session and its exercise logs.
   Future<({WorkoutSession session, List<ClientExerciseLog> logs})>
-      getActiveSession() async {
-    final response =
-        await _apiClient.get<Map<String, dynamic>>(
+  getActiveSession() async {
+    final response = await _apiClient.get<Map<String, dynamic>>(
       ApiConstants.workoutLive,
     );
 
     final data = response['data'] as Map<String, dynamic>? ?? response;
-    final session =
-        WorkoutSession.fromJson(data['session'] as Map<String, dynamic>);
-    final logsList = (data['logs'] as List<dynamic>?)
-            ?.map((e) =>
-                ClientExerciseLog.fromJson(e as Map<String, dynamic>))
+    final session = WorkoutSession.fromJson(
+      data['session'] as Map<String, dynamic>,
+    );
+    final logsList =
+        (data['logs'] as List<dynamic>?)
+            ?.map((e) => ClientExerciseLog.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
 
@@ -70,9 +68,7 @@ class WorkoutRemoteSource {
     String? side,
     int? order,
   }) async {
-    final body = <String, dynamic>{
-      'exercise_id': exerciseId,
-    };
+    final body = <String, dynamic>{'exercise_id': exerciseId};
     if (reps != null) body['reps'] = reps;
     if (weight != null) body['weight'] = weight;
     if (side != null) body['side'] = side;
@@ -96,9 +92,8 @@ class WorkoutRemoteSource {
   Future<WorkoutSession> finishWorkout(String sessionId) async {
     final response = await _apiClient.post<ApiResponse<WorkoutSession>>(
       ApiConstants.workoutFinish,
-      body: {'session_id': sessionId},
-      fromJson: (json) =>
-          ApiResponse.fromJson(json, WorkoutSession.fromJson),
+      body: {'workoutSessionId': sessionId},
+      fromJson: (json) => ApiResponse.fromJson(json, WorkoutSession.fromJson),
     );
 
     if (response.data == null) {
@@ -113,23 +108,20 @@ class WorkoutRemoteSource {
     String? cursor,
     int limit = 20,
   }) async {
-    final queryParams = <String, dynamic>{
-      'limit': limit,
-    };
+    final queryParams = <String, dynamic>{'limit': limit};
     if (cursor != null) {
       queryParams['cursor'] = cursor;
     }
 
-    final response =
-        await _apiClient.get<Map<String, dynamic>>(
+    final response = await _apiClient.get<Map<String, dynamic>>(
       ApiConstants.workoutHistory,
       queryParams: queryParams,
     );
 
     final data = response['data'] as Map<String, dynamic>? ?? response;
-    final sessions = (data['sessions'] as List<dynamic>?)
-            ?.map((e) =>
-                WorkoutSession.fromJson(e as Map<String, dynamic>))
+    final sessions =
+        (data['sessions'] as List<dynamic>?)
+            ?.map((e) => WorkoutSession.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
     final hasMore = (data['has_more'] as bool?) ?? false;
@@ -140,27 +132,18 @@ class WorkoutRemoteSource {
   /// POST /api/workout-sessions/rest/start
   /// Starts the rest timer for a workout session.
   Future<void> startRest(String sessionId) async {
-    await _apiClient.post(
-      ApiConstants.workoutRestStart,
-      body: {'session_id': sessionId},
-    );
+    await _apiClient.post(ApiConstants.workoutRestStart(sessionId));
   }
 
   /// POST /api/workout-sessions/rest/end
   /// Ends the rest timer for a workout session.
   Future<void> endRest(String sessionId) async {
-    await _apiClient.post(
-      ApiConstants.workoutRestEnd,
-      body: {'session_id': sessionId},
-    );
+    await _apiClient.post(ApiConstants.workoutRestEnd(sessionId));
   }
 
   /// POST /api/workout-sessions/cancel
   /// Cancels/abandons the workout session.
   Future<void> cancelWorkout(String sessionId) async {
-    await _apiClient.post(
-      ApiConstants.workoutCancel,
-      body: {'session_id': sessionId},
-    );
+    await _apiClient.post(ApiConstants.workoutCancel(sessionId));
   }
 }
