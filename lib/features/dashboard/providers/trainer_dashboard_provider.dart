@@ -272,7 +272,7 @@ class TrainerDashboardNotifier extends StateNotifier<TrainerDashboardState> {
       await Future.delayed(const Duration(milliseconds: 800));
 
       // Call API (mocked in tests; returns mock data until backend is ready)
-      await _apiClient.get('/api/mobile/home');
+      await _apiClient.get('/mobile/home');
 
       final data = TrainerDashboardData.mock();
 
