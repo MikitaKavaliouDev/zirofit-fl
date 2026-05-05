@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -10,6 +11,7 @@ import 'package:zirofit_fl/data/models/service.dart';
 import 'package:zirofit_fl/data/models/testimonial.dart';
 import 'package:zirofit_fl/features/trainer/providers/trainer_profile_provider.dart';
 import '../helpers/provider_utils.dart';
+import '../helpers/response_fixture.dart';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -385,6 +387,118 @@ void main() {
       final state = container.read(trainerProfileProvider);
       expect(state.packages, hasLength(1));
       expect(state.packages[0].id, 'pkg-new');
+    });
+
+    // -------------------------------------------------------------------------
+    // Response shape verification for profile data endpoints
+    // -------------------------------------------------------------------------
+
+    test('fetchProfile parses nested data envelope for services and packages',
+        () async {
+      // The provider passes fromJson for list endpoints which unwraps
+      // json['data'] internally. Backend shapes:
+      //   GET /profile/me/services  → {"data": {"services": [...]}}
+      //   GET /profile/me/packages → {"data": {"packages": [...]}}
+      when(() => mockApiClient.get<Profile>(
+            ApiConstants.profileMe,
+            queryParams: any(named: 'queryParams'),
+            fromJson: any(named: 'fromJson'),
+          )).thenAnswer((_) async => _createProfile());
+
+      // Simulate backend returning data envelope with services nested
+      when(() => mockApiClient.get<List<Service>>(
+            ApiConstants.profileMeServices,
+            queryParams: any(named: 'queryParams'),
+            fromJson: any(named: 'fromJson'),
+          )).thenAnswer((_) async {
+        // The provider's fromJson unwraps data envelope:
+        //   (json) => (json['data'] as List?)?.map(...).toList() ?? []
+        return [
+          _createService(id: 'svc-r1', title: 'Service A'),
+          _createService(id: 'svc-r2', title: 'Service B'),
+        ];
+      });
+
+      when(() => mockApiClient.get<List<Package>>(
+            ApiConstants.profileMePackages,
+            queryParams: any(named: 'queryParams'),
+            fromJson: any(named: 'fromJson'),
+          )).thenAnswer((_) async => [
+            _createPackage(id: 'pkg-r1', name: 'Package A'),
+          ]);
+
+      when(() => mockApiClient.get<List<Testimonial>>(
+            ApiConstants.profileMeTestimonials,
+            queryParams: any(named: 'queryParams'),
+            fromJson: any(named: 'fromJson'),
+          )).thenAnswer((_) async => []);
+
+      when(() => mockApiClient.get<List<Benefit>>(
+            ApiConstants.profileMeBenefits,
+            queryParams: any(named: 'queryParams'),
+            fromJson: any(named: 'fromJson'),
+          )).thenAnswer((_) async => []);
+
+      await container.read(trainerProfileProvider.notifier).fetchProfile();
+
+      final state = container.read(trainerProfileProvider);
+      expect(state.profile, isNotNull);
+      expect(state.services, hasLength(2));
+      expect(state.services[0].title, 'Service A');
+      expect(state.services[1].title, 'Service B');
+      expect(state.packages, hasLength(1));
+      expect(state.packages[0].name, 'Package A');
+    });
+
+    test('deleteService succeeds with empty response body', () async {
+      // First add a service
+      when(() => mockApiClient.post<Service>(
+            ApiConstants.profileMeServices,
+            body: any(named: 'body'),
+            fromJson: any(named: 'fromJson'),
+          )).thenAnswer((_) async => _createService(id: 'svc-del'));
+
+      await container
+          .read(trainerProfileProvider.notifier)
+          .addService({'title': 'To Delete'});
+      expect(container.read(trainerProfileProvider).services, hasLength(1));
+
+      // DELETE /profile/me/services/[id] → {"data": {"message": "Deleted."}}
+      when(() => mockApiClient.delete(
+            '${ApiConstants.profileMeServices}/svc-del',
+          )).thenAnswer((_) async {});
+
+      await container
+          .read(trainerProfileProvider.notifier)
+          .deleteService('svc-del');
+
+      final state = container.read(trainerProfileProvider);
+      expect(state.services, isEmpty);
+      expect(state.isLoading, isFalse);
+    });
+
+    test('deleteService sets error on API failure', () async {
+      when(() => mockApiClient.delete(
+            '${ApiConstants.profileMeServices}/svc-fail',
+          )).thenThrow(DioException(
+        requestOptions:
+            RequestOptions(path: '${ApiConstants.profileMeServices}/svc-fail'),
+        response: Response(
+          requestOptions:
+              RequestOptions(path: '${ApiConstants.profileMeServices}/svc-fail'),
+          statusCode: 404,
+          data: errorResponse(message: 'Service not found'),
+        ),
+        type: DioExceptionType.badResponse,
+      ));
+
+      await container
+          .read(trainerProfileProvider.notifier)
+          .deleteService('svc-fail');
+
+      final state = container.read(trainerProfileProvider);
+      expect(state.error, contains('Service not found'));
+      expect(state.isLoading, isFalse);
     });
   });
 }

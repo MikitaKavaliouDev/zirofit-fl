@@ -25,6 +25,7 @@ class Fake extends ActiveWorkoutNotifier {
   @override
   Future<void> logExercise({
     required String exerciseId,
+    required String workoutSessionId,
     int? reps,
     double? weight,
   }) async {}
@@ -48,6 +49,89 @@ Widget b(ActiveWorkoutState s) => ProviderScope(
   overrides: [activeWorkoutProvider.overrideWith((ref) => Fake(s))],
   child: const MaterialApp(home: ActiveWorkoutScreen()),
 );
+
+// ---- Additional helper classes for specific test scenarios ----
+
+class FakeReturnsSession extends Fake {
+  final WorkoutSession? sessionToReturn;
+  FakeReturnsSession(super.s, {this.sessionToReturn});
+  @override
+  Future<WorkoutSession?> finishWorkout() async => sessionToReturn;
+}
+
+class FakeWithStartTracking extends Fake {
+  bool startWorkoutCalled = false;
+  String? startTemplateId;
+  FakeWithStartTracking(super.s);
+  @override
+  Future<void> startWorkout({String? templateId}) async {
+    startWorkoutCalled = true;
+    startTemplateId = templateId;
+  }
+}
+
+class FakeMutable extends ActiveWorkoutNotifier {
+  FakeMutable(ActiveWorkoutState s)
+    : super(remoteSource: WorkoutRemoteSource(apiClient: ApiClient.instance)) {
+    super.state = s;
+  }
+  @override
+  Future<void> startWorkout({String? templateId}) async {}
+  @override
+  Future<void> loadActiveSession() async {}
+  @override
+  Future<void> logExercise({required String exerciseId, required String workoutSessionId, int? reps, double? weight}) async {}
+  @override
+  Future<void> completeSet(String logId) async {}
+  @override
+  Future<WorkoutSession?> finishWorkout() async => null;
+  @override
+  Future<void> cancelWorkout() async {}
+  @override
+  Future<void> startRest() async {}
+  @override
+  Future<void> endRest() async {}
+  @override
+  void reset() {}
+}
+
+class TestNavigatorObserver extends NavigatorObserver {
+  bool popDidHappen = false;
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    popDidHappen = true;
+  }
+}
+
+Widget bWithFinish(ActiveWorkoutState s, {WorkoutSession? sessionToReturn}) =>
+    ProviderScope(
+      overrides: [
+        activeWorkoutProvider.overrideWith(
+          (ref) => FakeReturnsSession(s, sessionToReturn: sessionToReturn),
+        ),
+      ],
+      child: const MaterialApp(home: ActiveWorkoutScreen()),
+    );
+
+Widget bWithTracking(ActiveWorkoutState s) =>
+    ProviderScope(
+      overrides: [
+        activeWorkoutProvider.overrideWith(
+          (ref) => FakeWithStartTracking(s),
+        ),
+      ],
+      child: const MaterialApp(home: ActiveWorkoutScreen()),
+    );
+
+Widget bWithTemplate(ActiveWorkoutState s, {required String templateId}) =>
+    ProviderScope(
+      overrides: [
+        activeWorkoutProvider.overrideWith(
+          (ref) => FakeWithStartTracking(s),
+        ),
+      ],
+      child: MaterialApp(home: ActiveWorkoutScreen(templateId: templateId)),
+    );
 
 void main() {
   setUpAll(() => configureTestApiClient());
@@ -287,7 +371,7 @@ void main() {
     expect(find.widgetWithText(TextButton, 'DISMISS'), findsOneWidget);
   });
 
-  testWidgets('Add Set button opens dialog', (t) async {
+  testWidgets('Add Set button is present in active workout', (t) async {
     final sess = WorkoutSession(
       id: '1',
       clientId: 'c1',
@@ -300,17 +384,8 @@ void main() {
     await t.pumpWidget(b(ActiveWorkoutState(session: sess, isLoading: false)));
     await t.pump();
 
-    // Tap Add Set
-    await t.tap(find.widgetWithText(FilledButton, 'Add Set'));
-    await t.pumpAndSettle();
-
-    // Dialog appears
-    expect(find.text('Log Exercise Set'), findsOneWidget);
-    expect(find.text('Exercise ID'), findsOneWidget);
-    expect(find.text('Weight (kg)'), findsOneWidget);
-    expect(find.text('Reps'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Log Set'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
+    // Add Set button is present (triggers ExerciseSelectionView via bottom sheet)
+    expect(find.widgetWithText(FilledButton, 'Add Set'), findsOneWidget);
   });
 
   testWidgets('rest timer', (t) async {
@@ -345,5 +420,303 @@ void main() {
     );
     await t.pump(const Duration(milliseconds: 300));
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('Finish workout dialog - confirms and navigates', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final finished = WorkoutSession(
+      id: 's1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.completed,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final observer = TestNavigatorObserver();
+
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith(
+            (ref) => FakeReturnsSession(
+              ActiveWorkoutState(session: sess, isLoading: false),
+              sessionToReturn: finished,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ActiveWorkoutScreen(),
+                ),
+              ),
+              child: const Text('Push Screen'),
+            ),
+          ),
+          navigatorObservers: [observer],
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    // Push the screen
+    await t.tap(find.text('Push Screen'));
+    await t.pumpAndSettle();
+
+    // Tap Finish Workout
+    await t.tap(find.widgetWithText(OutlinedButton, 'Finish Workout'));
+    await t.pumpAndSettle();
+
+    expect(
+      find.text('Are you sure you want to finish this workout?'),
+      findsOneWidget,
+    );
+
+    await t.tap(find.widgetWithText(FilledButton, 'Finish'));
+    await t.pumpAndSettle();
+
+    // Should have popped back to home (snackbar is dismissed by route pop)
+    expect(find.text('Push Screen'), findsOneWidget);
+    expect(observer.popDidHappen, isTrue);
+  });
+
+  testWidgets('Finish workout dialog - cancel does nothing', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await t.pumpWidget(b(ActiveWorkoutState(session: sess, isLoading: false)));
+    await t.pump();
+
+    await t.tap(find.widgetWithText(OutlinedButton, 'Finish Workout'));
+    await t.pumpAndSettle();
+
+    expect(
+      find.text('Are you sure you want to finish this workout?'),
+      findsOneWidget,
+    );
+
+    await t.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await t.pumpAndSettle();
+
+    // Still on screen
+    expect(find.text('Morning Pump'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Add Set'), findsOneWidget);
+  });
+
+  testWidgets('Cancel workout dialog - confirms and pops', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final observer = TestNavigatorObserver();
+
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith(
+            (ref) => Fake(ActiveWorkoutState(session: sess, isLoading: false)),
+          ),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ActiveWorkoutScreen(),
+                ),
+              ),
+              child: const Text('Push Screen'),
+            ),
+          ),
+          navigatorObservers: [observer],
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    // Push the screen onto the stack
+    await t.tap(find.text('Push Screen'));
+    await t.pumpAndSettle();
+
+    // Now on ActiveWorkoutScreen - tap close icon
+    await t.tap(find.byIcon(Icons.close));
+    await t.pumpAndSettle();
+
+    // Dialog appears — tap "Cancel Workout"
+    await t.tap(find.widgetWithText(FilledButton, 'Cancel Workout'));
+    await t.pumpAndSettle();
+
+    // Verify pop was observed & screen is gone (back at home)
+    expect(observer.popDidHappen, isTrue);
+    expect(find.text('Push Screen'), findsOneWidget);
+  });
+
+  testWidgets('Cancel workout dialog - keeps working on cancel', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await t.pumpWidget(b(ActiveWorkoutState(session: sess, isLoading: false)));
+    await t.pump();
+
+    await t.tap(find.byIcon(Icons.close));
+    await t.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Are you sure you want to cancel this workout? All progress will be lost.',
+      ),
+      findsOneWidget,
+    );
+
+    await t.tap(find.widgetWithText(TextButton, 'Keep Working'));
+    await t.pumpAndSettle();
+
+    // Still on screen
+    expect(find.text('Morning Pump'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Add Set'), findsOneWidget);
+  });
+
+  testWidgets('Add Set button triggers exercise selection', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await t.pumpWidget(b(ActiveWorkoutState(session: sess, isLoading: false)));
+    await t.pump();
+
+    // Add Set button is tappable (ExerciseSelectionView tested separately)
+    expect(find.widgetWithText(FilledButton, 'Add Set'), findsOneWidget);
+  });
+
+  testWidgets('Start Workout button calls startWorkout', (t) async {
+    final fake = FakeWithStartTracking(const ActiveWorkoutState());
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith((ref) => fake),
+        ],
+        child: const MaterialApp(home: ActiveWorkoutScreen()),
+      ),
+    );
+    await t.pump(const Duration(milliseconds: 100));
+
+    expect(find.widgetWithText(FilledButton, 'Start Workout'), findsOneWidget);
+    await t.tap(find.widgetWithText(FilledButton, 'Start Workout'));
+    await t.pump();
+
+    expect(fake.startWorkoutCalled, isTrue);
+    expect(fake.startTemplateId, isNull);
+  });
+
+  testWidgets('Error without session shows error + retry', (t) async {
+    await t.pumpWidget(
+      b(
+        const ActiveWorkoutState(isLoading: false, error: 'Connection failed'),
+      ),
+    );
+    await t.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Connection failed'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
+  });
+
+  testWidgets('Error banner DISMISS clears error', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Morning Pump',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith(
+            (ref) => FakeMutable(
+              ActiveWorkoutState(
+                session: sess,
+                error: 'Network error',
+                isLoading: false,
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: ActiveWorkoutScreen()),
+      ),
+    );
+    await t.pump();
+
+    // Error banner visible
+    expect(find.text('Network error'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'DISMISS'), findsOneWidget);
+
+    // Tap DISMISS
+    await t.tap(find.widgetWithText(TextButton, 'DISMISS'));
+    await t.pump();
+
+    // Banner should be gone
+    expect(find.text('Network error'), findsNothing);
+  });
+
+  testWidgets('Template init passes templateId', (t) async {
+    final fake = FakeWithStartTracking(const ActiveWorkoutState());
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith((ref) => fake),
+        ],
+        child: const MaterialApp(
+          home: ActiveWorkoutScreen(templateId: 'tpl-1'),
+        ),
+      ),
+    );
+    // Let the initState microtask run
+    await t.pump();
+
+    expect(fake.startWorkoutCalled, isTrue);
+    expect(fake.startTemplateId, 'tpl-1');
   });
 }

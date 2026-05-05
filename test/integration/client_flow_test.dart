@@ -51,6 +51,18 @@ Map<String, dynamic> _photoJson({String id = 'p-1'}) => {
       'updated_at': _testTimestamp,
     };
 
+Map<String, dynamic> _sessionJson({String id = 's-1'}) => {
+      'id': id,
+      'client_id': _testClientId,
+      'name': 'Test Session',
+      'start_time': _testTimestamp,
+      'end_time': _testTimestamp + 3600000,
+      'status': 'PLANNED',
+      'is_trainer_led': false,
+      'created_at': _testTimestamp,
+      'updated_at': _testTimestamp,
+    };
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -161,6 +173,46 @@ void main() {
       expect(state.clients, isEmpty);
       expect(state.isLoading, isFalse);
       expect(state.error, isNotNull);
+    });
+
+    test('inviteClient sends POST and refreshes list on success', () async {
+      // Mock POST invite
+      when(() => mockApiClient.post(
+            '/clients/invite',
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => <String, dynamic>{'data': {'id': 'c-new'}});
+
+      // Mock GET refresh (called after invite)
+      when(() => mockApiClient.get(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': [
+              _clientJson(id: 'c-new', name: 'New Client', email: 'new@test.com'),
+              _clientJson(id: 'c-1'),
+            ],
+          });
+
+      final error = await container
+          .read(clientListProvider.notifier)
+          .inviteClient(name: 'New Client', email: 'new@test.com');
+
+      expect(error, isNull);
+      final state = container.read(clientListProvider);
+      expect(state.clients, hasLength(2));
+    });
+
+    test('inviteClient returns error on API failure', () async {
+      when(() => mockApiClient.post(
+            '/clients/invite',
+            body: any(named: 'body'),
+          )).thenThrow(Exception('Already exists'));
+
+      final error = await container
+          .read(clientListProvider.notifier)
+          .inviteClient(name: 'Duplicate', email: 'dup@test.com');
+
+      expect(error, isNotNull);
     });
   });
 
@@ -287,6 +339,111 @@ void main() {
       expect(state.client, isNull);
       expect(state.isLoadingClient, isFalse);
       expect(state.error, isNotNull);
+    });
+
+    // -- Sessions tests --
+
+    test('fetchSessions loads sessions tab data', () async {
+      when(() => mockApiClient.get(
+            '/clients/$_testClientId/sessions',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': [_sessionJson(id: 's-1'), _sessionJson(id: 's-2')],
+          });
+
+      await container
+          .read(clientDetailProvider(_testClientId).notifier)
+          .fetchSessions();
+
+      final state = container.read(clientDetailProvider(_testClientId));
+      expect(state.sessions, hasLength(2));
+      expect(state.sessions[0].id, 's-1');
+      expect(state.sessions[1].name, 'Test Session');
+      expect(state.isLoadingSessions, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('fetchSessions handles empty response', () async {
+      when(() => mockApiClient.get(
+            '/clients/$_testClientId/sessions',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': [],
+          });
+
+      await container
+          .read(clientDetailProvider(_testClientId).notifier)
+          .fetchSessions();
+
+      final state = container.read(clientDetailProvider(_testClientId));
+      expect(state.sessions, isEmpty);
+      expect(state.isLoadingSessions, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('fetchSessions sets error on API failure', () async {
+      when(() => mockApiClient.get(
+            '/clients/$_testClientId/sessions',
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(Exception('API error'));
+
+      await container
+          .read(clientDetailProvider(_testClientId).notifier)
+          .fetchSessions();
+
+      final state = container.read(clientDetailProvider(_testClientId));
+      expect(state.sessions, isEmpty);
+      expect(state.isLoadingSessions, isFalse);
+      expect(state.error, isNotNull);
+    });
+
+    // -- addMeasurement tests --
+
+    test('addMeasurement creates measurement and refreshes list', () async {
+      // Mock POST (add measurement)
+      when(() => mockApiClient.post(
+            '/clients/$_testClientId/measurements',
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => <String, dynamic>{'data': {'id': 'm-new'}});
+
+      // Mock GET (refresh after add)
+      when(() => mockApiClient.get(
+            '/clients/$_testClientId/measurements',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': [
+              _measurementJson(id: 'm-new'),
+              _measurementJson(id: 'm-1'),
+            ],
+          });
+
+      final error = await container
+          .read(clientDetailProvider(_testClientId).notifier)
+          .addMeasurement(
+            measurementDate: DateTime.fromMillisecondsSinceEpoch(_testTimestamp),
+            weightKg: 82.0,
+            bodyFatPercentage: 14.0,
+            notes: 'Good progress',
+          );
+
+      expect(error, isNull);
+      final state = container.read(clientDetailProvider(_testClientId));
+      expect(state.measurements, hasLength(2));
+    });
+
+    test('addMeasurement sets error on API failure', () async {
+      when(() => mockApiClient.post(
+            '/clients/$_testClientId/measurements',
+            body: any(named: 'body'),
+          )).thenThrow(Exception('Failed to save'));
+
+      final error = await container
+          .read(clientDetailProvider(_testClientId).notifier)
+          .addMeasurement(
+            measurementDate: DateTime.fromMillisecondsSinceEpoch(_testTimestamp),
+          );
+
+      expect(error, isNotNull);
     });
   });
 }

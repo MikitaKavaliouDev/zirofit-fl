@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -5,6 +6,7 @@ import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/chat/providers/chat_provider.dart';
 import '../helpers/provider_utils.dart';
+import '../helpers/response_fixture.dart';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -42,7 +44,7 @@ Map<String, dynamic> _messageJson({
   return {
     'id': id,
     'conversation_id': conversationId,
-    'sender_id': ?senderId,
+    'sender_id': senderId,
     'content': content,
     'is_system_message': false,
     'created_at': _testTimestamp,
@@ -173,6 +175,83 @@ void main() {
       expect(state.isSending, isFalse);
       expect(state.error, isNotNull);
       expect(state.messages, isEmpty);
+    });
+
+    // -------------------------------------------------------------------------
+    // Response shape verification
+    // -------------------------------------------------------------------------
+
+    test('fetchConversations handles empty list', () async {
+      // Backend shape: GET /chat?type=conversations → {"data": [...]}
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.chat,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => dataListResponse(<dynamic>[]));
+
+      await container.read(chatProvider.notifier).fetchConversations();
+
+      final state = container.read(chatProvider);
+      expect(state.conversations, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('fetchConversations sets error on DioException with error envelope',
+        () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.chat,
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(DioException(
+        requestOptions: RequestOptions(path: ApiConstants.chat),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiConstants.chat),
+          statusCode: 403,
+          data: errorResponse(message: 'Forbidden'),
+        ),
+        type: DioExceptionType.badResponse,
+      ));
+
+      await container.read(chatProvider.notifier).fetchConversations();
+
+      final state = container.read(chatProvider);
+      expect(state.error, contains('Forbidden'));
+      expect(state.isLoading, isFalse);
+    });
+
+    test('fetchMessages handles empty response', () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.chat,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => dataListResponse(<dynamic>[]));
+
+      await container
+          .read(chatProvider.notifier)
+          .fetchMessages('conv-empty');
+
+      final state = container.read(chatProvider);
+      expect(state.messages, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.activeConversationId, 'conv-empty');
+    });
+
+    test('sendMessage parses data envelope correctly', () async {
+      // Backend shape: POST /chat → {"data": {"message": {...}}}
+      when(() => mockApiClient.post<Map<String, dynamic>>(
+            ApiConstants.chat,
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => dataResponse(
+              _messageJson(id: 'msg-sent', content: 'Hello world')));
+
+      await container.read(chatProvider.notifier).sendMessage(
+            conversationId: 'conv-1',
+            content: 'Hello world',
+          );
+
+      final state = container.read(chatProvider);
+      expect(state.messages, hasLength(1));
+      expect(state.messages[0].content, 'Hello world');
+      expect(state.messages[0].id, 'msg-sent');
+      expect(state.isSending, isFalse);
     });
   });
 }

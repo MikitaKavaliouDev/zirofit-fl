@@ -115,6 +115,7 @@ void main() {
         final log = createLog();
         when(() => mockRemoteSource.logExercise(
               exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
             )).thenAnswer((_) async => log);
@@ -133,6 +134,7 @@ void main() {
         await setupSession();
         when(() => mockRemoteSource.logExercise(
               exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
             )).thenThrow(Exception('Failed to log exercise'));
@@ -152,6 +154,7 @@ void main() {
         final log = createLog();
         when(() => mockRemoteSource.logExercise(
               exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
             )).thenAnswer((_) async => log);
@@ -174,6 +177,7 @@ void main() {
         final log2 = createLog(id: 'log-2', reps: 20);
         when(() => mockRemoteSource.logExercise(
               exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
             )).thenAnswer((_) async => log1);
@@ -182,6 +186,7 @@ void main() {
 
         when(() => mockRemoteSource.logExercise(
               exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
             )).thenAnswer((_) async => log2);
@@ -344,6 +349,147 @@ void main() {
         expect(state.error, contains('Failed to cancel'));
         // Session preserved on error
         expect(state.session, isNotNull);
+      });
+    });
+
+    group('startWorkout with templateId', () {
+      test('passes templateId to remote source', () async {
+        when(() => mockRemoteSource.startWorkout(
+              templateId: any(named: 'templateId'),
+            )).thenAnswer((_) async => createSession());
+
+        await notifier.startWorkout(templateId: 'tmpl-1');
+
+        verify(() => mockRemoteSource.startWorkout(
+              templateId: 'tmpl-1',
+            )).called(1);
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, isNotNull);
+        expect(state.error, isNull);
+      });
+    });
+
+    group('loadActiveSession', () {
+      test('loads session and logs on success', () async {
+        final session = createSession();
+        final logs = [createLog()];
+        when(() => mockRemoteSource.getActiveSession())
+            .thenAnswer((_) async => (session: session, logs: logs));
+
+        final future = notifier.loadActiveSession();
+        expect(notifier.state.isLoading, true);
+
+        await future;
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, session);
+        expect(state.logs, logs);
+        expect(state.error, isNull);
+        expect(state.restSeconds, 90);
+        expect(state.isRestRunning, false);
+      });
+
+      test('stays idle when no active session exists', () async {
+        when(() => mockRemoteSource.getActiveSession())
+            .thenThrow(Exception('No active session'));
+
+        await notifier.loadActiveSession();
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, isNull);
+        expect(state.logs, isEmpty);
+        expect(state.error, isNull);
+        expect(state.isIdle, true);
+      });
+
+      test('computes remaining rest when session has restStartedAt', () async {
+        final restStartedAt = DateTime.now().subtract(
+          const Duration(seconds: 30),
+        );
+        final session = WorkoutSession(
+          id: 'ws-1',
+          clientId: 'client-1',
+          startTime: DateTime.now(),
+          status: WorkoutSessionStatus.inProgress,
+          restStartedAt: restStartedAt,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        when(() => mockRemoteSource.getActiveSession())
+            .thenAnswer((_) async => (session: session, logs: <ClientExerciseLog>[]));
+
+        await notifier.loadActiveSession();
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, session);
+        expect(state.restSeconds, greaterThan(50));
+        expect(state.restSeconds, lessThanOrEqualTo(60));
+        expect(state.isRestRunning, true);
+        expect(state.error, isNull);
+      });
+    });
+
+    group('clearError', () {
+      test('clears the error message', () async {
+        when(() => mockRemoteSource.startWorkout(
+              templateId: any(named: 'templateId'),
+            )).thenThrow(Exception('Some error'));
+        await notifier.startWorkout();
+        expect(notifier.state.error, contains('Some error'));
+
+        notifier.clearError();
+
+        expect(notifier.state.error, isNull);
+      });
+    });
+
+    group('reset', () {
+      test('resets state to idle', () async {
+        when(() => mockRemoteSource.startWorkout(
+              templateId: any(named: 'templateId'),
+            )).thenAnswer((_) async => createSession());
+        await notifier.startWorkout();
+        expect(notifier.state.session, isNotNull);
+
+        notifier.reset();
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, isNull);
+        expect(state.logs, isEmpty);
+        expect(state.error, isNull);
+        expect(state.restSeconds, 0);
+        expect(state.isRestRunning, false);
+        expect(state.isIdle, true);
+      });
+    });
+
+    group('startRest without session', () {
+      test('is no-op when no active session', () async {
+        expect(notifier.state.session, isNull);
+
+        await notifier.startRest();
+
+        final state = notifier.state;
+        expect(state.isRestRunning, false);
+        expect(state.restSeconds, 0);
+      });
+    });
+
+    group('endRest without session', () {
+      test('is no-op when no active session', () async {
+        expect(notifier.state.session, isNull);
+
+        await notifier.endRest();
+
+        final state = notifier.state;
+        expect(state.isRestRunning, false);
+        expect(state.restSeconds, 0);
       });
     });
   });

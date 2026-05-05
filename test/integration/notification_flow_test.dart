@@ -131,5 +131,106 @@ void main() {
       expect(state.isLoading, false);
       expect(state.error, isNotNull);
     });
+
+    test('fetchNotifications handles empty list', () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => responseWithData([]));
+
+      await container
+          .read(notificationsProvider.notifier)
+          .fetchNotifications();
+
+      final state = container.read(notificationsProvider);
+      expect(state.notifications, isEmpty);
+      expect(state.unreadCount, 0);
+      expect(state.isLoading, false);
+      expect(state.error, isNull);
+    });
+
+    test('markRead sets error on API failure', () async {
+      // Pre-populate with one unread notification
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => responseWithData([
+                notificationJson(id: 'notif-1', readStatus: false),
+              ]));
+
+      await container
+          .read(notificationsProvider.notifier)
+          .fetchNotifications();
+
+      expect(container.read(notificationsProvider).unreadCount, 1);
+
+      // Mock PUT to fail
+      when(() => mockApiClient.put<Map<String, dynamic>>(
+            ApiConstants.notificationMarkRead('notif-1'),
+            body: any(named: 'body'),
+          )).thenThrow(Exception('Mark read failed'));
+
+      await container
+          .read(notificationsProvider.notifier)
+          .markRead('notif-1');
+
+      final state = container.read(notificationsProvider);
+      expect(state.error, isNotNull);
+      // Local state should remain unchanged
+      expect(state.notifications[0].readStatus, false);
+      expect(state.unreadCount, 1);
+    });
+
+    test('clearError resets the error state', () async {
+      // Arrange: force an error
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(Exception('Some error'));
+
+      await container
+          .read(notificationsProvider.notifier)
+          .fetchNotifications();
+
+      expect(container.read(notificationsProvider).error, isNotNull);
+
+      // Act
+      container.read(notificationsProvider.notifier).clearError();
+
+      // Assert
+      expect(container.read(notificationsProvider).error, isNull);
+    });
+
+    test('markRead does not change state for already-read notification',
+        () async {
+      // Pre-populate with a read notification
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => responseWithData([
+                notificationJson(id: 'notif-1', readStatus: true),
+              ]));
+
+      await container
+          .read(notificationsProvider.notifier)
+          .fetchNotifications();
+
+      expect(container.read(notificationsProvider).unreadCount, 0);
+
+      // Mock PUT success
+      when(() => mockApiClient.put<Map<String, dynamic>>(
+            ApiConstants.notificationMarkRead('notif-1'),
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => <String, dynamic>{});
+
+      await container
+          .read(notificationsProvider.notifier)
+          .markRead('notif-1');
+
+      final state = container.read(notificationsProvider);
+      expect(state.unreadCount, 0);
+      expect(state.notifications[0].readStatus, true);
+      expect(state.error, isNull);
+    });
   });
 }

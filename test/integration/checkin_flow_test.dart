@@ -1,10 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/checkin/providers/check_in_provider.dart';
 import 'package:zirofit_fl/features/checkin/providers/trainer_check_ins_provider.dart';
 import '../helpers/provider_utils.dart';
+import '../helpers/response_fixture.dart';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -33,7 +36,7 @@ Map<String, dynamic> _checkInJson({
     'weight': weight,
     'created_at': _testTimestamp,
     'updated_at': _testTimestamp,
-    'trainer_response': ?trainerResponse,
+    'trainer_response': trainerResponse,
   };
 }
 
@@ -319,6 +322,103 @@ void main() {
       final state = container.read(trainerCheckInsProvider);
       expect(state.isReviewing, isFalse);
       expect(state.reviewError, isNotNull);
+    });
+
+    // -------------------------------------------------------------------------
+    // Response shape verification
+    // -------------------------------------------------------------------------
+
+    test('fetchCheckIns with error envelope sets error correctly', () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(DioException(
+        requestOptions: RequestOptions(path: ApiConstants.trainerCheckIns),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiConstants.trainerCheckIns),
+          statusCode: 500,
+          data: errorResponse(message: 'Internal server error'),
+        ),
+        type: DioExceptionType.badResponse,
+      ));
+
+      await container
+          .read(trainerCheckInsProvider.notifier)
+          .fetchCheckIns();
+
+      final state = container.read(trainerCheckInsProvider);
+      expect(state.error, contains('Internal server error'));
+      expect(state.isLoading, isFalse);
+    });
+
+    test('fetchCheckInDetail handles missing data gracefully', () async {
+      // Backend returns empty response with no data field
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            '/trainer/check-ins/ci-missing',
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => <String, dynamic>{});
+
+      await container
+          .read(trainerCheckInsProvider.notifier)
+          .fetchCheckInDetail('ci-missing');
+
+      final state = container.read(trainerCheckInsProvider);
+      expect(state.selectedCheckIn, isNull);
+      expect(state.isLoadingDetail, isFalse);
+      expect(state.error, isNotNull);
+    });
+  });
+
+  group('CheckInNotifier — client check-in response shapes', () {
+    setUp(() {
+      container = createTestContainer(overrides: [
+        checkInProvider.overrideWith(
+          (ref) => CheckInNotifier(apiClient: mockApiClient),
+        ),
+      ]);
+    });
+
+    test('fetchLastCheckIn parses data envelope correctly', () async {
+      // Backend shape: GET /client/check-in → {"data": {"checkIn": {...}}}
+      // The provider accesses result['data'] as Map<String, dynamic>?
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.clientCheckIn,
+          )).thenAnswer((_) async => dataResponse(
+              _checkInJson(id: 'ci-last', weight: 75.0)));
+
+      await container.read(checkInProvider.notifier).fetchLastCheckIn();
+
+      final state = container.read(checkInProvider);
+      expect(state.lastCheckIn, isNotNull);
+      expect(state.lastCheckIn!.id, 'ci-last');
+      expect(state.lastCheckIn!.weight, 75.0);
+    });
+
+    test('fetchLastCheckIn handles null response gracefully', () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.clientCheckIn,
+          )).thenAnswer((_) async => dataResponse(<String, dynamic>{}));
+
+      await container.read(checkInProvider.notifier).fetchLastCheckIn();
+
+      final state = container.read(checkInProvider);
+      expect(state.lastCheckIn, isNull);
+    });
+
+    test('fetchLastCheckIn handles DioException silently', () async {
+      // Provider silently ignores errors in fetchLastCheckIn
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.clientCheckIn,
+          )).thenThrow(DioException(
+        requestOptions: RequestOptions(path: ApiConstants.clientCheckIn),
+        type: DioExceptionType.connectionError,
+      ));
+
+      await container.read(checkInProvider.notifier).fetchLastCheckIn();
+
+      final state = container.read(checkInProvider);
+      expect(state.lastCheckIn, isNull);
+      expect(state.error, isNull); // silently ignored
     });
   });
 }

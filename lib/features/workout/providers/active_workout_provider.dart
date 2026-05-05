@@ -26,6 +26,7 @@ class ActiveWorkoutState {
   final String? error;
   final int restSeconds;
   final bool isRestRunning;
+  final Map<String, String> exerciseNames; // exerciseId → exerciseName
 
   const ActiveWorkoutState({
     this.session,
@@ -34,6 +35,7 @@ class ActiveWorkoutState {
     this.error,
     this.restSeconds = 0,
     this.isRestRunning = false,
+    this.exerciseNames = const {},
   });
 
   ActiveWorkoutState copyWith({
@@ -43,6 +45,7 @@ class ActiveWorkoutState {
     String? error,
     int? restSeconds,
     bool? isRestRunning,
+    Map<String, String>? exerciseNames,
     bool clearError = false,
   }) {
     return ActiveWorkoutState(
@@ -52,6 +55,7 @@ class ActiveWorkoutState {
       error: clearError ? null : (error ?? this.error),
       restSeconds: restSeconds ?? this.restSeconds,
       isRestRunning: isRestRunning ?? this.isRestRunning,
+      exerciseNames: exerciseNames ?? this.exerciseNames,
     );
   }
 
@@ -90,6 +94,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         session: session,
         logs: [],
         restSeconds: 90, // default rest timer
+        exerciseNames: const {},
       );
     } catch (e) {
       state = state.copyWith(
@@ -112,6 +117,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
             ? _computeRemainingRest(result.session.restStartedAt!)
             : 90,
         isRestRunning: result.session.restStartedAt != null,
+        exerciseNames: const {},
       );
 
       if (result.session.restStartedAt != null) {
@@ -135,6 +141,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     try {
       final log = await _remoteSource.logExercise(
         exerciseId: exerciseId,
+        workoutSessionId: state.session!.id,
         reps: reps,
         weight: weight,
       );
@@ -289,6 +296,13 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
   /// Clears any error message.
   void clearError() {
     state = state.copyWith(clearError: true);
+  }
+
+  /// Sets the name for a given exercise.
+  void setExerciseName(String exerciseId, String name) {
+    state = state.copyWith(
+      exerciseNames: {...state.exerciseNames, exerciseId: name},
+    );
   }
 
   /// Resets to idle state.

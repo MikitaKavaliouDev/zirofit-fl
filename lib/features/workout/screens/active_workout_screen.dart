@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
+import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/widgets/exercise_selection_view.dart';
+import 'package:zirofit_fl/features/workout/widgets/set_input_sheet.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
   final String? templateId;
@@ -14,11 +17,6 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
-  final _repsController = TextEditingController();
-  final _weightController = TextEditingController();
-  final _exerciseIdController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
   @override
   void initState() {
     super.initState();
@@ -37,9 +35,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
   @override
   void dispose() {
-    _repsController.dispose();
-    _weightController.dispose();
-    _exerciseIdController.dispose();
     super.dispose();
   }
 
@@ -183,7 +178,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () => _showAddSetDialog(context),
+                    onPressed: () => _showExerciseSelection(context),
                     icon: const Icon(Icons.add),
                     label: const Text('Add Set'),
                   ),
@@ -286,88 +281,67 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   String _formatExerciseName(ClientExerciseLog log) {
-    // Use the exercise ID as a placeholder since we might not have the name.
-    // In a full implementation, we'd look up the Exercise model.
-    return 'Exercise: ${log.exerciseId.substring(0, 8)}…';
+    final exerciseNames = ref.read(activeWorkoutProvider).exerciseNames;
+    return exerciseNames[log.exerciseId] ??
+        'Exercise: ${log.exerciseId.substring(0, 8)}…';
   }
 
   // ---------------------------------------------------------------------------
   // Dialogs
   // ---------------------------------------------------------------------------
 
-  void _showAddSetDialog(BuildContext context) {
-    _repsController.clear();
-    _weightController.clear();
-    _exerciseIdController.clear();
-
-    showDialog(
+  void _showExerciseSelection(BuildContext context) {
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log Exercise Set'),
-        content: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _exerciseIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'Exercise ID',
-                    hintText: 'Enter exercise ID',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _weightController,
-                  decoration: const InputDecoration(
-                    labelText: 'Weight (kg)',
-                    hintText: 'e.g. 50',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _repsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reps',
-                    hintText: 'e.g. 10',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (_formKey.currentState?.validate() ?? false) {
-                ref.read(activeWorkoutProvider.notifier).logExercise(
-                      exerciseId: _exerciseIdController.text.trim(),
-                      reps:
-                          int.tryParse(_repsController.text.trim()),
-                      weight: double.tryParse(
-                          _weightController.text.trim()),
-                    );
-                Navigator.of(ctx).pop();
-              }
-            },
-            child: const Text('Log Set'),
-          ),
-        ],
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (_) => ExerciseSelectionView(
+        onDone: (selectedExercises) {
+          _handleSelectedExercises(selectedExercises, context);
+        },
+      ),
+    );
+  }
+
+  void _handleSelectedExercises(
+      List<Exercise> exercises, BuildContext context) {
+    if (exercises.isEmpty) return;
+
+    final notifier = ref.read(activeWorkoutProvider.notifier);
+
+    // Store exercise names for display in log
+    for (final exercise in exercises) {
+      notifier.setExerciseName(exercise.id, exercise.name);
+    }
+
+    // Show SetInputSheet for each exercise
+    _showNextSetInput(context, exercises, 0);
+  }
+
+  void _showNextSetInput(
+      BuildContext context, List<Exercise> exercises, int index) {
+    if (index >= exercises.length) return;
+
+    final exercise = exercises[index];
+
+    SetInputSheet.show(
+      context,
+      exercise: exercise,
+      onLog: ({required int reps, double? weight, String? side}) {
+        final notifier = ref.read(activeWorkoutProvider.notifier);
+        notifier.logExercise(
+          exerciseId: exercise.id,
+          reps: reps,
+          weight: weight,
+        );
+        // After logging, immediately show next exercise's input
+        if (index + 1 < exercises.length) {
+          _showNextSetInput(context, exercises, index + 1);
+        }
+      },
     );
   }
 
@@ -448,8 +422,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     Navigator.of(context).pop();
   }
 
-  void _onStartWorkout() {
-    ref.read(activeWorkoutProvider.notifier).startWorkout();
+  Future<void> _onStartWorkout() async {
+    final notifier = ref.read(activeWorkoutProvider.notifier);
+    await notifier.startWorkout();
+
+    // If started from a template, populate exercise names for display
+    if (widget.templateId != null && mounted) {
+      // Template exercises are populated when available through the exercise
+      // selection flow or via the template's exercise list.
+    }
   }
 }
 

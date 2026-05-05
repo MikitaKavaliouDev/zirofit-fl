@@ -29,7 +29,17 @@ class WorkoutRemoteSource {
     final response = await _apiClient.post<ApiResponse<WorkoutSession>>(
       ApiConstants.workoutStart,
       body: body,
-      fromJson: (json) => ApiResponse.fromJson(json, WorkoutSession.fromJson),
+      fromJson: (json) => ApiResponse.fromJson(
+        json,
+        (dataJson) {
+          // Backend returns {data: {session: {...}}}, unwrap the session key.
+          final sessionJson =
+              dataJson.containsKey('id')
+                  ? dataJson
+                  : dataJson['session'] as Map<String, dynamic>;
+          return WorkoutSession.fromJson(sessionJson);
+        },
+      ),
     );
 
     if (response.data == null) {
@@ -64,12 +74,16 @@ class WorkoutRemoteSource {
   /// Logs an exercise set in the current workout session.
   Future<ClientExerciseLog> logExercise({
     required String exerciseId,
+    required String workoutSessionId,
     int? reps,
     double? weight,
     String? side,
     int? order,
   }) async {
-    final body = <String, dynamic>{'exercise_id': exerciseId};
+    final body = <String, dynamic>{
+      'exerciseId': exerciseId,
+      'workoutSessionId': workoutSessionId,
+    };
     if (reps != null) body['reps'] = reps;
     if (weight != null) body['weight'] = weight;
     if (side != null) body['side'] = side;
@@ -94,7 +108,17 @@ class WorkoutRemoteSource {
     final response = await _apiClient.post<ApiResponse<WorkoutSession>>(
       ApiConstants.workoutFinish,
       body: {'workoutSessionId': sessionId},
-      fromJson: (json) => ApiResponse.fromJson(json, WorkoutSession.fromJson),
+      fromJson: (json) => ApiResponse.fromJson(
+        json,
+        (dataJson) {
+          // Backend returns {data: {session: {...}}}, unwrap the session key.
+          final sessionJson =
+              dataJson.containsKey('id')
+                  ? dataJson
+                  : dataJson['session'] as Map<String, dynamic>;
+          return WorkoutSession.fromJson(sessionJson);
+        },
+      ),
     );
 
     if (response.data == null) {

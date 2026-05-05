@@ -91,7 +91,10 @@ void main() {
           final fromJson =
               invocation.namedArguments[#fromJson]
                   as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-          return fromJson({'data': workoutSessionJson()});
+          // Backend wraps session under a "session" key
+          return fromJson({
+            'data': {'session': workoutSessionJson()},
+          });
         });
 
         final result = await remoteSource.startWorkout();
@@ -113,7 +116,10 @@ void main() {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-        return fromJson({'data': workoutSessionJson()});
+        // Backend wraps session under a "session" key
+        return fromJson({
+          'data': {'session': workoutSessionJson()},
+        });
       });
 
       await remoteSource.startWorkout(templateId: 'template-1');
@@ -157,7 +163,10 @@ void main() {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-        return fromJson({'data': workoutSessionJson()});
+        // Backend wraps session under a "session" key
+        return fromJson({
+          'data': {'session': workoutSessionJson()},
+        });
       });
 
       await remoteSource.startWorkout();
@@ -277,7 +286,7 @@ void main() {
       when(
         () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
           ApiConstants.workoutLive,
-          body: {'exercise_id': 'ex-1'},
+          body: {'exerciseId': 'ex-1', 'workoutSessionId': 'test-session-id'},
           fromJson: any(named: 'fromJson'),
         ),
       ).thenAnswer((invocation) async {
@@ -289,7 +298,7 @@ void main() {
         return fromJson({'data': exerciseLogJson(exerciseId: 'ex-1')});
       });
 
-      final result = await remoteSource.logExercise(exerciseId: 'ex-1');
+      final result = await remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'test-session-id');
 
       expect(result, isA<ClientExerciseLog>());
       expect(result.exerciseId, 'ex-1');
@@ -300,7 +309,8 @@ void main() {
         () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
           ApiConstants.workoutLive,
           body: {
-            'exercise_id': 'ex-1',
+            'exerciseId': 'ex-1',
+            'workoutSessionId': 'test-session-id',
             'reps': 10,
             'weight': 50.0,
             'side': 'LEFT',
@@ -327,6 +337,7 @@ void main() {
 
       final result = await remoteSource.logExercise(
         exerciseId: 'ex-1',
+        workoutSessionId: 'test-session-id',
         reps: 10,
         weight: 50.0,
         side: 'LEFT',
@@ -358,7 +369,7 @@ void main() {
       });
 
       expect(
-        () => remoteSource.logExercise(exerciseId: 'ex-1'),
+        () => remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'test-session-id'),
         throwsA(isA<ApiException>()),
       );
     });
@@ -379,7 +390,7 @@ void main() {
         return fromJson({'data': exerciseLogJson()});
       });
 
-      await remoteSource.logExercise(exerciseId: 'ex-1');
+      await remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'test-session-id');
 
       verify(
         () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
@@ -409,7 +420,10 @@ void main() {
           final fromJson =
               invocation.namedArguments[#fromJson]
                   as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-          return fromJson({'data': workoutSessionJson(status: 'COMPLETED')});
+          // Backend wraps session under a "session" key
+          return fromJson({
+            'data': {'session': workoutSessionJson(status: 'COMPLETED')},
+          });
         });
 
         final result = await remoteSource.finishWorkout('test-session-id');
@@ -452,7 +466,10 @@ void main() {
         final fromJson =
             invocation.namedArguments[#fromJson]
                 as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-        return fromJson({'data': workoutSessionJson()});
+        // Backend wraps session under a "session" key
+        return fromJson({
+          'data': {'session': workoutSessionJson()},
+        });
       });
 
       await remoteSource.finishWorkout('test-session-id');

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -7,6 +8,7 @@ import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/events/providers/events_provider.dart';
 import 'package:zirofit_fl/features/events/providers/trainer_events_provider.dart';
 import '../helpers/provider_utils.dart';
+import '../helpers/response_fixture.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 
@@ -29,6 +31,7 @@ void main() {
     test('create event → list appears → join event', () async {
       // -----------------------------------------------------------------------
       // 1. Trainer creates an event
+      // Backend shape: POST /trainer/events → {"data": {event fields}}
       // -----------------------------------------------------------------------
       final newEventData = {
         'id': 'evt-created',
@@ -47,7 +50,7 @@ void main() {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.post(
             ApiConstants.trainerEvents,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => {'data': newEventData});
+          )).thenAnswer((_) async => dataResponse(newEventData));
 
       final createSuccess = await container
           .read(trainerEventsProvider.notifier)
@@ -63,6 +66,7 @@ void main() {
 
       // -----------------------------------------------------------------------
       // 2. Client fetches events and sees the created event
+      // Backend shape: GET /events → {"data": [event, ...], "hasMore": false}
       // -----------------------------------------------------------------------
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.events,
@@ -81,11 +85,12 @@ void main() {
 
       // -----------------------------------------------------------------------
       // 3. Client joins the event
+      // Backend shape: POST /events/[id]/join → {"data": {"message": "..."}}
       // -----------------------------------------------------------------------
       when<Future<Map<String, dynamic>>>(() => mockApiClient.post(
             ApiConstants.eventJoin('evt-created'),
             body: any(named: 'body'),
-          )).thenAnswer((_) async => {'data': {'message': 'Joined'}});
+          )).thenAnswer((_) async => dataResponse({'message': 'Joined'}));
 
       final joinSuccess =
           await container.read(eventsProvider.notifier).joinEvent('evt-created');
@@ -110,6 +115,84 @@ void main() {
 
       trainerState = container.read(trainerEventsProvider);
       expect(trainerState.events[0].enrolledCount, 1);
+    });
+
+    // -------------------------------------------------------------------------
+    // Response shape & error handling tests
+    // -------------------------------------------------------------------------
+
+    test('fetchEvents handles empty list from backend', () async {
+      when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+            ApiConstants.events,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {
+            'data': <dynamic>[],
+            'hasMore': false,
+          });
+
+      await container.read(eventsProvider.notifier).fetchEvents();
+
+      final state = container.read(eventsProvider);
+      expect(state.events, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('fetchEvents sets error on API failure with error envelope', () async {
+      when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+            ApiConstants.events,
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(DioException(
+        requestOptions: RequestOptions(path: ApiConstants.events),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiConstants.events),
+          statusCode: 500,
+          data: errorResponse(message: 'Server error'),
+        ),
+        type: DioExceptionType.badResponse,
+      ));
+
+      await container.read(eventsProvider.notifier).fetchEvents();
+
+      final state = container.read(eventsProvider);
+      expect(state.error, contains('Server error'));
+      expect(state.isLoading, isFalse);
+    });
+
+    test('createEvent sets error on failure', () async {
+      when<Future<Map<String, dynamic>>>(() => mockApiClient.post(
+            ApiConstants.trainerEvents,
+            body: any(named: 'body'),
+          )).thenThrow(DioException(
+        requestOptions: RequestOptions(path: ApiConstants.trainerEvents),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiConstants.trainerEvents),
+          statusCode: 422,
+          data: errorResponse(message: 'Validation failed'),
+        ),
+        type: DioExceptionType.badResponse,
+      ));
+
+      final success = await container
+          .read(trainerEventsProvider.notifier)
+          .createEvent({'title': ''});
+
+      expect(success, isFalse);
+      final state = container.read(trainerEventsProvider);
+      expect(state.error, contains('Validation failed'));
+    });
+
+    test('trainerEvents handles empty response', () async {
+      when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+            ApiConstants.trainerEvents,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => {'data': <dynamic>[]});
+
+      await container.read(trainerEventsProvider.notifier).fetchEvents();
+
+      final state = container.read(trainerEventsProvider);
+      expect(state.events, isEmpty);
+      expect(state.isLoading, isFalse);
     });
   });
 }

@@ -43,9 +43,39 @@ void main() {
               ApiConstants.exercises,
               queryParams: any(named: 'queryParams'),
               fromJson: any(named: 'fromJson'),
-            )).thenAnswer((_) async => ApiResponse<List<Exercise>>(
-              data: testExercises,
-            ));
+            )).thenAnswer((invocation) async {
+          final fromJson =
+              invocation.namedArguments[#fromJson]
+                  as ApiResponse<List<Exercise>> Function(
+                    Map<String, dynamic>,
+                  );
+          // Backend returns {data: {exercises: [...], total, page, hasMore}}
+          return fromJson({
+            'data': {
+              'exercises': [
+                {
+                  'id': '1',
+                  'name': 'Bench Press',
+                  'muscle_group': 'Chest',
+                  'category': 'Strength',
+                  'created_at': 1704067200000,
+                  'updated_at': 1704067200000,
+                },
+                {
+                  'id': '2',
+                  'name': 'Squat',
+                  'muscle_group': 'Legs',
+                  'category': 'Strength',
+                  'created_at': 1704067200000,
+                  'updated_at': 1704067200000,
+                },
+              ],
+              'total': 2,
+              'page': 1,
+              'hasMore': false,
+            },
+          });
+        });
       });
 
       // ---------------------------------------------------------------------------
@@ -205,9 +235,20 @@ void main() {
               ApiConstants.exercises,
               queryParams: any(named: 'queryParams'),
               fromJson: any(named: 'fromJson'),
-            )).thenAnswer((_) async => const ApiResponse<List<Exercise>>(
-              errorMessage: 'Failed to load exercises',
-            ));
+            )).thenAnswer((invocation) async {
+          final fromJson =
+              invocation.namedArguments[#fromJson]
+                  as ApiResponse<List<Exercise>> Function(
+                    Map<String, dynamic>,
+                  );
+          return fromJson({
+            'error': {
+              'message': 'Failed to load exercises',
+              'code': 'FETCH_ERROR',
+              'statusCode': 500,
+            },
+          });
+        });
 
         final result = await remoteSource.searchExercises();
 

@@ -6,7 +6,10 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 /// Client-facing screen that shows the current trainer info and an option
 /// to unlink from the trainer.
 class MyTrainerScreen extends ConsumerStatefulWidget {
-  const MyTrainerScreen({super.key});
+  /// Optional [ApiClient] override for dependency injection (testing).
+  final ApiClient? apiClient;
+
+  const MyTrainerScreen({super.key, this.apiClient});
 
   @override
   ConsumerState<MyTrainerScreen> createState() => _MyTrainerScreenState();
@@ -31,8 +34,8 @@ class _MyTrainerScreenState extends ConsumerState<MyTrainerScreen> {
     });
 
     try {
-      final response =
-          await ApiClient.instance.get('/client/trainer');
+      final client = widget.apiClient ?? ApiClient.instance;
+      final response = await client.get('/client/trainer');
       final data = response['data'];
       setState(() {
         _trainer = data is Map<String, dynamic> ? data : null;
@@ -76,7 +79,8 @@ class _MyTrainerScreenState extends ConsumerState<MyTrainerScreen> {
     setState(() => _isUnlinking = true);
 
     try {
-      await ApiClient.instance.delete('/client/trainer');
+      final client = widget.apiClient ?? ApiClient.instance;
+      await client.delete('/client/trainer');
       setState(() {
         _trainer = null;
         _isUnlinking = false;

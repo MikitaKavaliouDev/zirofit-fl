@@ -120,6 +120,7 @@ void main() {
       final log = _createLog(id: 'log-1', reps: 12, weight: 60.0);
       when(() => mockRemoteSource.logExercise(
             exerciseId: any(named: 'exerciseId'),
+            workoutSessionId: any(named: 'workoutSessionId'),
             reps: any(named: 'reps'),
             weight: any(named: 'weight'),
           )).thenAnswer((_) async => log);
@@ -149,6 +150,7 @@ void main() {
       final log = _createLog(id: 'log-1', isCompleted: false);
       when(() => mockRemoteSource.logExercise(
             exerciseId: any(named: 'exerciseId'),
+            workoutSessionId: any(named: 'workoutSessionId'),
             reps: any(named: 'reps'),
             weight: any(named: 'weight'),
           )).thenAnswer((_) async => log);
@@ -208,6 +210,67 @@ void main() {
       expect(state.error, isNotNull);
       expect(state.isLoading, isFalse);
       expect(state.session, isNull);
+    });
+
+    test('startWorkout with templateId passes templateId to remote source', () async {
+      final session = _createSession();
+      when(() => mockRemoteSource.startWorkout(
+            templateId: any(named: 'templateId'),
+          )).thenAnswer((_) async => session);
+
+      await container
+          .read(activeWorkoutProvider.notifier)
+          .startWorkout(templateId: 'tpl-1');
+
+      final state = container.read(activeWorkoutProvider);
+      expect(state.session, isNotNull);
+      expect(state.session!.id, 'test-session-id');
+      expect(state.hasActiveSession, isTrue);
+
+      verify(() => mockRemoteSource.startWorkout(templateId: 'tpl-1')).called(1);
+    });
+
+    test('loadActiveSession returns session and logs', () async {
+      final session = _createSession();
+      final log = _createLog(id: 'log-1', reps: 12, weight: 60.0);
+      when(() => mockRemoteSource.getActiveSession())
+          .thenAnswer((_) async => (session: session, logs: [log]));
+
+      await container.read(activeWorkoutProvider.notifier).loadActiveSession();
+
+      final state = container.read(activeWorkoutProvider);
+      expect(state.session, isNotNull);
+      expect(state.session!.id, 'test-session-id');
+      expect(state.logs, hasLength(1));
+      expect(state.logs.first.id, 'log-1');
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('loadActiveSession with no active session stays idle', () async {
+      when(() => mockRemoteSource.getActiveSession())
+          .thenThrow(Exception('No active session'));
+
+      await container.read(activeWorkoutProvider.notifier).loadActiveSession();
+
+      final state = container.read(activeWorkoutProvider);
+      expect(state.session, isNull);
+      expect(state.logs, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
+      expect(state.isIdle, isTrue);
+    });
+
+    test('cancelWorkout with no session resets state', () async {
+      final state = container.read(activeWorkoutProvider);
+      expect(state.isIdle, isTrue);
+
+      await container.read(activeWorkoutProvider.notifier).cancelWorkout();
+
+      final updatedState = container.read(activeWorkoutProvider);
+      expect(updatedState.isIdle, isTrue);
+      expect(updatedState.session, isNull);
+      expect(updatedState.error, isNull);
     });
   });
 
@@ -272,6 +335,133 @@ void main() {
 
       final state = container.read(workoutHistoryProvider);
       expect(state.sessions, hasLength(2));
+      expect(state.isLoading, isFalse);
+    });
+  });
+
+  group('Workout Lifecycle', () {
+    test('Full workflow: start → log → complete → finish', () async {
+      // Arrange: start workout
+      final session = _createSession();
+      when(() => mockRemoteSource.startWorkout(
+            templateId: any(named: 'templateId'),
+          )).thenAnswer((_) async => session);
+
+      await container.read(activeWorkoutProvider.notifier).startWorkout();
+
+      // Verify active
+      var state = container.read(activeWorkoutProvider);
+      expect(state.hasActiveSession, isTrue);
+      expect(state.isLoading, isFalse);
+
+      // Arrange: log exercise
+      final log = _createLog(id: 'log-1', reps: 10, weight: 80.0);
+      when(() => mockRemoteSource.logExercise(
+            exerciseId: any(named: 'exerciseId'),
+            workoutSessionId: any(named: 'workoutSessionId'),
+            reps: any(named: 'reps'),
+            weight: any(named: 'weight'),
+          )).thenAnswer((_) async => log);
+
+      await container
+          .read(activeWorkoutProvider.notifier)
+          .logExercise(exerciseId: 'test-exercise-id', reps: 10, weight: 80.0);
+
+      // Verify log added
+      state = container.read(activeWorkoutProvider);
+      expect(state.logs, hasLength(1));
+      expect(state.logs.first.id, 'log-1');
+
+      // Act: complete the set
+      container.read(activeWorkoutProvider.notifier).completeSet('log-1');
+
+      // Verify log marked completed
+      state = container.read(activeWorkoutProvider);
+      expect(state.logs.first.isCompleted, isTrue);
+
+      // Arrange: mock finish
+      final completedSession = _createSession(
+        id: 'test-session-id',
+        status: WorkoutSessionStatus.completed,
+        endTimeMs: 1700003600000,
+      );
+      when(() => mockRemoteSource.finishWorkout(any()))
+          .thenAnswer((_) async => completedSession);
+
+      // Act: finish workout
+      final result =
+          await container.read(activeWorkoutProvider.notifier).finishWorkout();
+
+      // Verify idle + completed session returned
+      state = container.read(activeWorkoutProvider);
+      expect(state.isIdle, isTrue);
+      expect(state.session, isNull);
+      expect(state.logs, isEmpty);
+      expect(result, isNotNull);
+      expect(result!.status, WorkoutSessionStatus.completed);
+    });
+  });
+
+  group('Cancel Workout', () {
+    test('Full workflow: start (no template) → cancel', () async {
+      // Arrange: start workout
+      final session = _createSession();
+      when(() => mockRemoteSource.startWorkout(
+            templateId: any(named: 'templateId'),
+          )).thenAnswer((_) async => session);
+
+      await container.read(activeWorkoutProvider.notifier).startWorkout();
+
+      // Verify active
+      var state = container.read(activeWorkoutProvider);
+      expect(state.hasActiveSession, isTrue);
+      expect(state.isLoading, isFalse);
+
+      // Arrange: mock cancel
+      when(() => mockRemoteSource.cancelWorkout(any()))
+          .thenAnswer((_) async {});
+
+      // Act: cancel
+      await container.read(activeWorkoutProvider.notifier).cancelWorkout();
+
+      // Verify idle
+      state = container.read(activeWorkoutProvider);
+      expect(state.isIdle, isTrue);
+      expect(state.session, isNull);
+      expect(state.logs, isEmpty);
+      expect(state.error, isNull);
+    });
+  });
+
+  group('Error Recovery', () {
+    test('fail on startWorkout, retry succeeds', () async {
+      // First call: mock throws
+      when(() => mockRemoteSource.startWorkout(
+            templateId: any(named: 'templateId'),
+          )).thenThrow(Exception('Network error'));
+
+      await container.read(activeWorkoutProvider.notifier).startWorkout();
+
+      // Verify error state
+      var state = container.read(activeWorkoutProvider);
+      expect(state.error, isNotNull);
+      expect(state.isLoading, isFalse);
+      expect(state.session, isNull);
+
+      // Second call: mock succeeds
+      final session = _createSession();
+      when(() => mockRemoteSource.startWorkout(
+            templateId: any(named: 'templateId'),
+          )).thenAnswer((_) async => session);
+
+      await container.read(activeWorkoutProvider.notifier).startWorkout();
+
+      // Verify session is now active (error cleared)
+      state = container.read(activeWorkoutProvider);
+      expect(state.session, isNotNull);
+      expect(state.session!.id, 'test-session-id');
+      expect(state.hasActiveSession, isTrue);
+      expect(state.error, isNull);
       expect(state.isLoading, isFalse);
     });
   });

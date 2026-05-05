@@ -86,7 +86,10 @@ void main() {
                     as ApiResponse<WorkoutSession> Function(
                       Map<String, dynamic>,
                     );
-            return fromJson({'data': _sessionJson()});
+            // Backend wraps session under a "session" key
+            return fromJson({
+              'data': {'session': _sessionJson()},
+            });
           });
 
           final result = await remoteSource.startWorkout();
@@ -113,7 +116,10 @@ void main() {
           final fromJson =
               invocation.namedArguments[#fromJson]
                   as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-          return fromJson({'data': _sessionJson()});
+          // Backend wraps session under a "session" key
+          return fromJson({
+            'data': {'session': _sessionJson()},
+          });
         });
 
         await remoteSource.startWorkout(templateId: 'tpl-1');
@@ -253,7 +259,7 @@ void main() {
         when(
           () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
             ApiConstants.workoutLive,
-            body: {'exercise_id': 'ex-1'},
+            body: {'exerciseId': 'ex-1', 'workoutSessionId': 'sid-1'},
             fromJson: any(named: 'fromJson'),
           ),
         ).thenAnswer((invocation) async {
@@ -265,12 +271,12 @@ void main() {
           return fromJson({'data': _logJson(exerciseId: 'ex-1')});
         });
 
-        await remoteSource.logExercise(exerciseId: 'ex-1');
+        await remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'sid-1');
 
         verify(
           () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
             ApiConstants.workoutLive,
-            body: {'exercise_id': 'ex-1'},
+            body: {'exerciseId': 'ex-1', 'workoutSessionId': 'sid-1'},
             fromJson: any(named: 'fromJson'),
           ),
         ).called(1);
@@ -294,6 +300,7 @@ void main() {
 
         await remoteSource.logExercise(
           exerciseId: 'ex-1',
+          workoutSessionId: 'sid-1',
           reps: 10,
           weight: 100.0,
           side: 'LEFT',
@@ -304,7 +311,8 @@ void main() {
           () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
             ApiConstants.workoutLive,
             body: {
-              'exercise_id': 'ex-1',
+              'exerciseId': 'ex-1',
+              'workoutSessionId': 'sid-1',
               'reps': 10,
               'weight': 100.0,
               'side': 'LEFT',
@@ -334,7 +342,7 @@ void main() {
         });
 
         expect(
-          () => remoteSource.logExercise(exerciseId: 'ex-1'),
+          () => remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'sid-1'),
           throwsA(isA<ApiException>()),
         );
       });
@@ -356,7 +364,10 @@ void main() {
           final fromJson =
               invocation.namedArguments[#fromJson]
                   as ApiResponse<WorkoutSession> Function(Map<String, dynamic>);
-          return fromJson({'data': _sessionJson(status: 'COMPLETED')});
+          // Backend wraps session under a "session" key
+          return fromJson({
+            'data': {'session': _sessionJson(status: 'COMPLETED')},
+          });
         });
 
         final result = await remoteSource.finishWorkout('sid-1');

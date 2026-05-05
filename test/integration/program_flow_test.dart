@@ -189,5 +189,36 @@ void main() {
         body: {'name': 'Minimal'},
       )).called(1);
     });
+
+    test('createProgram returns null on API failure', () async {
+      when(() => mockApiClient.post<Map<String, dynamic>>(
+            ApiConstants.trainerPrograms,
+            body: any(named: 'body'),
+          )).thenThrow(Exception('Create failed'));
+
+      final result =
+          await container.read(programsProvider.notifier).createProgram('Fail', null);
+
+      expect(result, isNull);
+      final state = container.read(programsProvider);
+      expect(state.error, isNotNull);
+      expect(state.isLoading, isFalse);
+    });
+
+    test('fetchPrograms handles non-list data gracefully', () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': <String, dynamic>{'programs': <dynamic>[]},
+          });
+
+      await container.read(programsProvider.notifier).fetchPrograms();
+
+      final state = container.read(programsProvider);
+      expect(state.programs, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
+    });
   });
 }

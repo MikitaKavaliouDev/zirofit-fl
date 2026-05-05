@@ -15,6 +15,92 @@ import '../helpers/provider_utils.dart';
 class MockApiClient extends Mock implements ApiClient {}
 
 // ---------------------------------------------------------------------------
+// Fixtures — backend response shapes with snake_case keys
+// ---------------------------------------------------------------------------
+
+const _ts = 1700000000000;
+
+/// Simulates GET /mobile/home response body
+Map<String, dynamic> _trainerDashboardResponse() => <String, dynamic>{
+      'data': {
+        'recent_activity': [
+          {
+            'id': 'act-1',
+            'title': 'Check-in Received',
+            'description': 'John completed his weekly check-in',
+            'timestamp': _ts,
+            'type': 'check_in',
+          },
+        ],
+        'upcoming_sessions': [
+          {
+            'id': 'ws-1',
+            'client_id': 'client-1',
+            'name': 'Strength Training',
+            'start_time': _ts,
+            'status': 'PLANNED',
+            'is_trainer_led': true,
+            'created_at': _ts,
+            'updated_at': _ts,
+          },
+        ],
+        'stats': {
+          'revenue': 4250.00,
+          'active_clients': 24,
+          'today_sessions': 6,
+          'pending_check_ins': 3,
+        },
+        'active_clients': [
+          {
+            'id': 'client-1',
+            'name': 'John Smith',
+            'email': 'john@example.com',
+            'status': 'active',
+            'created_at': _ts,
+            'updated_at': _ts,
+          },
+        ],
+      },
+    };
+
+/// Simulates GET /client/dashboard response body
+Map<String, dynamic> _clientDashboardResponse() => <String, dynamic>{
+      'data': {
+        'last_workout': {
+          'date': _ts - 86400000,
+          'exercises_completed': 8,
+          'total_exercises': 10,
+          'duration_minutes': 45,
+          'calories_burned': 320,
+        },
+        'upcoming_sessions': [
+          {
+            'id': 'ws-1',
+            'client_id': 'my-client',
+            'name': 'Upper Body Strength',
+            'start_time': _ts + 86400000,
+            'status': 'PLANNED',
+            'is_trainer_led': true,
+            'created_at': _ts,
+            'updated_at': _ts,
+          },
+        ],
+        'check_in_status': {
+          'is_due_today': true,
+          'is_completed': false,
+          'last_check_in_date': _ts - 604800000,
+          'next_check_in_date': _ts,
+        },
+        'progress': {
+          'weight_change': -2.5,
+          'workout_streak': 7,
+          'total_workouts_this_month': 12,
+        },
+        'trainer_name': 'Coach Mike',
+      },
+    };
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -140,6 +226,24 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('fetchDashboard succeeds with real backend response shape', () async {
+      // The provider ignores the response body, but the request/response
+      // cycle must not throw when given the actual backend payload.
+      when(
+        () => mockApiClient.get(
+          ApiConstants.mobileHome,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).thenAnswer((_) async => _trainerDashboardResponse());
+
+      await container.read(trainerDashboardProvider.notifier).fetchDashboard();
+
+      final state = container.read(trainerDashboardProvider);
+      expect(state.status, TrainerDashboardStatus.loaded);
+      expect(state.data, isNotNull);
+      expect(state.error, isNull);
+    });
   });
 
   group('ClientDashboardNotifier', () {
@@ -251,6 +355,27 @@ void main() {
         // Assert
         state = container.read(clientDashboardProvider);
         expect(state.data!.checkInStatus.isCompleted, isTrue);
+      },
+    );
+
+    test(
+      'fetchDashboard succeeds with real backend response shape',
+      () async {
+        when(
+          () => mockApiClient.get(
+            ApiConstants.clientDashboard,
+            queryParams: any(named: 'queryParams'),
+          ),
+        ).thenAnswer((_) async => _clientDashboardResponse());
+
+        await container
+            .read(clientDashboardProvider.notifier)
+            .fetchDashboard();
+
+        final state = container.read(clientDashboardProvider);
+        expect(state.status, ClientDashboardStatus.loaded);
+        expect(state.data, isNotNull);
+        expect(state.error, isNull);
       },
     );
   });

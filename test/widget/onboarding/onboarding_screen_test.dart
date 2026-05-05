@@ -25,4 +25,30 @@ void main() {
     expect(find.byType(Scaffold), findsOneWidget);
     // No navigation buttons in placeholder, but we can ensure no errors.
   });
+
+  testWidgets('Onboarding screen renders without crashing', (tester) async {
+    await tester.pumpApp(const OnboardingScreen());
+    await tester.pumpAndSettle();
+
+    // Smoke test: verify the screen renders with expected widget structure
+    expect(find.byType(Scaffold), findsOneWidget);
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(find.byType(Center), findsOneWidget);
+    // Ensure no runtime errors during initial display
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Onboarding screen displays all expected content',
+      (tester) async {
+    await tester.pumpApp(const OnboardingScreen());
+    await tester.pumpAndSettle();
+
+    // Verify all text content renders correctly
+    expect(find.text('Onboarding'), findsOneWidget);
+    expect(find.text('Onboarding flow — coming soon'), findsOneWidget);
+    // Verify all structural elements are present
+    expect(find.byType(Scaffold), findsOneWidget);
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(find.byType(Center), findsOneWidget);
+  });
 }

@@ -8,6 +8,7 @@ class Exercise {
   final String? category;
   final String? description;
   final String? videoUrl;
+  final String? imageUrl;
   final String? createdById;
   final int? recommendedRestSeconds;
   final bool isUnilateral;
@@ -23,6 +24,7 @@ class Exercise {
     this.category,
     this.description,
     this.videoUrl,
+    this.imageUrl,
     this.createdById,
     this.recommendedRestSeconds,
     this.isUnilateral = false,
@@ -39,6 +41,7 @@ class Exercise {
     category: json['category'] as String?,
     description: json['description'] as String?,
     videoUrl: readStringOrNull(json, 'video_url', 'videoUrl'),
+    imageUrl: readStringOrNull(json, 'image_url', 'imageUrl'),
     createdById: readStringOrNull(json, 'created_by_id', 'createdById'),
     recommendedRestSeconds: json['recommended_rest_seconds'] as int?,
     isUnilateral: readBool(json, 'is_unilateral', 'isUnilateral'),
@@ -55,6 +58,7 @@ class Exercise {
     'category': category,
     'description': description,
     'video_url': videoUrl,
+    'image_url': imageUrl,
     'created_by_id': createdById,
     'recommended_rest_seconds': recommendedRestSeconds,
     'is_unilateral': isUnilateral,
@@ -68,6 +72,7 @@ class Exercise {
       'Exercise(id: $id, name: $name, muscleGroup: $muscleGroup, '
       'equipment: $equipment, category: $category, '
       'description: $description, videoUrl: $videoUrl, '
+      'imageUrl: $imageUrl, '
       'createdById: $createdById, '
       'recommendedRestSeconds: $recommendedRestSeconds, '
       'isUnilateral: $isUnilateral, createdAt: $createdAt, '
@@ -84,6 +89,7 @@ class Exercise {
           category == other.category &&
           description == other.description &&
           videoUrl == other.videoUrl &&
+          imageUrl == other.imageUrl &&
           createdById == other.createdById &&
           recommendedRestSeconds == other.recommendedRestSeconds &&
           isUnilateral == other.isUnilateral &&
@@ -100,6 +106,7 @@ class Exercise {
     category,
     description,
     videoUrl,
+    imageUrl,
     createdById,
     recommendedRestSeconds,
     isUnilateral,

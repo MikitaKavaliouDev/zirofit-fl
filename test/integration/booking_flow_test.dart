@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -5,6 +6,7 @@ import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/bookings/providers/bookings_provider.dart';
 import '../helpers/provider_utils.dart';
+import '../helpers/response_fixture.dart';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -204,6 +206,86 @@ void main() {
       expect(success, isFalse);
       final state = container.read(bookingsProvider);
       expect(state.error, isNotNull);
+    });
+
+    // ---------------------------------------------------------------------------
+    // Response shape verification
+    // ---------------------------------------------------------------------------
+
+    test('response data envelope unwraps booking list correctly', () async {
+      final bookingJson = _bookingJson(id: 'b-shape', clientName: 'Shape Test');
+      // The provider accesses data['data'] as List directly.
+      // Backend shape: GET /bookings → {"data": [booking, ...]}
+      final rawResponse = dataListResponse([bookingJson]);
+
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.bookings,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => rawResponse);
+
+      await container.read(bookingsProvider.notifier).fetchBookings();
+
+      final state = container.read(bookingsProvider);
+      expect(state.bookings, hasLength(1));
+      expect(state.bookings[0].id, 'b-shape');
+      expect(state.bookings[0].clientName, 'Shape Test');
+      expect(state.bookings[0].status.name, 'pending');
+      // Verify all Booking fields parsed correctly
+      expect(state.bookings[0].trainerId, 'trainer-1');
+      expect(state.bookings[0].clientEmail, 'john@test.com');
+      expect(state.bookings[0].startTime,
+          DateTime.fromMillisecondsSinceEpoch(_testTimestamp));
+      expect(state.bookings[0].endTime,
+          DateTime.fromMillisecondsSinceEpoch(_testTimestamp + 3600000));
+    });
+
+    test('confirmBooking ignores response body and updates status locally',
+        () async {
+      // Pre-populate with a pending booking
+      final bookingJson = _bookingJson(id: 'b-confirm', status: 'PENDING');
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.bookings,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => dataListResponse([bookingJson]));
+
+      await container.read(bookingsProvider.notifier).fetchBookings();
+      expect(container.read(bookingsProvider).bookings[0].status.name,
+          'pending');
+
+      // The confirm endpoint may return {"data": {"booking": {...}}} but the
+      // provider ignores the response body and optimistically updates state.
+      when(() => mockApiClient.put<Map<String, dynamic>>(
+            ApiConstants.bookingConfirm('b-confirm'),
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => dataResponse({'booking': bookingJson}));
+
+      final success = await container
+          .read(bookingsProvider.notifier)
+          .confirmBooking('b-confirm');
+
+      expect(success, isTrue);
+      final state = container.read(bookingsProvider);
+      expect(state.bookings[0].status.name, 'confirmed');
+    });
+
+    test('error response envelope is extracted correctly', () async {
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.bookings,
+            queryParams: any(named: 'queryParams'),
+          )).thenThrow(DioException(
+        requestOptions: RequestOptions(path: ApiConstants.bookings),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiConstants.bookings),
+          statusCode: 400,
+          data: errorResponse(message: 'Invalid request'),
+        ),
+        type: DioExceptionType.badResponse,
+      ));
+
+      await container.read(bookingsProvider.notifier).fetchBookings();
+
+      final state = container.read(bookingsProvider);
+      expect(state.error, contains('Invalid request'));
     });
   });
 }

@@ -41,10 +41,29 @@ class ExerciseRemoteSource {
     return _apiClient.get<ApiResponse<List<Exercise>>>(
       ApiConstants.exercises,
       queryParams: queryParams,
-      fromJson: (json) => apiResponseListFromJson<Exercise>(
-        json,
-        Exercise.fromJson,
-      ),
+      fromJson: (json) {
+        // Backend returns {data: {exercises: [...], total, page, hasMore}}.
+        // Extract exercises array from the nested response.
+        if (json.containsKey('data') && json['data'] != null) {
+          final dataMap = json['data'] as Map<String, dynamic>;
+          final exercisesList = (dataMap['exercises'] as List<dynamic>)
+              .map((e) => Exercise.fromJson(e as Map<String, dynamic>))
+              .toList();
+          return ApiResponse<List<Exercise>>(data: exercisesList);
+        }
+        if (json.containsKey('error') && json['error'] != null) {
+          final error = json['error'] as Map<String, dynamic>;
+          return ApiResponse<List<Exercise>>(
+            errorMessage: error['message'] as String?,
+            errorCode: error['code'] as String?,
+            statusCode: error['statusCode'] as int? ??
+                error['status_code'] as int?,
+          );
+        }
+        return const ApiResponse<List<Exercise>>(
+          errorMessage: 'Unknown response format',
+        );
+      },
     );
   }
 }

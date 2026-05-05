@@ -11,6 +11,7 @@ void main() {
       'category': 'Strength',
       'description': 'Lie on a flat bench and press the barbell up',
       'video_url': 'https://example.com/bench-press.mp4',
+      'image_url': null,
       'created_by_id': 'test-trainer-id',
       'recommended_rest_seconds': 90,
       'is_unilateral': false,
@@ -28,6 +29,7 @@ void main() {
       expect(model.category, 'Strength');
       expect(model.description, 'Lie on a flat bench and press the barbell up');
       expect(model.videoUrl, 'https://example.com/bench-press.mp4');
+      expect(model.imageUrl, isNull);
       expect(model.createdById, 'test-trainer-id');
       expect(model.recommendedRestSeconds, 90);
       expect(model.isUnilateral, false);
@@ -54,6 +56,7 @@ void main() {
       expect(model.category, isNull);
       expect(model.description, isNull);
       expect(model.videoUrl, isNull);
+      expect(model.imageUrl, isNull);
       expect(model.createdById, isNull);
       expect(model.recommendedRestSeconds, isNull);
       expect(model.deletedAt, isNull);

@@ -165,19 +165,23 @@ void main() {
 
       // Submit
       await tester.tap(find.byType(FilledButton));
-      // First pump: process the tap and run _submit() fully (Fake completes
-      // synchronously), which calls showSnackBar and context.pop().
+      // First pump: process the tap, _submit() runs fully (Fake completes
+      // immediately), calls showSnackBar + context.pop(). The SnackBar is
+      // queued into the overlay; the route pop is also started this frame.
       await tester.pump();
-      // Second pump: let the route transition from context.pop() begin.
-      await tester.pump();
+
+      // The SnackBar content widget is already in the tree (it was built
+      // during the same frame). Check it before the route transition removes
+      // the Scaffold the SnackBar is attached to.
+      expect(find.text('Program "My Program" created'), findsOneWidget);
+
+      // Let the route transition settle so the popped screen is removed.
+      await tester.pumpAndSettle();
 
       // Verify createProgram was called with the correct arguments
       expect(notifier.createProgramCalled, isTrue);
       expect(notifier.capturedName, 'My Program');
       expect(notifier.capturedDescription, 'Test desc');
-
-      // SnackBar should appear before the pop takes effect
-      expect(find.text('Program "My Program" created'), findsOneWidget);
 
       // Navigation: screen should no longer be in the tree after pop
       expect(find.byType(CreateProgramScreen), findsNothing);
@@ -212,7 +216,8 @@ void main() {
     testWidgets('submit button disabled while submitting', (tester) async {
       final completer = Completer<void>();
       final notifier = FakeProgramsNotifier()
-        ..succeedCreate = true
+        ..succeedCreate = false
+        ..errorMessage = 'fail'
         ..createCompleter = completer;
 
       await tester.pumpWidget(buildApp(notifier: notifier));
@@ -230,7 +235,15 @@ void main() {
       final button = tester.widget<FilledButton>(find.byType(FilledButton));
       expect(button.onPressed, isNull);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Create Program'), findsNothing);
+      // "Create Program" text is still in the AppBar title, but should NOT
+      // appear inside the FilledButton itself.
+      expect(
+        find.descendant(
+          of: find.byType(FilledButton),
+          matching: find.text('Create Program'),
+        ),
+        findsNothing,
+      );
 
       // Complete the creation to avoid leaking the pending async work
       completer.complete();

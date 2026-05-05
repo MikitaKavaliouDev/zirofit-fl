@@ -7,6 +7,7 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/calendar/providers/calendar_provider.dart';
 import '../helpers/provider_utils.dart';
+import '../helpers/response_fixture.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 
@@ -369,6 +370,130 @@ void main() {
       expect(state.error, isNotNull);
       // Session should still be in the list since delete failed
       expect(state.events, hasLength(1));
+    });
+
+    // -------------------------------------------------------------------------
+    // Response shape verification
+    // -------------------------------------------------------------------------
+
+    test('fetchEvents handles empty bookings and sessions', () async {
+      // Backend shape: GET /trainer/calendar → {"data": {"bookings": [], "sessions": []}}
+      final start = DateTime(2024, 2, 1);
+      final end = DateTime(2024, 2, 28);
+
+      when(() => mockApiClient.get(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
+            statusCode: 200,
+            data: dataResponse({
+              'bookings': <dynamic>[],
+              'sessions': <dynamic>[],
+            }),
+          ));
+
+      await container.read(calendarProvider.notifier).fetchEvents(start, end);
+
+      final state = container.read(calendarProvider);
+      expect(state.events, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('fetchEvents parses bookings and sessions into CalendarEvents', () async {
+      // Backend shape: {"data": {"bookings": [...], "sessions": [...]}}
+      final start = DateTime(2024, 3, 1);
+      final end = DateTime(2024, 3, 31);
+
+      when(() => mockApiClient.get(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
+            statusCode: 200,
+            data: dataResponse({
+              'bookings': [
+                {
+                  'id': 'b-cal',
+                  'start_time': 1709251200000,
+                  'end_time': 1709254800000,
+                  'status': 'CONFIRMED',
+                  'trainer_id': 'trainer-1',
+                  'client_id': 'client-1',
+                  'client_name': 'Alice',
+                  'created_at': 1709251200000,
+                  'updated_at': 1709251200000,
+                },
+              ],
+              'sessions': [
+                {
+                  'id': 's-cal',
+                  'client_id': 'client-2',
+                  'name': 'Yoga',
+                  'start_time': 1709337600000,
+                  'end_time': 1709341200000,
+                  'status': 'PLANNED',
+                  'is_trainer_led': true,
+                  'created_at': 1709251200000,
+                  'updated_at': 1709251200000,
+                },
+              ],
+            }),
+          ));
+
+      await container.read(calendarProvider.notifier).fetchEvents(start, end);
+
+      final state = container.read(calendarProvider);
+      expect(state.events, hasLength(2));
+
+      // Verify booking-derived event
+      expect(state.events[0].type, 'booking');
+      expect(state.events[0].id, 'b-cal');
+      expect(state.events[0].clientName, 'Alice');
+      expect(state.events[0].status, 'CONFIRMED');
+
+      // Verify session-derived event
+      expect(state.events[1].type, 'session');
+      expect(state.events[1].id, 's-cal');
+      expect(state.events[1].title, 'Yoga');
+      expect(state.events[1].status, 'PLANNED');
+    });
+
+    test('fetchEvents handles null notes and optional fields', () async {
+      final start = DateTime(2024, 4, 1);
+      final end = DateTime(2024, 4, 30);
+
+      when(() => mockApiClient.get(
+            any(),
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
+            statusCode: 200,
+            data: dataResponse({
+              'bookings': [
+                {
+                  'id': 'b-null',
+                  'start_time': 1711929600000,
+                  'end_time': 1711933200000,
+                  'status': 'PENDING',
+                  'trainer_id': 'trainer-1',
+                  'client_id': null,
+                  'client_name': null,
+                  'created_at': 1711929600000,
+                  'updated_at': 1711929600000,
+                },
+              ],
+              'sessions': <dynamic>[],
+            }),
+          ));
+
+      await container.read(calendarProvider.notifier).fetchEvents(start, end);
+
+      final state = container.read(calendarProvider);
+      expect(state.events, hasLength(1));
+      expect(state.events[0].clientName, isNull);
+      expect(state.events[0].clientId, isNull);
     });
   });
 }

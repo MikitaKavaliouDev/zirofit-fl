@@ -15,6 +15,11 @@ class SecureStorage {
           ),
         );
 
+  /// Test-only constructor that accepts a mock [FlutterSecureStorage].
+  /// Not intended for production use.
+  SecureStorage.test({required FlutterSecureStorage storage})
+      : _storage = storage;
+
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
