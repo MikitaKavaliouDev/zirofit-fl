@@ -22,27 +22,105 @@ Widget b(CheckInState s) => ProviderScope(overrides: [checkInProvider.overrideWi
 void main() {
   setUpAll(() => configureTestApiClient());
   group('CheckInScreen', () {
-    testWidgets('renders form', (t) async {
+    testWidgets('renders wizard step 1 (Body Metrics)', (t) async {
       await t.pumpWidget(b(const CheckInState()));
-      await t.pump(); await t.pump(const Duration(milliseconds: 200));
-      expect(find.text('Weekly Check-in'), findsOneWidget);
-      expect(find.text('Weight (kg) *'), findsOneWidget);
-      expect(find.text('Wellness Metrics'), findsOneWidget);
-      expect(find.text('Energy Level'), findsOneWidget);
-      expect(find.text('Submit Check-In'), findsOneWidget);
-    });
-    testWidgets('sliders', (t) async {
-      await t.pumpWidget(b(const CheckInState()));
+      await t.pump();
       await t.pump(const Duration(milliseconds: 200));
+
+      // AppBar
+      expect(find.text('Weekly Check-in'), findsOneWidget);
+      // Step indicator labels
+      expect(find.text('Body Metrics'), findsOneWidget);
+      expect(find.text('How You Feel'), findsOneWidget);
+      expect(find.text('Photos'), findsOneWidget);
+      expect(find.text('Notes'), findsOneWidget);
+      // Page 1 content
+      expect(find.text('How did your body change?'), findsOneWidget);
+      expect(find.text('Weight (kg) *'), findsOneWidget);
+      // Bottom navigation
+      expect(find.text('Next'), findsOneWidget);
+      // No back button on step 1
+      expect(find.text('Back'), findsNothing);
+    });
+
+    testWidgets('navigates through all 4 steps', (t) async {
+      await t.pumpWidget(b(const CheckInState()));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 200));
+
+      // Page 1: enter weight and tap Next
+      await t.enterText(find.byType(TextFormField).first, '75.5');
+      await t.pump();
+      await t.tap(find.text('Next'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 400));
+
+      // Now on page 2: How do you feel?
+      expect(find.text('How do you feel?'), findsOneWidget);
+      expect(find.text('Energy Level'), findsOneWidget);
+      expect(find.text('Back'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+
+      // Tap Next without selecting nutrition — should not advance
+      await t.tap(find.text('Next'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 400));
+      // Still on page 2
+      expect(find.text('How do you feel?'), findsOneWidget);
+
+      // Select nutrition compliance and tap Next
+      final onTrack = find.text('On Track').last;
+      await t.ensureVisible(onTrack);
+      await t.pump();
+      await t.tap(onTrack);
+      await t.pump();
+      await t.tap(find.text('Next'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 400));
+
+      // Now on page 3: Photos
+      expect(find.text('Progress Photos'), findsOneWidget);
+      expect(find.text('Add Photo'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+
+      // Tap Next
+      await t.tap(find.text('Next'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 400));
+
+      // Now on page 4: Notes
+      expect(find.text('Weekly Notes'), findsOneWidget);
+      expect(find.text('Submit'), findsOneWidget);
+      expect(find.text('Back'), findsOneWidget);
+    });
+
+    testWidgets('sliders show default values on step 2', (t) async {
+      await t.pumpWidget(b(const CheckInState()));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 200));
+
+      // Navigate to step 2
+      await t.enterText(find.byType(TextFormField).first, '75.5');
+      await t.pump();
+      await t.tap(find.text('Next'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 400));
+
+      // All 4 sliders default to 5
       expect(find.text('5'), findsNWidgets(4));
     });
-    testWidgets('submitting', (t) async {
+
+    testWidgets('submitting state shows loading indicator', (t) async {
       await t.pumpWidget(b(const CheckInState(isSubmitting: true)));
-      // Use pump() not pumpAndSettle() because CircularProgressIndicator never settles
       await t.pump();
-      expect(find.text('Submitting...'), findsOneWidget);
+      await t.pump(const Duration(milliseconds: 200));
+
+      // On page 1, the Next button should be disabled when submitting
+      // (We test the provider state directly; loading indicator in bottom nav)
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
-    testWidgets('last check-in', (t) async {
+
+    testWidgets('last check-in banner appears', (t) async {
       final now = DateTime.now();
       await t.pumpWidget(b(CheckInState(
         lastCheckIn: CheckIn(id: 'ci-1', clientId: 'c1', date: now.subtract(const Duration(days: 7)), weight: 75.5, createdAt: now, updatedAt: now),

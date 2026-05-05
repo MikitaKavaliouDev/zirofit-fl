@@ -8,7 +8,7 @@ import 'package:zirofit_fl/data/models/check_in.dart';
 import 'package:zirofit_fl/features/checkin/providers/check_in_provider.dart';
 
 // ---------------------------------------------------------------------------
-// Nutrition Compliance enum for the dropdown
+// Nutrition Compliance enum for segmented picker
 // ---------------------------------------------------------------------------
 
 enum NutritionComplianceOption {
@@ -33,23 +33,34 @@ class CheckInScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckInScreenState extends ConsumerState<CheckInScreen> {
-  final _formKey = GlobalKey<FormState>();
+  late final PageController _pageController;
+
   final _weightController = TextEditingController();
   final _waistController = TextEditingController();
   final _sleepController = TextEditingController();
   final _notesController = TextEditingController();
 
-  DateTime _selectedDate = DateTime.now();
+  int _currentStep = 0;
+  final DateTime _selectedDate = DateTime.now();
   double _energyLevel = 5;
   double _stressLevel = 5;
   double _hungerLevel = 5;
   double _digestionLevel = 5;
   NutritionComplianceOption? _nutritionCompliance;
   XFile? _photo;
-  bool _submitted = false;
+  bool _hasAttemptedNext = false;
+
+  static const _stepLabels = ['Body Metrics', 'How You Feel', 'Photos', 'Notes'];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _weightController.dispose();
     _waistController.dispose();
     _sleepController.dispose();
@@ -57,22 +68,47 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     super.dispose();
   }
 
-  // -------------------------------------------------------------------------
-  // Date picker
-  // -------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Navigation
+  // ---------------------------------------------------------------------------
 
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: now.subtract(const Duration(days: 14)),
-      lastDate: now,
-      helpText: 'Select check-in date',
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
+  bool _validateCurrentStep() {
+    setState(() => _hasAttemptedNext = true);
+
+    switch (_currentStep) {
+      case 0:
+        final weight = _weightController.text.trim();
+        if (weight.isEmpty) return false;
+        final parsed = double.tryParse(weight);
+        if (parsed == null || parsed <= 0) return false;
+        return true;
+      case 1:
+        return _nutritionCompliance != null;
+      default:
+        return true;
     }
+  }
+
+  void _goToStep(int step) {
+    if (step < 0 || step > 3) return;
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    setState(() {
+      _currentStep = step;
+      _hasAttemptedNext = false;
+    });
+  }
+
+  void _nextStep() {
+    if (!_validateCurrentStep()) return;
+    _goToStep(_currentStep + 1);
+  }
+
+  void _previousStep() {
+    _goToStep(_currentStep - 1);
   }
 
   // -------------------------------------------------------------------------
@@ -120,15 +156,12 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   // -------------------------------------------------------------------------
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
     if (_nutritionCompliance == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select nutrition compliance')),
       );
       return;
     }
-
-    setState(() => _submitted = true);
 
     await ref.read(checkInProvider.notifier).submitCheckIn(
           date: _selectedDate,
@@ -152,28 +185,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
     final state = ref.read(checkInProvider);
     if (state.isSuccess) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Check-in submitted successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      // Reset form
-      _formKey.currentState!.reset();
-      setState(() {
-        _selectedDate = DateTime.now();
-        _weightController.clear();
-        _waistController.clear();
-        _sleepController.clear();
-        _notesController.clear();
-        _energyLevel = 5;
-        _stressLevel = 5;
-        _hungerLevel = 5;
-        _digestionLevel = 5;
-        _nutritionCompliance = null;
-        _photo = null;
-        _submitted = false;
-      });
+      setState(() {});
     } else if (state.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -184,6 +196,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     }
   }
 
+  void _dismissSuccess() {
+    ref.read(checkInProvider.notifier).reset();
+    Navigator.of(context).pop();
+  }
+
   // -------------------------------------------------------------------------
   // Build
   // -------------------------------------------------------------------------
@@ -192,236 +209,111 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final checkInState = ref.watch(checkInProvider);
-    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+
+    // Show success state
+    if (checkInState.isSuccess) {
+      return _buildSuccessView(theme);
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Weekly Check-in'),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(checkInProvider.notifier).fetchLastCheckIn(),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Column(
+        children: [
+          // Last check-in banner
+          if (checkInState.lastCheckIn != null)
+            _buildLastCheckInBanner(theme, checkInState.lastCheckIn!),
+
+          // Step indicator
+          _buildStepIndicator(theme),
+
+          // Page content
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
               children: [
-                // Last check-in summary (if available)
-                if (checkInState.lastCheckIn != null)
-                  _buildLastCheckInBanner(theme, checkInState.lastCheckIn!),
-
-                if (checkInState.lastCheckIn != null) const SizedBox(height: 20),
-
-                // Date picker
-                _buildSectionLabel(theme, 'Check-in Date'),
-                const SizedBox(height: 8),
-                _buildDatePicker(theme, dateFormat),
-                const SizedBox(height: 20),
-
-                // Weight
-                _buildSectionLabel(theme, 'Weight (kg) *'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _weightController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your weight',
-                    prefixIcon: Icon(Icons.monitor_weight_outlined),
-                    suffixText: 'kg',
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Weight is required';
-                    }
-                    final weight = double.tryParse(v.trim());
-                    if (weight == null || weight <= 0) {
-                      return 'Enter a valid weight';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Waist circumference
-                _buildSectionLabel(theme, 'Waist Circumference (cm)'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _waistController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'Optional',
-                    prefixIcon: Icon(Icons.straighten_outlined),
-                    suffixText: 'cm',
-                  ),
-                  validator: (v) {
-                    if (v != null && v.trim().isNotEmpty) {
-                      final val = double.tryParse(v.trim());
-                      if (val == null || val <= 0) {
-                        return 'Enter a valid measurement';
-                      }
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Sleep hours
-                _buildSectionLabel(theme, 'Sleep (hours)'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _sleepController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'Optional',
-                    prefixIcon: Icon(Icons.bedtime_outlined),
-                    suffixText: 'hrs',
-                  ),
-                  validator: (v) {
-                    if (v != null && v.trim().isNotEmpty) {
-                      final val = double.tryParse(v.trim());
-                      if (val == null || val <= 0 || val > 24) {
-                        return 'Enter 0-24 hours';
-                      }
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // --- Sliders ---
-                _buildSectionLabel(theme, 'Wellness Metrics'),
-                const SizedBox(height: 4),
-                Text(
-                  'Rate each on a scale of 1–10',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                _buildSlider(
-                  theme: theme,
-                  label: 'Energy Level',
-                  value: _energyLevel,
-                  onChanged: (v) => setState(() => _energyLevel = v),
-                  minLabel: 'Very Low',
-                  maxLabel: 'High Energy',
-                  icon: Icons.bolt,
-                ),
-                const SizedBox(height: 8),
-
-                _buildSlider(
-                  theme: theme,
-                  label: 'Stress Level',
-                  value: _stressLevel,
-                  onChanged: (v) => setState(() => _stressLevel = v),
-                  minLabel: 'Relaxed',
-                  maxLabel: 'Very Stressed',
-                  icon: Icons.psychology,
-                ),
-                const SizedBox(height: 8),
-
-                _buildSlider(
-                  theme: theme,
-                  label: 'Hunger Level',
-                  value: _hungerLevel,
-                  onChanged: (v) => setState(() => _hungerLevel = v),
-                  minLabel: 'Not Hungry',
-                  maxLabel: 'Very Hungry',
-                  icon: Icons.restaurant,
-                ),
-                const SizedBox(height: 8),
-
-                _buildSlider(
-                  theme: theme,
-                  label: 'Digestion Level',
-                  value: _digestionLevel,
-                  onChanged: (v) => setState(() => _digestionLevel = v),
-                  minLabel: 'Poor',
-                  maxLabel: 'Great',
-                  icon: Icons.monitor_heart_outlined,
-                ),
-                const SizedBox(height: 24),
-
-                // Nutrition compliance dropdown
-                _buildSectionLabel(theme, 'Nutrition Compliance *'),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<NutritionComplianceOption>(
-                  initialValue: _nutritionCompliance,
-                  decoration: const InputDecoration(
-                    hintText: 'Select compliance level',
-                    prefixIcon: Icon(Icons.restaurant_menu),
-                  ),
-                  items: NutritionComplianceOption.values.map((opt) {
-                    return DropdownMenuItem(
-                      value: opt,
-                      child: Text(opt.label),
-                    );
-                  }).toList(),
-                  onChanged: (v) => setState(() => _nutritionCompliance = v),
-                  validator: (v) {
-                    if (v == null) return 'Please select compliance level';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Client notes
-                _buildSectionLabel(theme, 'Notes for Your Trainer'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 4,
-                  maxLength: 500,
-                  decoration: const InputDecoration(
-                    hintText: 'Share how your week went...',
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Photo upload
-                _buildSectionLabel(theme, 'Progress Photo'),
-                const SizedBox(height: 8),
-                _buildPhotoPicker(theme),
-                const SizedBox(height: 28),
-
-                // Submit button
-                FilledButton.icon(
-                  onPressed: checkInState.isSubmitting ? null : _submit,
-                  icon: checkInState.isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.send),
-                  label: Text(
-                    checkInState.isSubmitting
-                        ? 'Submitting...'
-                        : 'Submit Check-In',
-                  ),
-                ),
-
-                // Error banner
-                if (checkInState.error != null && _submitted) ...[
-                  const SizedBox(height: 12),
-                  _buildErrorBanner(theme, checkInState.error!),
-                ],
-
-                const SizedBox(height: 32),
+                _buildQuantitativeStep(theme),
+                _buildQualitativeStep(theme),
+                _buildPhotosStep(theme),
+                _buildNotesStep(theme),
               ],
+            ),
+          ),
+
+          // Bottom navigation
+          _buildBottomNavigation(theme, checkInState),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Success view
+  // -------------------------------------------------------------------------
+
+  Widget _buildSuccessView(ThemeData theme) {
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.elasticOut,
+              builder: (context, scale, child) {
+                return Transform.scale(
+                  scale: scale,
+                  child: child,
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check_circle,
+                      size: 64,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Check-in Submitted!',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your trainer has been notified.',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  FilledButton(
+                    onPressed: _dismissSuccess,
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -430,76 +322,369 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   // -------------------------------------------------------------------------
-  // Sub-widgets
+  // Step indicator
   // -------------------------------------------------------------------------
 
-  Widget _buildLastCheckInBanner(ThemeData theme, CheckIn last) {
-    final dateFormat = DateFormat('MMM d, yyyy');
-    return Card(
-      color: theme.colorScheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(
-              Icons.check_circle,
-              color: theme.colorScheme.onSecondaryContainer,
+  Widget _buildStepIndicator(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        children: [
+          // Step circles + connecting line
+          Row(
+            children: List.generate(_stepLabels.length, (i) {
+              final isCompleted = i < _currentStep;
+              final isCurrent = i == _currentStep;
+
+              return Expanded(
+                child: _buildStepDot(theme, i, isCompleted, isCurrent),
+              );
+            }),
+          ),
+          const SizedBox(height: 6),
+          // Labels
+          Row(
+            children: List.generate(_stepLabels.length, (i) {
+              final isActive = i <= _currentStep;
+              return Expanded(
+                child: Text(
+                  _stepLabels[i],
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    color: isActive
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepDot(ThemeData theme, int index, bool isCompleted, bool isCurrent) {
+    return Row(
+      children: [
+        // Dot
+        if (index > 0)
+          Expanded(
+            child: Container(
+              height: 2,
+              color: index <= _currentStep
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Last check-in: ${dateFormat.format(last.date)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSecondaryContainer,
+          ),
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isCompleted
+                ? theme.colorScheme.primary
+                : isCurrent
+                    ? theme.colorScheme.primaryContainer
+                    : Colors.transparent,
+            border: Border.all(
+              color: isCurrent || isCompleted
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: isCompleted
+                ? Icon(Icons.check, size: 16, color: theme.colorScheme.onPrimary)
+                : Text(
+                    '${index + 1}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isCurrent
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (last.weight != null)
-                    Text(
-                      'Weight: ${last.weight!.toStringAsFixed(1)} kg',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSecondaryContainer,
-                      ),
-                    ),
-                ],
+          ),
+        ),
+        if (index < _stepLabels.length - 1)
+          Expanded(
+            child: Container(
+              height: 2,
+              color: index < _currentStep
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+            ),
+          ),
+      ],
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Bottom navigation
+  // -------------------------------------------------------------------------
+
+  Widget _buildBottomNavigation(ThemeData theme, CheckInState checkInState) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Back button
+          if (_currentStep > 0)
+            TextButton(
+              onPressed: checkInState.isSubmitting ? null : _previousStep,
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onSurfaceVariant,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              ),
+              child: const Text('Back'),
+            ),
+
+          if (_currentStep > 0) const Spacer(),
+
+          // Next or Submit button
+          FilledButton(
+            onPressed: checkInState.isSubmitting
+                ? null
+                : (_currentStep < 3 ? _nextStep : _submit),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
-          ],
-        ),
+            child: checkInState.isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    _currentStep == 3 ? 'Submit' : 'Next',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionLabel(ThemeData theme, String label) {
-    return Text(
-      label,
-      style: theme.textTheme.titleSmall?.copyWith(
-        fontWeight: FontWeight.w600,
+  // -------------------------------------------------------------------------
+  // PAGE 1 — QuantitativeStep
+  // -------------------------------------------------------------------------
+
+  Widget _buildQuantitativeStep(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How did your body change?',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Track your key body metrics for this week',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Weight
+          Text(
+            'Weight (kg) *',
+            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _weightController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              hintText: 'Enter your weight',
+              prefixIcon: Icon(Icons.monitor_weight_outlined),
+              suffixText: 'kg',
+            ),
+            onChanged: (_) {
+              if (_hasAttemptedNext) setState(() {});
+            },
+          ),
+          if (_hasAttemptedNext && _weightController.text.trim().isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 16),
+              child: Text(
+                'Weight is required',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+          const SizedBox(height: 20),
+
+          // Waist
+          Text(
+            'Waist (cm)',
+            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _waistController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              hintText: 'Optional',
+              prefixIcon: Icon(Icons.straighten_outlined),
+              suffixText: 'cm',
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Sleep
+          Text(
+            'Sleep (hrs)',
+            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _sleepController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              hintText: 'Optional',
+              prefixIcon: Icon(Icons.bedtime_outlined),
+              suffixText: 'hrs',
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
-  Widget _buildDatePicker(ThemeData theme, DateFormat dateFormat) {
-    return InkWell(
-      onTap: _pickDate,
-      borderRadius: BorderRadius.circular(12),
-      child: InputDecorator(
-        decoration: const InputDecoration(
-          prefixIcon: Icon(Icons.calendar_month_outlined),
-          suffixIcon: Icon(Icons.arrow_drop_down),
-        ),
-        child: Text(
-          dateFormat.format(_selectedDate),
-          style: theme.textTheme.bodyLarge,
-        ),
+  // -------------------------------------------------------------------------
+  // PAGE 2 — QualitativeStep
+  // -------------------------------------------------------------------------
+
+  Widget _buildQualitativeStep(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How do you feel?',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Rate each on a scale of 1–10',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          _buildSliderCard(
+            theme: theme,
+            label: 'Energy Level',
+            value: _energyLevel,
+            onChanged: (v) => setState(() => _energyLevel = v),
+            minLabel: 'Very Low',
+            maxLabel: 'High Energy',
+            icon: Icons.bolt,
+          ),
+          const SizedBox(height: 8),
+
+          _buildSliderCard(
+            theme: theme,
+            label: 'Stress Level',
+            value: _stressLevel,
+            onChanged: (v) => setState(() => _stressLevel = v),
+            minLabel: 'Relaxed',
+            maxLabel: 'Very Stressed',
+            icon: Icons.psychology,
+          ),
+          const SizedBox(height: 8),
+
+          _buildSliderCard(
+            theme: theme,
+            label: 'Hunger Level',
+            value: _hungerLevel,
+            onChanged: (v) => setState(() => _hungerLevel = v),
+            minLabel: 'Not Hungry',
+            maxLabel: 'Very Hungry',
+            icon: Icons.restaurant,
+          ),
+          const SizedBox(height: 8),
+
+          _buildSliderCard(
+            theme: theme,
+            label: 'Digestion Level',
+            value: _digestionLevel,
+            onChanged: (v) => setState(() => _digestionLevel = v),
+            minLabel: 'Poor',
+            maxLabel: 'Great',
+            icon: Icons.monitor_heart_outlined,
+          ),
+          const SizedBox(height: 24),
+
+          // Nutrition compliance
+          Text(
+            'Nutrition Compliance *',
+            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<NutritionComplianceOption>(
+            emptySelectionAllowed: true,
+            segments: NutritionComplianceOption.values.map((opt) {
+              return ButtonSegment(
+                value: opt,
+                label: Text(opt.label, style: const TextStyle(fontSize: 13)),
+              );
+            }).toList(),
+            selected: _nutritionCompliance != null
+                ? {_nutritionCompliance!}
+                : <NutritionComplianceOption>{},
+            onSelectionChanged: (selected) {
+              setState(() => _nutritionCompliance = selected.first);
+            },
+            showSelectedIcon: false,
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          if (_hasAttemptedNext && _nutritionCompliance == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 16),
+              child: Text(
+                'Please select nutrition compliance',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
-  Widget _buildSlider({
+  Widget _buildSliderCard({
     required ThemeData theme,
     required String label,
     required double value,
@@ -528,10 +713,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 2,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -580,123 +762,210 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  Widget _buildPhotoPicker(ThemeData theme) {
-    return InkWell(
-      onTap: _pickPhoto,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 120,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant,
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        ),
-        child: _photo != null
-            ? Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
-                      File(_photo!.path),
-                      width: double.infinity,
-                      height: 120,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.black54,
-                      child: IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        color: Colors.white,
-                        padding: EdgeInsets.zero,
-                        onPressed: () => setState(() => _photo = null),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 4,
-                    left: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _photo!.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.add_a_photo_outlined,
-                      size: 32,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Add Progress Photo',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    Text(
-                      'Optional',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
-  }
+  // -------------------------------------------------------------------------
+  // PAGE 3 — PhotosStep
+  // -------------------------------------------------------------------------
 
-  Widget _buildErrorBanner(ThemeData theme, String error) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
+  Widget _buildPhotosStep(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.error_outline,
-            color: theme.colorScheme.onErrorContainer,
+          Text(
+            'Progress Photos',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              error,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onErrorContainer,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            'Front, Side, Back (Optional)',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Photo gallery horizontal scroll
+          SizedBox(
+            height: 200,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                // Existing photo
+                if (_photo != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(_photo!.path),
+                            width: 150,
+                            height: 200,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _photo = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Add photo button
+                GestureDetector(
+                  onTap: _pickPhoto,
+                  child: Container(
+                    width: 150,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_a_photo_outlined,
+                          size: 40,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add Photo',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
+
+  // -------------------------------------------------------------------------
+  // PAGE 4 — NotesStep
+  // -------------------------------------------------------------------------
+
+  Widget _buildNotesStep(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Weekly Notes',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Share how your week went with your trainer',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          TextFormField(
+            controller: _notesController,
+            maxLines: 8,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              hintText: 'How was your week? Any challenges or wins?',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Anything else to tell your trainer?',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Last check-in banner
+  // -------------------------------------------------------------------------
+
+  Widget _buildLastCheckInBanner(ThemeData theme, CheckIn last) {
+    final dateFormat = DateFormat('MMM d, yyyy');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Card(
+        color: theme.colorScheme.secondaryContainer,
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: theme.colorScheme.onSecondaryContainer,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Last check-in: ${dateFormat.format(last.date)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                    if (last.weight != null)
+                      Text(
+                        'Weight: ${last.weight!.toStringAsFixed(1)} kg',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 }

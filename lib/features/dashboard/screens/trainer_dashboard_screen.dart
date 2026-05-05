@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/trainer_dashboard_provider.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/dashboard_prompt_card.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/quick_add_session_dialog.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 
@@ -37,6 +39,11 @@ class _TrainerDashboardScreenState
           await ref.read(trainerDashboardProvider.notifier).refresh();
         },
         child: _buildBody(theme, authState, dashboardState),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _quickAddSession(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Quick Add'),
       ),
     );
   }
@@ -100,6 +107,14 @@ class _TrainerDashboardScreenState
               _buildStatsSection(theme, data.stats),
               const SizedBox(height: 24),
 
+              // Dashboard Prompts
+              _buildPromptsSection(theme, data),
+              const SizedBox(height: 20),
+
+              // Quick Actions Bar
+              _buildQuickActionsBar(theme),
+              const SizedBox(height: 24),
+
               // Upcoming Sessions
               _buildSectionHeader(theme, 'Upcoming Sessions', () {}),
               const SizedBox(height: 12),
@@ -122,6 +137,105 @@ class _TrainerDashboardScreenState
         ),
       ],
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dashboard Prompts
+  // ---------------------------------------------------------------------------
+
+  Widget _buildPromptsSection(ThemeData theme, TrainerDashboardData data) {
+    final prompts = <DashboardPrompt>[
+      // Prompt: pending check-ins
+      if (data.stats.pendingCheckIns > 0)
+        DashboardPrompt(
+          id: 'pending_checkins_${data.stats.pendingCheckIns}',
+          type: DashboardPromptType.overdueCheckin,
+          title: data.stats.pendingCheckIns == 1
+              ? 'You have 1 pending check-in to review'
+              : 'You have ${data.stats.pendingCheckIns} pending check-ins to review',
+          actionLabel: 'View Check-ins',
+          onAction: () {
+            // TODO: navigate to check-ins tab
+          },
+        ),
+
+      // Prompt: new clients (from recent activity)
+      if (data.recentActivity
+          .any((a) => a.type == ActivityType.client))
+        DashboardPrompt(
+          id: 'new_client_activity',
+          type: DashboardPromptType.newClient,
+          title: 'A new client joined — say hello!',
+          actionLabel: 'View Clients',
+          onAction: () {
+            // TODO: navigate to clients tab
+          },
+        ),
+
+      // Prompt: upcoming session reminder
+      if (data.upcomingSessions.isNotEmpty)
+        DashboardPrompt(
+          id: 'upcoming_sessions_${data.upcomingSessions.length}',
+          type: DashboardPromptType.upcomingSession,
+          title: 'You have ${data.upcomingSessions.length} session${data.upcomingSessions.length == 1 ? '' : 's'} today',
+          actionLabel: 'View Calendar',
+          onAction: () {
+            // TODO: navigate to calendar tab
+          },
+        ),
+    ];
+
+    if (prompts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: prompts.map((p) => DashboardPromptCard(prompt: p)).toList(),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Quick Actions
+  // ---------------------------------------------------------------------------
+
+  Widget _buildQuickActionsBar(ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickActionChip(
+            icon: Icons.add_circle_outline,
+            label: 'Quick Add',
+            onTap: () => _quickAddSession(context),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _QuickActionChip(
+            icon: Icons.people_outline,
+            label: 'New Client',
+            onTap: () {
+              // TODO: navigate to add client
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _QuickActionChip(
+            icon: Icons.calendar_month_outlined,
+            label: 'View Calendar',
+            onTap: () {
+              // TODO: navigate to calendar
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _quickAddSession(BuildContext context) async {
+    final created = await QuickAddSessionDialog.show(context);
+    if (created == true && mounted) {
+      ref.read(trainerDashboardProvider.notifier).refresh();
+    }
   }
 
   Widget _buildErrorState(ThemeData theme, String error) {
@@ -637,6 +751,58 @@ class _ClientAvatarCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Quick Action Chip
+// ---------------------------------------------------------------------------
+
+/// A compact tappable chip for the quick actions bar on the dashboard.
+class _QuickActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 24,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -27,6 +27,7 @@ import 'package:zirofit_fl/features/programs/screens/programs_list_screen.dart';
 import 'package:zirofit_fl/features/progress/screens/progress_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/trainer_profile_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/settings_screen.dart';
+import 'package:zirofit_fl/features/events/screens/client_event_detail_screen.dart';
 import 'package:zirofit_fl/features/exercises/screens/exercise_list_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/active_workout_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_history_screen.dart';
@@ -224,11 +225,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/client/progress',
-            builder: (_, _) => const ProgressScreen(),
+            builder: (_, _) => const PersonalAnalyticsScreen(),
           ),
           GoRoute(
             path: '/client/trainer',
             builder: (_, _) => const MyTrainerScreen(),
+          ),
+          GoRoute(
+            path: '/client/events/:id',
+            builder: (_, state) => ClientEventDetailScreen(
+              eventId: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: '/client/check-in',

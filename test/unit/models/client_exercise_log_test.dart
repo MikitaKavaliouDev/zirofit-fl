@@ -19,6 +19,9 @@ void main() {
       'sets': [
         {'reps': 10, 'weight': 50.5},
       ],
+      'rpe': null,
+      'rir': null,
+      'exercise_name': null,
       'created_at': 1700000000000,
       'updated_at': 1700000001000,
       'deleted_at': null,

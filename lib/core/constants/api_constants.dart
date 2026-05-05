@@ -54,8 +54,16 @@ class ApiConstants {
   static const String exercises = '/exercises';
   static const String clientDashboard = '/client/dashboard';
 
+  // Client Analytics
+  static const String clientAnalytics = '/client/analytics';
+
   // Explore
   static const String exploreFeatured = '/explore/featured';
+  static const String exploreMetadata = '/explore/metadata';
+
+  // Trainers
+  static const String trainersSearch = '/trainers';
+  static const String trainersSpecialties = '/trainers/specialties';
 
   // Bookings & Events
   static const String bookings = '/bookings';
@@ -66,6 +74,8 @@ class ApiConstants {
   static String eventJoin(String id) => '/events/$id/join';
   static const String trainerEvents = '/trainer/events';
   static String trainerEventCrud(String id) => '/trainer/events/$id';
+  static const String clientEvents = '/client/events';
+  static String clientEventCancel(String bookingId) => '/client/events/$bookingId/cancel';
 
   // Notifications
   static const String notifications = '/notifications';
@@ -90,6 +100,9 @@ class ApiConstants {
 
   // Programs & Templates
   static const String trainerPrograms = '/trainer/programs';
+  static const String trainerWorkoutTemplates = '/trainer/workout-templates';
+  static const String clientPrograms = '/client/programs';
+  static const String clientActiveProgram = '/client/program/active';
 
   // Nutrition / Recipes
   static const String trainerRecipes = '/trainer/recipes';
@@ -123,6 +136,15 @@ class ApiConstants {
   static const String createCheckoutSession = '/checkout/session';
   static const String billingSubscription = '/billing/subscription';
   static const String billingPortal = '/billing/portal';
+  static const String billingPayouts = '/billing/payouts';
+  static const String billingRevenue = '/billing/revenue';
+  static const String billingTransactions = '/billing/transactions';
+  static const String billingStripeStatus = '/billing/stripe-status';
+  static const String billingStripeOnboarding = '/billing/stripe-onboarding';
+
+  // Trainer Storefront
+  static const String trainerStorefront = '/trainer/storefront';
+  static const String trainerStorefrontVisibility = '/trainer/storefront/visibility';
 
   // Blog
   static const String blog = '/blog';
@@ -156,6 +178,17 @@ class ApiConstants {
 
   // Support Tickets
   static const String supportTickets = '/support/tickets';
+  static const String supportFeedback = '/support/feedback';
+
+  // Workout Session Detail
+  static String workoutSessionDetail(String id) => '/workout-sessions/$id';
+
+  // Client Progress
+  static const String clientProgress = '/client/progress';
+
+  // Assessments
+  static const String trainerAssessments = '/trainer/assessments';
+  static String clientAssessments(String id) => '/clients/$id/assessments';
 
   // Custom Domains
   static const String domainAdd = '/domain/add';
