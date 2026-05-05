@@ -47,11 +47,12 @@ class WorkoutRemoteSource {
     );
 
     final data = response['data'] as Map<String, dynamic>? ?? response;
-    final session = WorkoutSession.fromJson(
-      data['session'] as Map<String, dynamic>,
-    );
+    final sessionMap = data['session'] as Map<String, dynamic>;
+    final session = WorkoutSession.fromJson(sessionMap);
+
+    // Logs are nested inside session as 'exerciseLogs' (camelCase)
     final logsList =
-        (data['logs'] as List<dynamic>?)
+        (sessionMap['exerciseLogs'] as List<dynamic>?)
             ?.map((e) => ClientExerciseLog.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];

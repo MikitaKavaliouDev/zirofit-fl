@@ -37,46 +37,70 @@ class ClientExerciseLog {
     this.deletedAt,
   });
 
-  factory ClientExerciseLog.fromJson(Map<String, dynamic> json) =>
-      ClientExerciseLog(
-        id: json['id'] as String,
-        clientId: json['client_id'] as String,
-        exerciseId: json['exercise_id'] as String,
-        reps: json['reps'] as int?,
-        weight: (json['weight'] as num?)?.toDouble(),
-        isCompleted: json['is_completed'] as bool?,
-        order: json['order'] as int?,
-        tempo: json['tempo'] as String?,
-        side: (json['side'] as String?) ?? 'BOTH',
-        workoutSessionId:
-            json['workout_session_id'] as String,
-        supersetKey: json['superset_key'] as String?,
-        orderInSuperset: json['order_in_superset'] as int?,
-        sets: json['sets'] as List<dynamic>?,
-        createdAt: dateTimeFromJson(json['created_at'] as int),
-        updatedAt: dateTimeFromJson(json['updated_at'] as int),
-        deletedAt:
-            dateTimeFromJsonOrNull(json['deleted_at'] as int?),
-      );
+  factory ClientExerciseLog.fromJson(
+    Map<String, dynamic> json,
+  ) => ClientExerciseLog(
+    id: json['id'] as String,
+    clientId: () {
+      // Try flat keys first (snake_case, camelCase)
+      final flat = readStringOrNull(json, 'client_id', 'clientId');
+      if (flat != null) return flat;
+      // Fallback: nested client object (if backend sends {"client":{"id":"..."}})
+      final clientMap = json['client'] as Map<String, dynamic>?;
+      final nestedId = clientMap?['id'] as String?;
+      if (nestedId != null) return nestedId;
+      throw FormatException('Missing client_id/clientId/client.id');
+    }(),
+    exerciseId: readString(json, 'exercise_id', 'exerciseId'),
+    reps: json['reps'] as int?,
+    weight: (json['weight'] as num?)?.toDouble(),
+    isCompleted: _readIsCompleted(json),
+    order: json['order'] as int?,
+    tempo: json['tempo'] as String?,
+    side: (json['side'] as String?) ?? 'BOTH',
+    workoutSessionId: readString(
+      json,
+      'workout_session_id',
+      'workoutSessionId',
+    ),
+    supersetKey: readStringOrNull(json, 'superset_key', 'supersetKey'),
+    orderInSuperset: readIntOrNull(
+      json,
+      'order_in_superset',
+      'orderInSuperset',
+    ),
+    sets: json['sets'] as List<dynamic>?,
+    createdAt: readDateTime(json, 'created_at', 'createdAt'),
+    updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+    deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
+  );
+
+  /// Extracts the nullable [bool] for [isCompleted] from either snake_case or
+  /// camelCase JSON key.
+  static bool? _readIsCompleted(Map<String, dynamic> json) {
+    final v = json['is_completed'] ?? json['isCompleted'];
+    if (v is bool) return v;
+    return null;
+  }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'client_id': clientId,
-        'exercise_id': exerciseId,
-        'reps': reps,
-        'weight': weight,
-        'is_completed': isCompleted,
-        'order': order,
-        'tempo': tempo,
-        'side': side,
-        'workout_session_id': workoutSessionId,
-        'superset_key': supersetKey,
-        'order_in_superset': orderInSuperset,
-        'sets': sets,
-        'created_at': dateTimeToJson(createdAt),
-        'updated_at': dateTimeToJson(updatedAt),
-        'deleted_at': dateTimeToJson(deletedAt),
-      };
+    'id': id,
+    'client_id': clientId,
+    'exercise_id': exerciseId,
+    'reps': reps,
+    'weight': weight,
+    'is_completed': isCompleted,
+    'order': order,
+    'tempo': tempo,
+    'side': side,
+    'workout_session_id': workoutSessionId,
+    'superset_key': supersetKey,
+    'order_in_superset': orderInSuperset,
+    'sets': sets,
+    'created_at': dateTimeToJson(createdAt),
+    'updated_at': dateTimeToJson(updatedAt),
+    'deleted_at': dateTimeToJson(deletedAt),
+  };
 
   @override
   String toString() =>
@@ -111,21 +135,21 @@ class ClientExerciseLog {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        clientId,
-        exerciseId,
-        reps,
-        weight,
-        isCompleted,
-        order,
-        tempo,
-        side,
-        workoutSessionId,
-        supersetKey,
-        orderInSuperset,
-        sets,
-        createdAt,
-        updatedAt,
-        deletedAt,
-      );
+    id,
+    clientId,
+    exerciseId,
+    reps,
+    weight,
+    isCompleted,
+    order,
+    tempo,
+    side,
+    workoutSessionId,
+    supersetKey,
+    orderInSuperset,
+    sets,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
 }

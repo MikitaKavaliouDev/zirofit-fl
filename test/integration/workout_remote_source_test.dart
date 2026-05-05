@@ -162,8 +162,10 @@ void main() {
           ).thenAnswer(
             (_) async => {
               'data': {
-                'session': _sessionJson(),
-                'logs': [_logJson()],
+                'session': {
+                  ..._sessionJson(),
+                  'exerciseLogs': [_logJson()],
+                },
               },
             },
           );
@@ -209,6 +211,36 @@ void main() {
         final result = await remoteSource.getActiveSession();
 
         expect(result.session.id, 'flat-session');
+      });
+
+      test('parses nested client object from backend response', () async {
+        // Backend returns nested client: {"client":{"id":"c-1","name":"Client Name"}}
+        when(
+          () =>
+              mockApiClient.get<Map<String, dynamic>>(ApiConstants.workoutLive),
+        ).thenAnswer(
+          (_) async => {
+            'data': {
+              'session': {
+                'id': 'session-nested',
+                'client': {'id': 'client-nested', 'name': 'John Doe'},
+                'start_time': 1700000000000,
+                'created_at': 1700000000000,
+                'updated_at': 1700000000000,
+              },
+              'exerciseLogs': [],
+            },
+          },
+        );
+
+        final result = await remoteSource.getActiveSession();
+
+        expect(result.session.id, 'session-nested');
+        expect(result.session.clientId, 'client-nested');
+        expect(
+          result.session.name,
+          'John Doe',
+        ); // Should be read from nested client name
       });
     });
 

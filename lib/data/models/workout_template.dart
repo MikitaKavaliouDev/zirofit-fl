@@ -26,26 +26,23 @@ class WorkoutTemplate {
         id: json['id'] as String,
         name: json['name'] as String,
         description: json['description'] as String?,
-        programId: json['program_id'] as String,
+        programId: readString(json, 'program_id', 'programId'),
         order: (json['order'] as int?) ?? 0,
-        createdAt:
-            dateTimeFromJson(json['created_at'] as int),
-        updatedAt:
-            dateTimeFromJson(json['updated_at'] as int),
-        deletedAt: dateTimeFromJsonOrNull(
-            json['deleted_at'] as int?),
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'program_id': programId,
-        'order': order,
-        'created_at': dateTimeToJson(createdAt),
-        'updated_at': dateTimeToJson(updatedAt),
-        'deleted_at': dateTimeToJson(deletedAt),
-      };
+    'id': id,
+    'name': name,
+    'description': description,
+    'program_id': programId,
+    'order': order,
+    'created_at': dateTimeToJson(createdAt),
+    'updated_at': dateTimeToJson(updatedAt),
+    'deleted_at': dateTimeToJson(deletedAt),
+  };
 
   @override
   String toString() =>
@@ -69,13 +66,13 @@ class WorkoutTemplate {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        name,
-        description,
-        programId,
-        order,
-        createdAt,
-        updatedAt,
-        deletedAt,
-      );
+    id,
+    name,
+    description,
+    programId,
+    order,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
 }

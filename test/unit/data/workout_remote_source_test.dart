@@ -186,8 +186,10 @@ void main() {
       ).thenAnswer(
         (_) async => {
           'data': {
-            'session': workoutSessionJson(),
-            'logs': [exerciseLogJson()],
+            'session': {
+              ...workoutSessionJson(),
+              'exerciseLogs': [exerciseLogJson()],
+            },
           },
         },
       );
@@ -208,8 +210,10 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => {
-          'session': workoutSessionJson(id: 'flat-session'),
-          'logs': [exerciseLogJson(id: 'flat-log')],
+          'session': {
+            ...workoutSessionJson(id: 'flat-session'),
+            'exerciseLogs': [exerciseLogJson(id: 'flat-log')],
+          },
         },
       );
 

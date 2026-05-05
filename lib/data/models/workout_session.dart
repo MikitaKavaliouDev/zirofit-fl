@@ -40,59 +40,70 @@ class WorkoutSession {
     this.deletedAt,
   });
 
-  factory WorkoutSession.fromJson(Map<String, dynamic> json) =>
-      WorkoutSession(
-        id: json['id'] as String,
-        clientId: json['client_id'] as String,
-        name: json['name'] as String?,
-        startTime:
-            dateTimeFromJson(json['start_time'] as int),
-        endTime:
-            dateTimeFromJsonOrNull(json['end_time'] as int?),
-        status: WorkoutSessionStatus.fromJson(
-            json['status'] as String? ?? 'IN_PROGRESS'),
-        notes: json['notes'] as String?,
-        restStartedAt: dateTimeFromJsonOrNull(
-            json['rest_started_at'] as int?),
-        workoutTemplateId:
-            json['workout_template_id'] as String?,
-        plannedDate: dateTimeFromJsonOrNull(
-            json['planned_date'] as int?),
-        clientPackageId:
-            json['client_package_id'] as String?,
-        isTrainerLed:
-            (json['is_trainer_led'] as bool?) ?? false,
-        reminderTime: dateTimeFromJsonOrNull(
-            json['reminder_time'] as int?),
-        trainerReminderSent:
-            (json['trainer_reminder_sent'] as bool?) ?? false,
-        createdAt:
-            dateTimeFromJson(json['created_at'] as int),
-        updatedAt:
-            dateTimeFromJson(json['updated_at'] as int),
-        deletedAt: dateTimeFromJsonOrNull(
-            json['deleted_at'] as int?),
-      );
+  factory WorkoutSession.fromJson(Map<String, dynamic> json) => WorkoutSession(
+    id: json['id'] as String,
+    clientId: () {
+      // Try flat keys first (snake_case, camelCase)
+      final flat = readStringOrNull(json, 'client_id', 'clientId');
+      if (flat != null) return flat;
+      // Fallback: nested client object (backend returns {"client":{"id":"..."}})
+      final clientMap = json['client'] as Map<String, dynamic>?;
+      final nestedId = clientMap?['id'] as String?;
+      if (nestedId != null) return nestedId;
+      throw FormatException('Missing client_id/clientId/client.id');
+    }(),
+    name:
+        json['name'] as String? ??
+        (json['client'] as Map<String, dynamic>?)?['name'] as String?,
+    startTime: readDateTime(json, 'start_time', 'startTime'),
+    endTime: readDateTimeOrNull(json, 'end_time', 'endTime'),
+    status: WorkoutSessionStatus.fromJson(
+      readStringOrNull(json, 'status', 'status') ?? 'IN_PROGRESS',
+    ),
+    notes: json['notes'] as String?,
+    restStartedAt: readDateTimeOrNull(json, 'rest_started_at', 'restStartedAt'),
+    workoutTemplateId: readStringOrNull(
+      json,
+      'workout_template_id',
+      'workoutTemplateId',
+    ),
+    plannedDate: readDateTimeOrNull(json, 'planned_date', 'plannedDate'),
+    clientPackageId: readStringOrNull(
+      json,
+      'client_package_id',
+      'clientPackageId',
+    ),
+    isTrainerLed: readBool(json, 'is_trainer_led', 'isTrainerLed'),
+    reminderTime: readDateTimeOrNull(json, 'reminder_time', 'reminderTime'),
+    trainerReminderSent: readBool(
+      json,
+      'trainer_reminder_sent',
+      'trainerReminderSent',
+    ),
+    createdAt: readDateTime(json, 'created_at', 'createdAt'),
+    updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+    deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'client_id': clientId,
-        'name': name,
-        'start_time': dateTimeToJson(startTime),
-        'end_time': dateTimeToJson(endTime),
-        'status': status.toJson(),
-        'notes': notes,
-        'rest_started_at': dateTimeToJson(restStartedAt),
-        'workout_template_id': workoutTemplateId,
-        'planned_date': dateTimeToJson(plannedDate),
-        'client_package_id': clientPackageId,
-        'is_trainer_led': isTrainerLed,
-        'reminder_time': dateTimeToJson(reminderTime),
-        'trainer_reminder_sent': trainerReminderSent,
-        'created_at': dateTimeToJson(createdAt),
-        'updated_at': dateTimeToJson(updatedAt),
-        'deleted_at': dateTimeToJson(deletedAt),
-      };
+    'id': id,
+    'client_id': clientId,
+    'name': name,
+    'start_time': dateTimeToJson(startTime),
+    'end_time': dateTimeToJson(endTime),
+    'status': status.toJson(),
+    'notes': notes,
+    'rest_started_at': dateTimeToJson(restStartedAt),
+    'workout_template_id': workoutTemplateId,
+    'planned_date': dateTimeToJson(plannedDate),
+    'client_package_id': clientPackageId,
+    'is_trainer_led': isTrainerLed,
+    'reminder_time': dateTimeToJson(reminderTime),
+    'trainer_reminder_sent': trainerReminderSent,
+    'created_at': dateTimeToJson(createdAt),
+    'updated_at': dateTimeToJson(updatedAt),
+    'deleted_at': dateTimeToJson(deletedAt),
+  };
 
   @override
   String toString() =>
@@ -130,22 +141,22 @@ class WorkoutSession {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        clientId,
-        name,
-        startTime,
-        endTime,
-        status,
-        notes,
-        restStartedAt,
-        workoutTemplateId,
-        plannedDate,
-        clientPackageId,
-        isTrainerLed,
-        reminderTime,
-        trainerReminderSent,
-        createdAt,
-        updatedAt,
-        deletedAt,
-      );
+    id,
+    clientId,
+    name,
+    startTime,
+    endTime,
+    status,
+    notes,
+    restStartedAt,
+    workoutTemplateId,
+    plannedDate,
+    clientPackageId,
+    isTrainerLed,
+    reminderTime,
+    trainerReminderSent,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
 }

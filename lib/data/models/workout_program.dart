@@ -21,31 +21,27 @@ class WorkoutProgram {
     this.deletedAt,
   });
 
-  factory WorkoutProgram.fromJson(Map<String, dynamic> json) =>
-      WorkoutProgram(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        description: json['description'] as String?,
-        trainerId: json['trainer_id'] as String?,
-        category: json['category'] as String?,
-        createdAt:
-            dateTimeFromJson(json['created_at'] as int),
-        updatedAt:
-            dateTimeFromJson(json['updated_at'] as int),
-        deletedAt: dateTimeFromJsonOrNull(
-            json['deleted_at'] as int?),
-      );
+  factory WorkoutProgram.fromJson(Map<String, dynamic> json) => WorkoutProgram(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String?,
+    trainerId: readStringOrNull(json, 'trainer_id', 'trainerId'),
+    category: json['category'] as String?,
+    createdAt: readDateTime(json, 'created_at', 'createdAt'),
+    updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+    deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'trainer_id': trainerId,
-        'category': category,
-        'created_at': dateTimeToJson(createdAt),
-        'updated_at': dateTimeToJson(updatedAt),
-        'deleted_at': dateTimeToJson(deletedAt),
-      };
+    'id': id,
+    'name': name,
+    'description': description,
+    'trainer_id': trainerId,
+    'category': category,
+    'created_at': dateTimeToJson(createdAt),
+    'updated_at': dateTimeToJson(updatedAt),
+    'deleted_at': dateTimeToJson(deletedAt),
+  };
 
   @override
   String toString() =>
@@ -69,13 +65,13 @@ class WorkoutProgram {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        name,
-        description,
-        trainerId,
-        category,
-        createdAt,
-        updatedAt,
-        deletedAt,
-      );
+    id,
+    name,
+    description,
+    trainerId,
+    category,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
 }

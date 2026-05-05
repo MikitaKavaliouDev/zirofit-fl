@@ -30,19 +30,40 @@ void main() {
       expect(session.id, 'session-1');
       expect(session.clientId, 'client-1');
       expect(session.name, 'Morning Cardio');
-      expect(session.startTime, DateTime.fromMillisecondsSinceEpoch(1700000000000));
-      expect(session.endTime, DateTime.fromMillisecondsSinceEpoch(1700003600000));
+      expect(
+        session.startTime,
+        DateTime.fromMillisecondsSinceEpoch(1700000000000),
+      );
+      expect(
+        session.endTime,
+        DateTime.fromMillisecondsSinceEpoch(1700003600000),
+      );
       expect(session.status, WorkoutSessionStatus.inProgress);
       expect(session.notes, 'Focus on steady-state cardio');
-      expect(session.restStartedAt, DateTime.fromMillisecondsSinceEpoch(1700001800000));
+      expect(
+        session.restStartedAt,
+        DateTime.fromMillisecondsSinceEpoch(1700001800000),
+      );
       expect(session.workoutTemplateId, 'template-1');
-      expect(session.plannedDate, DateTime.fromMillisecondsSinceEpoch(1699999200000));
+      expect(
+        session.plannedDate,
+        DateTime.fromMillisecondsSinceEpoch(1699999200000),
+      );
       expect(session.clientPackageId, 'pkg-1');
       expect(session.isTrainerLed, isTrue);
-      expect(session.reminderTime, DateTime.fromMillisecondsSinceEpoch(1699999200000));
+      expect(
+        session.reminderTime,
+        DateTime.fromMillisecondsSinceEpoch(1699999200000),
+      );
       expect(session.trainerReminderSent, isFalse);
-      expect(session.createdAt, DateTime.fromMillisecondsSinceEpoch(1700000000000));
-      expect(session.updatedAt, DateTime.fromMillisecondsSinceEpoch(1700000000000));
+      expect(
+        session.createdAt,
+        DateTime.fromMillisecondsSinceEpoch(1700000000000),
+      );
+      expect(
+        session.updatedAt,
+        DateTime.fromMillisecondsSinceEpoch(1700000000000),
+      );
       expect(session.deletedAt, isNull);
     });
 
@@ -90,8 +111,11 @@ void main() {
         final json = Map<String, dynamic>.from(baseJson);
         json['status'] = entry.key;
         final session = WorkoutSession.fromJson(json);
-        expect(session.status, entry.value,
-            reason: 'Failed for status: ${entry.key}');
+        expect(
+          session.status,
+          entry.value,
+          reason: 'Failed for status: ${entry.key}',
+        );
       }
     });
 
@@ -180,13 +204,16 @@ void main() {
       expect(output['updated_at'], baseJson['updated_at']);
     });
 
-    test('full roundtrip fromJson -> toJson -> fromJson produces equal object', () {
-      final original = WorkoutSession.fromJson(baseJson);
-      final output = original.toJson();
-      final restored = WorkoutSession.fromJson(output);
+    test(
+      'full roundtrip fromJson -> toJson -> fromJson produces equal object',
+      () {
+        final original = WorkoutSession.fromJson(baseJson);
+        final output = original.toJson();
+        final restored = WorkoutSession.fromJson(output);
 
-      expect(restored, equals(original));
-    });
+        expect(restored, equals(original));
+      },
+    );
 
     test('hashCode is consistent for equal objects', () {
       final s1 = WorkoutSession.fromJson(baseJson);
@@ -203,5 +230,43 @@ void main() {
       expect(str, contains('WorkoutSession('));
       expect(str, contains('Morning Cardio'));
     });
+
+    test('fromJson handles nested client object (backend format)', () {
+      // Backend returns: {"client":{"id":"client-1","name":"John Doe"}}
+      final json = <String, dynamic>{
+        'id': 'session-1',
+        'client': <String, dynamic>{'id': 'client-nested', 'name': 'John Doe'},
+        'start_time': 1700000000000,
+        'created_at': 1700000000000,
+        'updated_at': 1700000000000,
+      };
+
+      final session = WorkoutSession.fromJson(json);
+
+      expect(session.clientId, 'client-nested');
+      expect(
+        session.name,
+        'John Doe',
+      ); // Should also read from nested client if top-level name missing
+    });
+
+    test(
+      'fromJson prefers flat client_id over nested client (forward compatibility)',
+      () {
+        // If both formats present, flat key takes precedence
+        final json = <String, dynamic>{
+          'id': 'session-1',
+          'client_id': 'client-flat',
+          'client': <String, dynamic>{'id': 'client-nested'},
+          'start_time': 1700000000000,
+          'created_at': 1700000000000,
+          'updated_at': 1700000000000,
+        };
+
+        final session = WorkoutSession.fromJson(json);
+
+        expect(session.clientId, 'client-flat');
+      },
+    );
   });
 }

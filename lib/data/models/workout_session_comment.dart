@@ -19,31 +19,30 @@ class WorkoutSessionComment {
     this.deletedAt,
   });
 
-  factory WorkoutSessionComment.fromJson(
-          Map<String, dynamic> json) =>
+  factory WorkoutSessionComment.fromJson(Map<String, dynamic> json) =>
       WorkoutSessionComment(
         id: json['id'] as String,
         text: json['text'] as String,
-        workoutSessionId:
-            json['workout_session_id'] as String,
-        userId: json['user_id'] as String,
-        createdAt:
-            dateTimeFromJson(json['created_at'] as int),
-        updatedAt:
-            dateTimeFromJson(json['updated_at'] as int),
-        deletedAt: dateTimeFromJsonOrNull(
-            json['deleted_at'] as int?),
+        workoutSessionId: readString(
+          json,
+          'workout_session_id',
+          'workoutSessionId',
+        ),
+        userId: readString(json, 'user_id', 'userId'),
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'text': text,
-        'workout_session_id': workoutSessionId,
-        'user_id': userId,
-        'created_at': dateTimeToJson(createdAt),
-        'updated_at': dateTimeToJson(updatedAt),
-        'deleted_at': dateTimeToJson(deletedAt),
-      };
+    'id': id,
+    'text': text,
+    'workout_session_id': workoutSessionId,
+    'user_id': userId,
+    'created_at': dateTimeToJson(createdAt),
+    'updated_at': dateTimeToJson(updatedAt),
+    'deleted_at': dateTimeToJson(deletedAt),
+  };
 
   @override
   String toString() =>
@@ -66,12 +65,12 @@ class WorkoutSessionComment {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        text,
-        workoutSessionId,
-        userId,
-        createdAt,
-        updatedAt,
-        deletedAt,
-      );
+    id,
+    text,
+    workoutSessionId,
+    userId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
 }

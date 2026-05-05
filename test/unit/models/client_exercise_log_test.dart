@@ -17,7 +17,7 @@ void main() {
       'superset_key': 'superset-a',
       'order_in_superset': 1,
       'sets': [
-        {'reps': 10, 'weight': 50.5}
+        {'reps': 10, 'weight': 50.5},
       ],
       'created_at': 1700000000000,
       'updated_at': 1700000001000,
@@ -39,8 +39,14 @@ void main() {
       expect(model.supersetKey, 'superset-a');
       expect(model.orderInSuperset, 1);
       expect(model.sets, hasLength(1));
-      expect(model.createdAt, DateTime.fromMillisecondsSinceEpoch(1700000000000));
-      expect(model.updatedAt, DateTime.fromMillisecondsSinceEpoch(1700000001000));
+      expect(
+        model.createdAt,
+        DateTime.fromMillisecondsSinceEpoch(1700000000000),
+      );
+      expect(
+        model.updatedAt,
+        DateTime.fromMillisecondsSinceEpoch(1700000001000),
+      );
       expect(model.deletedAt, isNull);
     });
 
@@ -81,6 +87,41 @@ void main() {
     test('hashCode is consistent', () {
       final model = ClientExerciseLog.fromJson(json);
       expect(model.hashCode, equals(model.hashCode));
+    });
+
+    test('fromJson handles nested client object (backend format)', () {
+      // Backend may return: {"client": {"id": "client-nested"}}
+      final nestedJson = {
+        'id': 'log-nested',
+        'client': {'id': 'client-nested'},
+        'exercise_id': 'ex-1',
+        'workout_session_id': 'session-1',
+        'created_at': 1700000000000,
+        'updated_at': 1700000001000,
+      };
+
+      final model = ClientExerciseLog.fromJson(nestedJson);
+
+      expect(model.id, 'log-nested');
+      expect(model.clientId, 'client-nested');
+      expect(model.exerciseId, 'ex-1');
+    });
+
+    test('fromJson prefers flat client_id over nested client', () {
+      // If both formats present, flat key takes precedence
+      final mixedJson = {
+        'id': 'log-mixed',
+        'client_id': 'client-flat',
+        'client': {'id': 'client-nested'},
+        'exercise_id': 'ex-1',
+        'workout_session_id': 'session-1',
+        'created_at': 1700000000000,
+        'updated_at': 1700000001000,
+      };
+
+      final model = ClientExerciseLog.fromJson(mixedJson);
+
+      expect(model.clientId, 'client-flat');
     });
   });
 }
