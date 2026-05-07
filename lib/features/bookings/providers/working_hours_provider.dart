@@ -116,14 +116,13 @@ class WorkingHoursNotifier extends StateNotifier<WorkingHoursState> {
 
     try {
       final response = await _api.get<Map<String, dynamic>>(
-        ApiConstants.trainerSettings,
+        ApiConstants.trainerAvailability,
       );
 
-      final data = response['data'] as Map<String, dynamic>? ?? response;
-      final workingHoursRaw = data['workingHours'] as List<dynamic>?;
+      final data = response['data'] as List<dynamic>?;
 
-      if (workingHoursRaw != null && workingHoursRaw.isNotEmpty) {
-        final days = workingHoursRaw
+      if (data != null && data.isNotEmpty) {
+        final days = data
             .map((e) => DaySchedule.fromJson(e as Map<String, dynamic>))
             .toList();
         state = state.copyWith(days: days, isLoading: false);
@@ -139,14 +138,19 @@ class WorkingHoursNotifier extends StateNotifier<WorkingHoursState> {
   // -- Save working hours --
 
   Future<bool> saveWorkingHours() async {
+    // Validate before saving
+    final validationError = _validateSchedule();
+    if (validationError != null) {
+      state = state.copyWith(error: validationError);
+      return false;
+    }
+
     state = state.copyWith(isSaving: true, clearError: true, clearSuccess: true);
 
     try {
       await _api.put<Map<String, dynamic>>(
-        ApiConstants.trainerSettings,
-        body: {
-          'workingHours': state.days.map((d) => d.toJson()).toList(),
-        },
+        ApiConstants.trainerAvailability,
+        body: state.days.map((d) => d.toJson()).toList(),
       );
 
       state = state.copyWith(
@@ -182,6 +186,82 @@ class WorkingHoursNotifier extends StateNotifier<WorkingHoursState> {
     if (startTime != null) days[index].startTime = startTime;
     if (endTime != null) days[index].endTime = endTime;
     state = state.copyWith(days: days, clearError: true, clearSuccess: true);
+  }
+
+  // -- Bulk operations --
+
+  void bulkSetWeekdays({
+    bool isOpen = true,
+    String startTime = '09:00',
+    String endTime = '17:00',
+  }) {
+    final days = [...state.days];
+    for (var i = 0; i <= 4; i++) {
+      days[i] = days[i].copyWith(
+        isOpen: isOpen,
+        startTime: startTime,
+        endTime: endTime,
+      );
+    }
+    state = state.copyWith(days: days, clearError: true, clearSuccess: true);
+  }
+
+  void bulkSetWeekends({
+    bool isOpen = true,
+    String startTime = '10:00',
+    String endTime = '14:00',
+  }) {
+    final days = [...state.days];
+    days[5] = days[5].copyWith(
+      isOpen: isOpen,
+      startTime: startTime,
+      endTime: endTime,
+    );
+    days[6] = days[6].copyWith(
+      isOpen: isOpen,
+      startTime: startTime,
+      endTime: endTime,
+    );
+    state = state.copyWith(days: days, clearError: true, clearSuccess: true);
+  }
+
+  void copyFromPreviousDay(int index) {
+    if (index < 1 || index >= state.days.length) return;
+    final days = [...state.days];
+    days[index] = days[index - 1].copyWith();
+    state = state.copyWith(days: days, clearError: true, clearSuccess: true);
+  }
+
+  // -- Validation --
+
+  /// Returns an error message if any day has invalid times, else null.
+  String? _validateSchedule() {
+    for (final day in state.days) {
+      if (day.isOpen && !_isValidTime(day.startTime, day.endTime)) {
+        return '${day.day}: Start time must be before end time.';
+      }
+    }
+    return null;
+  }
+
+  /// Returns true if start time is strictly before end time.
+  bool _isValidTime(String start, String end) {
+    final startParts = start.split(':');
+    final endParts = end.split(':');
+    final startMinutes = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+    final endMinutes = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+    return startMinutes < endMinutes;
+  }
+
+  /// Returns a per-day validation error, or null if the day is valid.
+  String? validateDay(int index) {
+    if (index < 0 || index >= state.days.length) return null;
+    final day = state.days[index];
+    if (!day.isOpen) return null;
+    if (!_isValidTime(day.startTime, day.endTime)) {
+      return 'Start time must be before end time';
+    }
+    return null;
   }
 
   // -- Helpers --

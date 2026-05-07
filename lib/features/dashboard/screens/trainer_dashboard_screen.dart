@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/trainer_dashboard_provider.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/dashboard_prompt_card.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/quick_add_session_dialog.dart';
+import 'package:zirofit_fl/features/clients/widgets/add_client_sheet.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 
@@ -91,7 +93,7 @@ class _TrainerDashboardScreenState
             IconButton(
               icon: const Icon(Icons.notifications_outlined),
               onPressed: () {
-                // TODO: Navigate to notifications
+                context.push('/trainer/notifications');
               },
             ),
             const SizedBox(width: 8),
@@ -154,9 +156,7 @@ class _TrainerDashboardScreenState
               ? 'You have 1 pending check-in to review'
               : 'You have ${data.stats.pendingCheckIns} pending check-ins to review',
           actionLabel: 'View Check-ins',
-          onAction: () {
-            // TODO: navigate to check-ins tab
-          },
+          onAction: () => context.go('/trainer/check-ins'),
         ),
 
       // Prompt: new clients (from recent activity)
@@ -167,9 +167,7 @@ class _TrainerDashboardScreenState
           type: DashboardPromptType.newClient,
           title: 'A new client joined — say hello!',
           actionLabel: 'View Clients',
-          onAction: () {
-            // TODO: navigate to clients tab
-          },
+          onAction: () => context.go('/trainer/clients'),
         ),
 
       // Prompt: upcoming session reminder
@@ -179,9 +177,7 @@ class _TrainerDashboardScreenState
           type: DashboardPromptType.upcomingSession,
           title: 'You have ${data.upcomingSessions.length} session${data.upcomingSessions.length == 1 ? '' : 's'} today',
           actionLabel: 'View Calendar',
-          onAction: () {
-            // TODO: navigate to calendar tab
-          },
+          onAction: () => context.go('/trainer/calendar'),
         ),
     ];
 
@@ -212,9 +208,7 @@ class _TrainerDashboardScreenState
           child: _QuickActionChip(
             icon: Icons.people_outline,
             label: 'New Client',
-            onTap: () {
-              // TODO: navigate to add client
-            },
+            onTap: () => AddClientSheet.show(context),
           ),
         ),
         const SizedBox(width: 12),
@@ -222,9 +216,7 @@ class _TrainerDashboardScreenState
           child: _QuickActionChip(
             icon: Icons.calendar_month_outlined,
             label: 'View Calendar',
-            onTap: () {
-              // TODO: navigate to calendar
-            },
+            onTap: () => context.go('/trainer/calendar'),
           ),
         ),
       ],
@@ -301,24 +293,28 @@ class _TrainerDashboardScreenState
               value: NumberFormat.currency(symbol: '\$').format(stats.revenue),
               icon: Icons.attach_money,
               color: Colors.green,
+              onTap: () => context.push('/trainer/revenue'),
             ),
             _StatCard(
               title: 'Active Clients',
               value: stats.activeClients.toString(),
               icon: Icons.people,
               color: Colors.blue,
+              onTap: () => context.go('/trainer/clients'),
             ),
             _StatCard(
               title: 'Today\'s Sessions',
               value: stats.todaySessions.toString(),
               icon: Icons.calendar_today,
               color: Colors.orange,
+              onTap: () => context.go('/trainer/calendar'),
             ),
             _StatCard(
               title: 'Pending Check-ins',
               value: stats.pendingCheckIns.toString(),
               icon: Icons.pending_actions,
               color: Colors.purple,
+              onTap: () => context.go('/trainer/check-ins'),
             ),
           ],
         ),
@@ -484,12 +480,14 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
@@ -497,52 +495,56 @@ class _StatCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.trending_up,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(
+                    icon,
                     color: color,
-                    size: 16,
+                    size: 24,
                   ),
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.trending_up,
+                      color: color,
+                      size: 16,
+                    ),
                   ),
-                ),
-                Text(
-                  title,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  Text(
+                    title,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

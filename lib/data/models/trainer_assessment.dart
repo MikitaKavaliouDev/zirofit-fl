@@ -40,6 +40,26 @@ class TrainerAssessment {
         'updated_at': dateTimeToJson(updatedAt),
       };
 
+  TrainerAssessment copyWith({
+    String? id,
+    String? name,
+    String? description,
+    String? unit,
+    String? trainerId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return TrainerAssessment(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      unit: unit ?? this.unit,
+      trainerId: trainerId ?? this.trainerId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   @override
   String toString() =>
       'TrainerAssessment(id: $id, name: $name, '

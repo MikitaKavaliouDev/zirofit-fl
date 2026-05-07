@@ -5,7 +5,38 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/event.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
 import 'package:zirofit_fl/data/models/trainer_search_result.dart';
+import 'package:zirofit_fl/data/models/public_trainer_profile_data.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
+
+// ---------------------------------------------------------------------------
+// City model for city picker
+// ---------------------------------------------------------------------------
+
+class ExploreCity {
+  final String id;
+  final String name;
+  final double? latitude;
+  final double? longitude;
+  final String? imageUrl;
+
+  const ExploreCity({
+    required this.id,
+    required this.name,
+    this.latitude,
+    this.longitude,
+    this.imageUrl,
+  });
+
+  factory ExploreCity.fromJson(Map<String, dynamic> json) {
+    return ExploreCity(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      latitude: json['latitude'] as double?,
+      longitude: json['longitude'] as double?,
+      imageUrl: json['imageUrl'] as String?,
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -29,6 +60,10 @@ class ExploreState {
   final bool hasMore;
   final int currentPage;
 
+  // City and event data for explore tab
+  final List<ExploreCity> cities;
+  final List<Event> upcomingEvents;
+
   const ExploreState({
     this.trainers = const [],
     this.isLoading = false,
@@ -43,6 +78,8 @@ class ExploreState {
     this.longitude,
     this.hasMore = true,
     this.currentPage = 1,
+    this.cities = const [],
+    this.upcomingEvents = const [],
   });
 
   ExploreState copyWith({
@@ -63,6 +100,8 @@ class ExploreState {
     double? longitude,
     bool? hasMore,
     int? currentPage,
+    List<ExploreCity>? cities,
+    List<Event>? upcomingEvents,
   }) {
     return ExploreState(
       trainers: trainers ?? this.trainers,
@@ -83,6 +122,8 @@ class ExploreState {
       longitude: longitude ?? this.longitude,
       hasMore: hasMore ?? this.hasMore,
       currentPage: currentPage ?? this.currentPage,
+      cities: cities ?? this.cities,
+      upcomingEvents: upcomingEvents ?? this.upcomingEvents,
     );
   }
 }
@@ -117,14 +158,32 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final Map<String, dynamic> data = await _api.get(
+      final Map<String, dynamic> response = await _api.get(
         ApiConstants.exploreFeatured,
       );
 
-      final List<dynamic> rawList = (data['data'] as List?) ?? [];
-      final trainers = rawList
-          .map((e) => Profile.fromJson(e as Map<String, dynamic>))
-          .toList();
+      // Backend wraps response in { data: ... } via jsonSuccess()
+      final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
+      final List<dynamic> rawTrainers = data['featuredTrainers'] as List? ?? [];
+
+      final trainers = rawTrainers.map((e) {
+        final map = e as Map<String, dynamic>;
+        // Map featured trainer shape to Profile fields
+        // Backend: {id, name, avatarUrl, rating, tier, isVerified, specialties}
+        // Profile needs: id, userId, profilePhotoPath, averageRating, isVerified, specialties, createdAt, updatedAt
+        final now = DateTime.now();
+        return Profile(
+          id: map['id'] as String? ?? '',
+          userId: map['id'] as String? ?? '',
+          aboutMe: map['name'] as String?,
+          profilePhotoPath: map['avatarUrl'] as String?,
+          averageRating: (map['rating'] as num?)?.toDouble(),
+          isVerified: map['isVerified'] as bool? ?? false,
+          specialties: (map['specialties'] as List?)?.cast<String>() ?? [],
+          createdAt: now,
+          updatedAt: now,
+        );
+      }).toList();
 
       state = state.copyWith(
         trainers: trainers,
@@ -152,18 +211,36 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final Map<String, dynamic> data = await _api.get(
+      final Map<String, dynamic> response = await _api.get(
         ApiConstants.exploreFeatured,
       );
 
-      final List<dynamic> rawList = (data['data'] as List?) ?? [];
-      final trainers = rawList
-          .map((e) => Profile.fromJson(e as Map<String, dynamic>))
-          .toList();
+      // Backend wraps response in { data: ... } via jsonSuccess()
+      final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
+      final List<dynamic> rawTrainers = data['featuredTrainers'] as List? ?? [];
 
-      // Parse featured events if present in the response
+      final trainers = rawTrainers.map((e) {
+        final map = e as Map<String, dynamic>;
+        // Map featured trainer shape to Profile fields
+        // Backend: {id, name, avatarUrl, rating, tier, isVerified, specialties}
+        // Profile needs: id, userId, profilePhotoPath, averageRating, isVerified, specialties, createdAt, updatedAt
+        final now = DateTime.now();
+        return Profile(
+          id: map['id'] as String? ?? '',
+          userId: map['id'] as String? ?? '',
+          aboutMe: map['name'] as String?,
+          profilePhotoPath: map['avatarUrl'] as String?,
+          averageRating: (map['rating'] as num?)?.toDouble(),
+          isVerified: map['isVerified'] as bool? ?? false,
+          specialties: (map['specialties'] as List?)?.cast<String>() ?? [],
+          createdAt: now,
+          updatedAt: now,
+        );
+      }).toList();
+
+      // Parse featured events from the data
       final List<Event> events;
-      final rawEvents = data['events'] as List?;
+      final rawEvents = data['featuredEvents'] as List?;
       if (rawEvents != null) {
         events = rawEvents
             .map((e) => Event.fromJson(e as Map<String, dynamic>))
@@ -182,6 +259,75 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
         isLoading: false,
         error: _extractErrorMessage(e),
       );
+    }
+  }
+
+  /// Fetches explore metadata (cities list for city picker).
+  Future<void> loadMetadata() async {
+    try {
+      final Map<String, dynamic> response = await _api.get(
+        ApiConstants.exploreMetadata,
+      );
+
+      // Backend wraps response in { data: ... } via jsonSuccess()
+      final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
+
+      final List<ExploreCity> cities;
+      final rawCities = data['cities'] as List?;
+      if (rawCities != null) {
+        cities = rawCities
+            .map((e) => ExploreCity.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        cities = [];
+      }
+
+      // Also load categories from metadata
+      final List<String> categories;
+      final rawCategories = data['categories'] as List?;
+      if (rawCategories != null) {
+        categories = rawCategories
+            .map((e) => (e as Map<String, dynamic>)['name'] as String)
+            .toList();
+      } else {
+        categories = [];
+      }
+
+      state = state.copyWith(
+        cities: cities,
+        specialties: categories.isNotEmpty ? categories : state.specialties,
+      );
+    } catch (e) {
+      // Silently fail – metadata is non-critical
+    }
+  }
+
+  /// Fetches upcoming events for the explore tab.
+  Future<void> loadUpcomingEvents({int limit = 10}) async {
+    try {
+      final Map<String, dynamic> response = await _api.get(
+        ApiConstants.exploreEvents,
+        queryParams: {
+          'limit': limit.toString(),
+        },
+      );
+
+      // Backend wraps response in { data: ... } via jsonSuccess()
+      final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
+
+      final List<Event> events;
+      final rawEvents = data['events'] as List?;
+      if (rawEvents != null) {
+        events = rawEvents
+            .map((e) => Event.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        events = [];
+      }
+
+      state = state.copyWith(upcomingEvents: events);
+    } catch (e) {
+      // Silently fail – events are non-critical
     }
   }
 
@@ -233,19 +379,21 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       }
       queryParams['page'] = state.currentPage;
 
-      final Map<String, dynamic> data = await _api.get(
+      final Map<String, dynamic> response = await _api.get(
         ApiConstants.trainersSearch,
         queryParams: queryParams,
       );
 
-      final List<dynamic> rawList = (data['data'] as List?) ?? [];
+      // Backend wraps response in { data: ... } via jsonSuccess()
+      final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
+      final List<dynamic> rawList = data['trainers'] as List? ?? [];
       final pageResults = rawList
           .map((e) => TrainerSearchResult.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      // Pagination metadata: the API may return `has_more`, `total`, etc.
-      final bool hasMore = (data['has_more'] as bool?) ??
-          (data['total_pages'] == null || state.currentPage < (data['total_pages'] as int? ?? 1));
+      // Pagination metadata: the API returns pagination object with has_more, total, etc.
+      final Map<String, dynamic>? pagination = data['pagination'] as Map<String, dynamic>?;
+      final bool hasMore = (pagination?['has_more'] as bool?) ?? false;
 
       state = state.copyWith(
         results: page == 1 ? pageResults : [...state.results, ...pageResults],
@@ -266,13 +414,15 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
     if (state.specialties.isNotEmpty) return;
 
     try {
-      final Map<String, dynamic> data = await _api.get(
+      final Map<String, dynamic> response = await _api.get(
         ApiConstants.trainersSpecialties,
       );
 
-      final List<dynamic> rawList = (data['data'] as List?) ??
-          (data['specialties'] as List?) ??
-          [];
+      // Backend wraps response in { data: ... } via jsonSuccess()
+      final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
+      
+      // Specialties endpoint returns { specialties: [...] } in data, not a list at top level
+      final List<dynamic> rawList = data['specialties'] as List? ?? [];
       final specialties = rawList.cast<String>().toList();
 
       state = state.copyWith(specialties: specialties);
@@ -310,7 +460,7 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
   }
 
   /// Sets a location filter and immediately re-searches.
-  void setLocation(String location, double lat, double lon) {
+  void setLocation(String location, double? lat, double? lon) {
     state = state.copyWith(
       locationFilter: location,
       latitude: lat,
@@ -334,6 +484,42 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       hasMore: true,
       currentPage: 1,
     );
+  }
+
+  // =========================================================================
+  // Public trainer profile
+  // =========================================================================
+
+  /// Fetches the full public profile for a trainer by [username].
+  ///
+  /// GET /api/trainers/{username}
+  /// Returns [PublicTrainerProfileData] with all marketplace fields.
+  Future<PublicTrainerProfileData?> fetchFullPublicProfile(
+      String username) async {
+    try {
+      final Map<String, dynamic> response = await _api.get(
+        ApiConstants.trainerPublicProfile(username),
+      );
+
+      final Map<String, dynamic> data =
+          response['data'] as Map<String, dynamic>? ?? response;
+
+      return PublicTrainerProfileData.fromJson(data);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Sends a request from the current client to connect/link with a trainer.
+  Future<bool> requestConnectTrainer(String trainerId) async {
+    try {
+      await _api.post(
+        ApiConstants.clientConnectTrainer(trainerId),
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   // =========================================================================

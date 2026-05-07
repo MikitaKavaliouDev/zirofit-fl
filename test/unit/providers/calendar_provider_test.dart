@@ -38,43 +38,39 @@ void main() {
         final start = DateTime(2024, 1, 1);
         final end = DateTime(2024, 1, 31);
 
-        when(() => mockApiClient.get(
-              any(),
-              queryParams: any(named: 'queryParams'),
-            )).thenAnswer((_) async => Response(
-              requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-              statusCode: 200,
-              data: {
-                'data': {
-                  'bookings': [
-                    {
-                      'id': 'booking-1',
-                      'start_time': 1704067200000, // 2024-01-01 00:00:00
-                      'end_time': 1704070800000, // 2024-01-01 01:00:00
-                      'status': 'CONFIRMED',
-                      'trainer_id': 'trainer-1',
-                      'client_id': 'client-1',
-                      'client_name': 'John Doe',
-                      'created_at': 1704067200000,
-                      'updated_at': 1704067200000,
-                    },
-                  ],
-                  'sessions': [
-                    {
-                      'id': 'session-1',
-                      'client_id': 'client-2',
-                      'name': 'Morning Workout',
-                      'start_time': 1704070800000, // 2024-01-01 01:00:00
-                      'end_time': 1704074400000, // 2024-01-01 02:00:00
-                      'status': 'PLANNED',
-                      'is_trainer_led': true,
-                      'created_at': 1704067200000,
-                      'updated_at': 1704067200000,
-                    },
-                  ],
-                },
+        when(() => mockApiClient.get<Map<String, dynamic>>(
+              any<String>(),
+              queryParams: any<Map<String, dynamic>?>(named: 'queryParams'),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{
+                'bookings': <dynamic>[
+                  <String, dynamic>{
+                    'id': 'booking-1',
+                    'start_time': 1704067200000, // 2024-01-01 00:00:00
+                    'end_time': 1704070800000, // 2024-01-01 01:00:00
+                    'status': 'CONFIRMED',
+                    'trainer_id': 'trainer-1',
+                    'client_id': 'client-1',
+                    'client_name': 'John Doe',
+                    'created_at': 1704067200000,
+                    'updated_at': 1704067200000,
+                  },
+                ],
+                'sessions': <dynamic>[
+                  <String, dynamic>{
+                    'id': 'session-1',
+                    'client_id': 'client-2',
+                    'name': 'Morning Workout',
+                    'start_time': 1704070800000, // 2024-01-01 01:00:00
+                    'end_time': 1704074400000, // 2024-01-01 02:00:00
+                    'status': 'PLANNED',
+                    'is_trainer_led': true,
+                    'created_at': 1704067200000,
+                    'updated_at': 1704067200000,
+                  },
+                ],
               },
-            ));
+            });
 
         await container.read(calendarProvider.notifier).fetchEvents(start, end);
 
@@ -92,19 +88,15 @@ void main() {
         final start = DateTime(2024, 1, 1);
         final end = DateTime(2024, 1, 31);
 
-        when(() => mockApiClient.get(
-              any(),
-              queryParams: any(named: 'queryParams'),
-            )).thenAnswer((_) async => Response(
-              requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-              statusCode: 200,
-              data: {
-                'data': {
-                  'bookings': [],
-                  'sessions': [],
-                },
+        when(() => mockApiClient.get<Map<String, dynamic>>(
+              any<String>(),
+              queryParams: any<Map<String, dynamic>?>(named: 'queryParams'),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{
+                'bookings': <dynamic>[],
+                'sessions': <dynamic>[],
               },
-            ));
+            });
 
         await container.read(calendarProvider.notifier).fetchEvents(start, end);
 
@@ -117,9 +109,9 @@ void main() {
         final start = DateTime(2024, 1, 1);
         final end = DateTime(2024, 1, 31);
 
-        when(() => mockApiClient.get(
-              any(),
-              queryParams: any(named: 'queryParams'),
+        when(() => mockApiClient.get<Map<String, dynamic>>(
+              any<String>(),
+              queryParams: any<Map<String, dynamic>?>(named: 'queryParams'),
             )).thenThrow(DioException(
           requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
           response: Response(
@@ -147,26 +139,22 @@ void main() {
           'end_time': 1704070800000,
         };
 
-        when(() => mockApiClient.post(
-              any(),
-              body: any(named: 'body'),
-            )).thenAnswer((_) async => Response(
-              requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-              statusCode: 201,
-              data: {
-                'data': {
-                  'id': 'session-new',
-                  'client_id': 'client-1',
-                  'name': 'New Session',
-                  'start_time': 1704067200000,
-                  'end_time': 1704070800000,
-                  'status': 'PLANNED',
-                  'is_trainer_led': true,
-                  'created_at': 1704067200000,
-                  'updated_at': 1704067200000,
-                },
+        when(() => mockApiClient.post<Map<String, dynamic>>(
+              any<String>(),
+              body: any<Map<String, dynamic>?>(named: 'body'),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{
+                'id': 'session-new',
+                'client_id': 'client-1',
+                'name': 'New Session',
+                'start_time': 1704067200000,
+                'end_time': 1704070800000,
+                'status': 'PLANNED',
+                'is_trainer_led': true,
+                'created_at': 1704067200000,
+                'updated_at': 1704067200000,
               },
-            ));
+            });
 
         final result =
             await container.read(calendarProvider.notifier).createSession(sessionData);
@@ -186,9 +174,9 @@ void main() {
           'client_id': 'client-1',
         };
 
-        when(() => mockApiClient.post(
-              any(),
-              body: any(named: 'body'),
+        when(() => mockApiClient.post<Map<String, dynamic>>(
+              any<String>(),
+              body: any<Map<String, dynamic>?>(named: 'body'),
             )).thenThrow(DioException(
           requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
           response: Response(
@@ -212,53 +200,44 @@ void main() {
     group('updateSession', () {
       test('updates session in events list', () async {
         // First add a session
-        when(() => mockApiClient.post(
-              any(),
-              body: any(named: 'body'),
-            )).thenAnswer((_) async => Response(
-              requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-              statusCode: 201,
-              data: {
-                'data': {
-                  'id': 'session-1',
-                  'client_id': 'client-1',
-                  'name': 'Original Name',
-                  'start_time': 1704067200000,
-                  'end_time': 1704070800000,
-                  'status': 'PLANNED',
-                  'is_trainer_led': true,
-                  'created_at': 1704067200000,
-                  'updated_at': 1704067200000,
-                },
+        when(() => mockApiClient.post<Map<String, dynamic>>(
+              any<String>(),
+              body: any<Map<String, dynamic>?>(named: 'body'),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{
+                'id': 'session-1',
+                'client_id': 'client-1',
+                'name': 'Original Name',
+                'start_time': 1704067200000,
+                'end_time': 1704070800000,
+                'status': 'PLANNED',
+                'is_trainer_led': true,
+                'created_at': 1704067200000,
+                'updated_at': 1704067200000,
               },
-            ));
+            });
 
         await container
             .read(calendarProvider.notifier)
             .createSession({'name': 'Original Name'});
 
         // Now update it
-        when(() => mockApiClient.put(
-              any(),
-              body: any(named: 'body'),
-            )).thenAnswer((_) async => Response(
-              requestOptions:
-                  RequestOptions(path: ApiConstants.calendarSession('session-1')),
-              statusCode: 200,
-              data: {
-                'data': {
-                  'id': 'session-1',
-                  'client_id': 'client-1',
-                  'name': 'Updated Name',
-                  'start_time': 1704067200000,
-                  'end_time': 1704070800000,
-                  'status': 'PLANNED',
-                  'is_trainer_led': true,
-                  'created_at': 1704067200000,
-                  'updated_at': 1704067200001,
-                },
+        when(() => mockApiClient.put<Map<String, dynamic>>(
+              any<String>(),
+              body: any<Map<String, dynamic>?>(named: 'body'),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{
+                'id': 'session-1',
+                'client_id': 'client-1',
+                'name': 'Updated Name',
+                'start_time': 1704067200000,
+                'end_time': 1704070800000,
+                'status': 'PLANNED',
+                'is_trainer_led': true,
+                'created_at': 1704067200000,
+                'updated_at': 1704067200001,
               },
-            ));
+            });
 
         final result = await container
             .read(calendarProvider.notifier)
@@ -274,26 +253,22 @@ void main() {
     group('deleteSession', () {
       test('removes session from events list', () async {
         // First add a session
-        when(() => mockApiClient.post(
-              any(),
-              body: any(named: 'body'),
-            )).thenAnswer((_) async => Response(
-              requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-              statusCode: 201,
-              data: {
-                'data': {
-                  'id': 'session-1',
-                  'client_id': 'client-1',
-                  'name': 'Session to Delete',
-                  'start_time': 1704067200000,
-                  'end_time': 1704070800000,
-                  'status': 'PLANNED',
-                  'is_trainer_led': true,
-                  'created_at': 1704067200000,
-                  'updated_at': 1704067200000,
-                },
+        when(() => mockApiClient.post<Map<String, dynamic>>(
+              any<String>(),
+              body: any<Map<String, dynamic>?>(named: 'body'),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{
+                'id': 'session-1',
+                'client_id': 'client-1',
+                'name': 'Session to Delete',
+                'start_time': 1704067200000,
+                'end_time': 1704070800000,
+                'status': 'PLANNED',
+                'is_trainer_led': true,
+                'created_at': 1704067200000,
+                'updated_at': 1704067200000,
               },
-            ));
+            });
 
         await container
             .read(calendarProvider.notifier)
@@ -304,11 +279,7 @@ void main() {
         // Now delete it
         when(() => mockApiClient.delete(
               any(),
-            )).thenAnswer((_) async => Response(
-              requestOptions:
-                  RequestOptions(path: ApiConstants.calendarSession('session-1')),
-              statusCode: 204,
-            ));
+            )).thenAnswer((_) async {});
 
         final result = await container
             .read(calendarProvider.notifier)
@@ -324,14 +295,10 @@ void main() {
     group('sendReminder', () {
       test('sends reminder successfully', () async {
         when(() => mockApiClient.post(
-              any(),
-              body: any(named: 'body'),
-            )).thenAnswer((_) async => Response(
-              requestOptions:
-                  RequestOptions(path: ApiConstants.sessionRemind('session-1')),
-              statusCode: 200,
-              data: {'data': {'message': 'Reminder sent'}},
-            ));
+              any<String>(),
+            )).thenAnswer((_) async => <String, dynamic>{
+              'data': <String, dynamic>{'message': 'Reminder sent'},
+            });
 
         final result = await container
             .read(calendarProvider.notifier)
@@ -342,8 +309,7 @@ void main() {
 
       test('returns false on error', () async {
         when(() => mockApiClient.post(
-              any(),
-              body: any(named: 'body'),
+              any<String>(),
             )).thenThrow(DioException(
           requestOptions:
               RequestOptions(path: ApiConstants.sessionRemind('session-1')),

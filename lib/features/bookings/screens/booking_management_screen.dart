@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:zirofit_fl/data/models/booking.dart';
 import 'package:zirofit_fl/data/models/enums/booking_status.dart';
-import 'package:zirofit_fl/features/bookings/providers/bookings_provider.dart';
+import 'package:zirofit_fl/features/bookings/providers/booking_management_provider.dart';
 import 'package:zirofit_fl/features/bookings/screens/working_hours_screen.dart';
 
 // ---------------------------------------------------------------------------
@@ -23,14 +23,14 @@ class _BookingManagementScreenState
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabs = ['All', 'Pending', 'Confirmed', 'Declined'];
+  static const _tabs = ['Pending', 'Confirmed', 'Declined'];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     Future.microtask(() {
-      ref.read(bookingsProvider.notifier).fetchBookings();
+      ref.read(bookingManagementProvider.notifier).fetchAll();
     });
   }
 
@@ -48,7 +48,8 @@ class _BookingManagementScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(bookingsProvider.notifier).fetchBookings(),
+            onPressed: () =>
+                ref.read(bookingManagementProvider.notifier).fetchAll(),
             tooltip: 'Refresh',
           ),
         ],
@@ -74,21 +75,28 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(bookingsProvider);
+    final state = ref.watch(bookingManagementProvider);
     final theme = Theme.of(context);
 
-    if (state.isLoading && state.bookings.isEmpty) {
+    if (state.isLoading &&
+        state.pendingBookings.isEmpty &&
+        state.confirmedBookings.isEmpty &&
+        state.declinedBookings.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state.error != null && state.bookings.isEmpty) {
+    if (state.error != null &&
+        state.pendingBookings.isEmpty &&
+        state.confirmedBookings.isEmpty &&
+        state.declinedBookings.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
-            Text('Failed to load bookings', style: theme.textTheme.titleMedium),
+            Text('Failed to load bookings',
+                style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -101,7 +109,7 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () =>
-                  ref.read(bookingsProvider.notifier).fetchBookings(),
+                  ref.read(bookingManagementProvider.notifier).fetchAll(),
               child: const Text('Retry'),
             ),
           ],
@@ -112,70 +120,30 @@ class _Body extends ConsumerWidget {
     return TabBarView(
       controller: tabController,
       children: [
-        _buildTabContent(state, null, theme, ref),
-        _buildTabContent(state, BookingStatus.pending, theme, ref),
-        _buildTabContent(state, BookingStatus.confirmed, theme, ref),
-        _buildTabContent(state, BookingStatus.cancelled, theme, ref),
+        _buildPendingTab(state, theme, ref),
+        _buildConfirmedTab(state, theme, ref),
+        _buildDeclinedTab(state, theme, ref),
       ],
     );
   }
 
-  Widget _buildTabContent(
-    BookingsState state,
-    BookingStatus? filterStatus,
-    ThemeData theme,
-    WidgetRef ref,
-  ) {
-    final filtered = filterStatus == null
-        ? state.bookings
-        : state.bookings.where((b) => b.status == filterStatus).toList();
-
-    if (filtered.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              filterStatus == BookingStatus.pending
-                  ? Icons.hourglass_empty
-                  : filterStatus == BookingStatus.confirmed
-                      ? Icons.check_circle_outline
-                      : Icons.cancel_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              filterStatus == null
-                  ? 'No bookings yet'
-                  : 'No ${filterStatus.name} bookings',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              filterStatus == BookingStatus.pending
-                  ? 'New requests will appear here'
-                  : filterStatus == null
-                      ? 'Create a new booking to get started'
-                      : 'No bookings with this status',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
+  Widget _buildPendingTab(
+      BookingManagementState state, ThemeData theme, WidgetRef ref) {
+    if (state.pendingBookings.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.hourglass_empty,
+        title: 'No pending bookings',
+        subtitle: 'New requests will appear here',
+        theme: theme,
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(bookingsProvider.notifier).fetchBookings(),
+      onRefresh: () => ref.read(bookingManagementProvider.notifier).fetchAll(),
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-        itemCount: filtered.length + 1,
+        itemCount: state.pendingBookings.length + 1,
         itemBuilder: (context, index) {
-          // Settings card at the top
           if (index == 0) {
             return _SettingsCard(
               onWorkingHoursTap: () {
@@ -188,38 +156,172 @@ class _Body extends ConsumerWidget {
             );
           }
 
-          final booking = filtered[index - 1];
-          return _BookingCard(
+          final booking = state.pendingBookings[index - 1];
+          return _SwipeableBookingCard(
             booking: booking,
-            onConfirm: booking.status == BookingStatus.pending
-                ? () => _confirmBooking(context, ref, booking.id)
-                : null,
-            onDecline: booking.status == BookingStatus.pending
-                ? () => _declineBooking(context, ref, booking.id)
-                : null,
+            isActionInProgress: state.isActionInProgress,
+            onApprove: () => _confirmApprove(context, ref, booking),
+            onDecline: () => _confirmDecline(context, ref, booking),
           );
         },
       ),
     );
   }
 
-  Future<void> _confirmBooking(
-      BuildContext context, WidgetRef ref, String id) async {
-    final success = await ref.read(bookingsProvider.notifier).confirmBooking(id);
+  Widget _buildConfirmedTab(
+      BookingManagementState state, ThemeData theme, WidgetRef ref) {
+    if (state.confirmedBookings.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.check_circle_outline,
+        title: 'No confirmed bookings',
+        subtitle: 'Approved bookings will appear here',
+        theme: theme,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => ref.read(bookingManagementProvider.notifier).fetchAll(),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        itemCount: state.confirmedBookings.length,
+        itemBuilder: (context, index) {
+          final booking = state.confirmedBookings[index];
+          return _BookingDetailCard(booking: booking);
+        },
+      ),
+    );
+  }
+
+  Widget _buildDeclinedTab(
+      BookingManagementState state, ThemeData theme, WidgetRef ref) {
+    if (state.declinedBookings.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.cancel_outlined,
+        title: 'No declined bookings',
+        subtitle: 'Declined bookings will appear here',
+        theme: theme,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => ref.read(bookingManagementProvider.notifier).fetchAll(),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        itemCount: state.declinedBookings.length,
+        itemBuilder: (context, index) {
+          final booking = state.declinedBookings[index];
+          return _BookingDetailCard(booking: booking);
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required ThemeData theme,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 48,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Confirmation dialogs
+  // ---------------------------------------------------------------------------
+
+  Future<void> _confirmApprove(
+      BuildContext context, WidgetRef ref, Booking booking) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Approve Booking'),
+        content: Text(
+          'Confirm booking for ${booking.clientName ?? booking.clientEmail ?? 'this client'} '
+          'on ${DateFormat('MMM d, yyyy').format(booking.startTime)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final success =
+        await ref.read(bookingManagementProvider.notifier).approveBooking(booking.id);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Booking confirmed' : 'Failed to confirm booking',
+            success ? 'Booking approved' : 'Failed to approve booking',
           ),
         ),
       );
     }
   }
 
-  Future<void> _declineBooking(
-      BuildContext context, WidgetRef ref, String id) async {
-    final success = await ref.read(bookingsProvider.notifier).declineBooking(id);
+  Future<void> _confirmDecline(
+      BuildContext context, WidgetRef ref, Booking booking) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Decline Booking'),
+        content: Text(
+          'Decline booking for ${booking.clientName ?? booking.clientEmail ?? 'this client'} '
+          'on ${DateFormat('MMM d, yyyy').format(booking.startTime)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Decline'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final success =
+        await ref.read(bookingManagementProvider.notifier).declineBooking(booking.id);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -316,12 +418,12 @@ class _SettingsRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  )),
-                  Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  )),
+                  Text(title,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -338,25 +440,29 @@ class _SettingsRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Expandable Booking Card
+// Swipeable Booking Card (for Pending tab)
 // ---------------------------------------------------------------------------
 
-class _BookingCard extends ConsumerStatefulWidget {
+class _SwipeableBookingCard extends ConsumerStatefulWidget {
   final Booking booking;
-  final VoidCallback? onConfirm;
-  final VoidCallback? onDecline;
+  final bool isActionInProgress;
+  final VoidCallback onApprove;
+  final VoidCallback onDecline;
 
-  const _BookingCard({
+  const _SwipeableBookingCard({
     required this.booking,
-    this.onConfirm,
-    this.onDecline,
+    required this.isActionInProgress,
+    required this.onApprove,
+    required this.onDecline,
   });
 
   @override
-  ConsumerState<_BookingCard> createState() => _BookingCardState();
+  ConsumerState<_SwipeableBookingCard> createState() =>
+      _SwipeableBookingCardState();
 }
 
-class _BookingCardState extends ConsumerState<_BookingCard> {
+class _SwipeableBookingCardState
+    extends ConsumerState<_SwipeableBookingCard> {
   bool _expanded = false;
 
   @override
@@ -365,7 +471,313 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
     final booking = widget.booking;
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('HH:mm');
-    final statusColor = _statusColor(booking.status, theme);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Dismissible(
+        key: ValueKey('booking-${booking.id}'),
+        confirmDismiss: (direction) async {
+          if (widget.isActionInProgress) return false;
+
+          if (direction == DismissDirection.endToStart) {
+            widget.onDecline();
+            return false; // We handle UI manually via dialog
+          } else if (direction == DismissDirection.startToEnd) {
+            widget.onApprove();
+            return false; // We handle UI manually via dialog
+          }
+          return false;
+        },
+        background: Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.only(left: 24),
+          decoration: BoxDecoration(
+            color: Colors.green.shade600,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.check_circle, color: Colors.white, size: 32),
+        ),
+        secondaryBackground: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 24),
+          decoration: BoxDecoration(
+            color: Colors.red.shade600,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.cancel, color: Colors.white, size: 32),
+        ),
+        child: Card(
+          child: InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Main row
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Avatar
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                size: 22,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    booking.clientName ??
+                                        booking.clientEmail ??
+                                        'Unknown Client',
+                                    style: theme.textTheme.titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${dateFormat.format(booking.startTime)} · '
+                                    '${timeFormat.format(booking.startTime)}–'
+                                    '${timeFormat.format(booking.endTime)}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Pending badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'PENDING',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Duration
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.timer_outlined,
+                                size: 15,
+                                color: theme.colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${booking.endTime.difference(booking.startTime).inMinutes} min',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Expand indicator
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Icon(
+                            _expanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            size: 20,
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Expanded details
+                  if (_expanded) ...[
+                    Container(
+                      width: double.infinity,
+                      height: 1,
+                      color: theme.dividerColor.withValues(alpha: 0.3),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (booking.clientEmail != null)
+                            _DetailRow(
+                              icon: Icons.email_outlined,
+                              label: 'Email',
+                              value: booking.clientEmail!,
+                              theme: theme,
+                            ),
+                          _DetailRow(
+                            icon: Icons.tag,
+                            label: 'Booking ID',
+                            value: booking.id,
+                            theme: theme,
+                          ),
+                          if (booking.clientId != null)
+                            _DetailRow(
+                              icon: Icons.person_outline,
+                              label: 'Client ID',
+                              value: booking.clientId!,
+                              theme: theme,
+                            ),
+                          _DetailRow(
+                            icon: Icons.calendar_today,
+                            label: 'Requested',
+                            value: DateFormat('MMM d, yyyy · HH:mm')
+                                .format(booking.createdAt),
+                            theme: theme,
+                          ),
+
+                          // Notes
+                          if (booking.clientNotes != null &&
+                              booking.clientNotes!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Client Notes',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    booking.clientNotes!,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          // Action buttons
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: widget.isActionInProgress
+                                      ? null
+                                      : widget.onDecline,
+                                  icon: const Icon(Icons.close, size: 18),
+                                  label: const Text('Decline'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: theme.colorScheme.error,
+                                    side: BorderSide(
+                                      color: theme.colorScheme.error
+                                          .withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: widget.isActionInProgress
+                                      ? null
+                                      : widget.onApprove,
+                                  icon: widget.isActionInProgress
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.check, size: 18),
+                                  label: Text(widget.isActionInProgress
+                                      ? 'Processing...'
+                                      : 'Approve'),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.green.shade600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Booking Detail Card (for Confirmed/Declined tabs)
+// ---------------------------------------------------------------------------
+
+class _BookingDetailCard extends ConsumerStatefulWidget {
+  final Booking booking;
+
+  const _BookingDetailCard({required this.booking});
+
+  @override
+  ConsumerState<_BookingDetailCard> createState() =>
+      _BookingDetailCardState();
+}
+
+class _BookingDetailCardState extends ConsumerState<_BookingDetailCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final booking = widget.booking;
+    final dateFormat = DateFormat('MMM d, yyyy');
+    final timeFormat = DateFormat('HH:mm');
+
+    final isConfirmed = booking.status == BookingStatus.confirmed;
+    final statusColor = isConfirmed ? Colors.green : theme.colorScheme.error;
+    final statusLabel = isConfirmed ? 'CONFIRMED' : 'DECLINED';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -380,17 +792,14 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Main row: always visible
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header row
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Client avatar placeholder
                           Container(
                             width: 44,
                             height: 44,
@@ -405,7 +814,6 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          // Name, date, status
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,15 +822,16 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                                   booking.clientName ??
                                       booking.clientEmail ??
                                       'Unknown Client',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: theme.textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${dateFormat.format(booking.startTime)} · ${timeFormat.format(booking.startTime)}–${timeFormat.format(booking.endTime)}',
+                                  '${dateFormat.format(booking.startTime)} · '
+                                  '${timeFormat.format(booking.startTime)}–'
+                                  '${timeFormat.format(booking.endTime)}',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
@@ -430,18 +839,15 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                               ],
                             ),
                           ),
-                          // Status badge
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              _statusLabel(booking.status),
+                              statusLabel,
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: statusColor,
                                 fontWeight: FontWeight.bold,
@@ -451,18 +857,13 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                           ),
                         ],
                       ),
-
-                      // Client email
-                      if (booking.clientEmail != null) ...[
-                        const SizedBox(height: 10),
-                        _InfoRow(
-                          icon: Icons.email_outlined,
-                          text: booking.clientEmail!,
-                          theme: theme,
+                      const SizedBox(height: 8),
+                      Text(
+                        '${booking.endTime.difference(booking.startTime).inMinutes} min',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ],
-
-                      // Expand indicator
+                      ),
                       const SizedBox(height: 8),
                       Center(
                         child: Icon(
@@ -477,8 +878,6 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                     ],
                   ),
                 ),
-
-                // Expanded details
                 if (_expanded) ...[
                   Container(
                     width: double.infinity,
@@ -490,15 +889,19 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Booking ID
+                        if (booking.clientEmail != null)
+                          _DetailRow(
+                            icon: Icons.email_outlined,
+                            label: 'Email',
+                            value: booking.clientEmail!,
+                            theme: theme,
+                          ),
                         _DetailRow(
                           icon: Icons.tag,
                           label: 'Booking ID',
                           value: booking.id,
                           theme: theme,
                         ),
-
-                        // Client info
                         if (booking.clientId != null)
                           _DetailRow(
                             icon: Icons.person_outline,
@@ -506,8 +909,6 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                             value: booking.clientId!,
                             theme: theme,
                           ),
-
-                        // Created at
                         _DetailRow(
                           icon: Icons.calendar_today,
                           label: 'Requested',
@@ -515,8 +916,6 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                               .format(booking.createdAt),
                           theme: theme,
                         ),
-
-                        // Notes
                         if (booking.clientNotes != null &&
                             booking.clientNotes!.isNotEmpty) ...[
                           const SizedBox(height: 8),
@@ -524,7 +923,8 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest
+                              color: theme
+                                  .colorScheme.surfaceContainerHighest
                                   .withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -547,41 +947,6 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                             ),
                           ),
                         ],
-
-                        // Action buttons for pending bookings
-                        if (widget.onConfirm != null &&
-                            widget.onDecline != null) ...[
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: widget.onDecline,
-                                  icon: const Icon(Icons.close, size: 18),
-                                  label: const Text('Decline'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.error,
-                                    side: BorderSide(
-                                      color: theme.colorScheme.error
-                                          .withValues(alpha: 0.4),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: FilledButton.icon(
-                                  onPressed: widget.onConfirm,
-                                  icon: const Icon(Icons.check, size: 18),
-                                  label: const Text('Confirm'),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: Colors.green.shade600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -593,64 +958,11 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
       ),
     );
   }
-
-  Color _statusColor(BookingStatus status, ThemeData theme) {
-    switch (status) {
-      case BookingStatus.pending:
-        return Colors.orange;
-      case BookingStatus.confirmed:
-        return Colors.green;
-      case BookingStatus.cancelled:
-        return theme.colorScheme.error;
-    }
-  }
-
-  String _statusLabel(BookingStatus status) {
-    switch (status) {
-      case BookingStatus.pending:
-        return 'PENDING';
-      case BookingStatus.confirmed:
-        return 'CONFIRMED';
-      case BookingStatus.cancelled:
-        return 'DECLINED';
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
 // Helper widgets
 // ---------------------------------------------------------------------------
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final ThemeData theme;
-
-  const _InfoRow({
-    required this.icon,
-    required this.text,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _DetailRow extends StatelessWidget {
   final IconData icon;
@@ -687,9 +999,8 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],

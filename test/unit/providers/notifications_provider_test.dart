@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
+import 'package:zirofit_fl/data/models/notification_model.dart' as models;
 import 'package:zirofit_fl/features/notifications/providers/notifications_provider.dart';
 import '../../helpers/mock_api_client.dart';
 import '../../helpers/test_setup.dart';
@@ -247,6 +248,110 @@ void main() {
       expect(state.unreadCount, 1);
       expect(state.error, isNotNull);
       expect(state.notifications[0].readStatus, false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Link Requests
+  // ---------------------------------------------------------------------------
+
+  group('link requests', () {
+    Map<String, dynamic> linkRequestJson({
+      String id = 'notif-link-1',
+      String clientId = 'client-123',
+      String clientName = 'John Doe',
+    }) {
+      return {
+        'id': id,
+        'user_id': 'user-1',
+        'message': '$clientName wants to connect with you',
+        'type': 'client_link_request',
+        'read_status': false,
+        'metadata': {'client_id': clientId, 'client_name': clientName},
+        'created_at': 1700000000000,
+        'updated_at': 1700000000000,
+        'deleted_at': null,
+      };
+    }
+
+    test('parses client_link_request notification with metadata', () async {
+      final json = linkRequestJson();
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => responseWithData([json]));
+
+      await notifier.fetchNotifications();
+
+      final state = notifier.state;
+      expect(state.notifications.length, 1);
+      final notif = state.notifications.first;
+      expect(notif.type, 'client_link_request');
+      expect(notif.metadata, isNotNull);
+      expect(notif.metadata!['client_id'], 'client-123');
+      expect(notif.metadata!['client_name'], 'John Doe');
+    });
+
+    test('acceptLinkRequest calls POST /api/trainer/clients/{id}/accept',
+        () async {
+      // Arrange: seed a link request notification
+      final json = linkRequestJson();
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => responseWithData([json]));
+
+      await notifier.fetchNotifications();
+      expect(notifier.state.notifications.length, 1);
+
+      // Act
+      when(() => mockApiClient.post<Map<String, dynamic>>(
+            ApiConstants.trainerClientAccept('client-123'),
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => <String, dynamic>{});
+
+      await notifier.acceptLinkRequest('client-123');
+
+      // Assert
+      verify(() => mockApiClient.post<Map<String, dynamic>>(
+            ApiConstants.trainerClientAccept('client-123'),
+            body: any(named: 'body'),
+          )).called(1);
+
+      // Notification removed from state
+      expect(notifier.state.notifications, isEmpty);
+      expect(notifier.state.unreadCount, 0);
+    });
+
+    test('declineLinkRequest calls POST /api/trainer/clients/{id}/decline',
+        () async {
+      // Arrange: seed a link request notification
+      final json = linkRequestJson();
+      when(() => mockApiClient.get<Map<String, dynamic>>(
+            ApiConstants.notifications,
+            queryParams: any(named: 'queryParams'),
+          )).thenAnswer((_) async => responseWithData([json]));
+
+      await notifier.fetchNotifications();
+      expect(notifier.state.notifications.length, 1);
+
+      // Act
+      when(() => mockApiClient.post<Map<String, dynamic>>(
+            ApiConstants.trainerClientDecline('client-123'),
+            body: any(named: 'body'),
+          )).thenAnswer((_) async => <String, dynamic>{});
+
+      await notifier.declineLinkRequest('client-123');
+
+      // Assert
+      verify(() => mockApiClient.post<Map<String, dynamic>>(
+            ApiConstants.trainerClientDecline('client-123'),
+            body: any(named: 'body'),
+          )).called(1);
+
+      // Notification removed from state
+      expect(notifier.state.notifications, isEmpty);
+      expect(notifier.state.unreadCount, 0);
     });
   });
 }

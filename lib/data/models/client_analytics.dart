@@ -15,7 +15,7 @@ class VolumePoint {
 
   factory VolumePoint.fromJson(Map<String, dynamic> json) => VolumePoint(
         date: json['date'] as String,
-        volume: (json['volume'] as num).toDouble(),
+        volume: (json['volume'] as num? ?? 0.0).toDouble(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -50,7 +50,7 @@ class MusclePoint {
 
   factory MusclePoint.fromJson(Map<String, dynamic> json) => MusclePoint(
         muscle: json['muscle'] as String,
-        count: json['count'] as int,
+        count: json['count'] as int? ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -94,7 +94,7 @@ class AnalyticsPersonalRecord {
   factory AnalyticsPersonalRecord.fromJson(Map<String, dynamic> json) {
     return AnalyticsPersonalRecord(
       exercise: json['exercise'] as String,
-      value: (json['value'] as num).toDouble(),
+      value: (json['value'] as num? ?? 0.0).toDouble(),
       type: json['type'] as String,
       date: readDateTime(json, 'date', 'date'),
     );
@@ -140,7 +140,7 @@ class MetricPoint {
 
   factory MetricPoint.fromJson(Map<String, dynamic> json) => MetricPoint(
         date: readDateTime(json, 'date', 'date'),
-        value: (json['value'] as num).toDouble(),
+        value: (json['value'] as num? ?? 0.0).toDouble(),
       );
 
   Map<String, dynamic> toJson() => {

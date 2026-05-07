@@ -169,9 +169,9 @@ void main() {
 
       expect(capturedBody, isNotEmpty);
       final body = capturedBody.first as Map<String, dynamic>;
-      expect(body['is_completed'], true);
+      expect(body['isCompleted'], true);
       expect(body['note'], 'Feeling great!');
-      expect(body['date'], 1700000000000);
+      expect(body['date'], '2023-11-14');
     });
   });
 }

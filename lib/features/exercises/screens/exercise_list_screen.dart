@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/features/exercises/providers/exercise_provider.dart';
 
@@ -115,6 +116,13 @@ class _ExerciseListScreenState extends ConsumerState<ExerciseListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Exercise Library'),
+        actions: [
+          TextButton.icon(
+            onPressed: () => context.push('/trainer/exercises/custom'),
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text('Custom'),
+          ),
+        ],
       ),
       body: Column(
         children: [

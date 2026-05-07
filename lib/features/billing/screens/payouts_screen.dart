@@ -87,6 +87,8 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
             stripeStatus: state.stripeStatus,
             isLoading: state.isLoading,
             onConnect: () => _connectStripe(context),
+            onRefresh: () => ref.read(billingProvider.notifier).fetchStripeStatus(),
+            onOpenDashboard: () => _openStripeDashboard(context, state.stripeStatus),
           ),
           const SizedBox(height: 20),
 
@@ -114,7 +116,7 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
 
   Future<void> _connectStripe(BuildContext context) async {
     final notifier = ref.read(billingProvider.notifier);
-    final url = await notifier.fetchStripeOnboardingUrl();
+    final url = await notifier.getStripeOnboardingUrl();
 
     if (url != null && context.mounted) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -122,6 +124,23 @@ class _PayoutsScreenState extends ConsumerState<PayoutsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to start Stripe onboarding. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openStripeDashboard(
+    BuildContext context,
+    Map<String, dynamic>? stripeStatus,
+  ) async {
+    final url = stripeStatus?['dashboard_url'] as String? ??
+        stripeStatus?['login_url'] as String?;
+    if (url != null && context.mounted) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dashboard URL not available.'),
         ),
       );
     }
@@ -248,20 +267,46 @@ class _StripeConnectCard extends StatelessWidget {
   final Map<String, dynamic>? stripeStatus;
   final bool isLoading;
   final VoidCallback onConnect;
+  final VoidCallback onRefresh;
+  final VoidCallback onOpenDashboard;
 
   const _StripeConnectCard({
     this.stripeStatus,
     required this.isLoading,
     required this.onConnect,
+    required this.onRefresh,
+    required this.onOpenDashboard,
   });
+
+  /// Derives the onboarding status from the Stripe account data.
+  String get _onboardingStatus {
+    if (stripeStatus == null) return 'Not Started';
+    final chargesEnabled = stripeStatus!['charges_enabled'] == true;
+    final detailsSubmitted = stripeStatus!['details_submitted'] == true;
+    if (chargesEnabled) return 'Complete';
+    if (detailsSubmitted) return 'Pending';
+    return 'Not Started';
+  }
+
+  String? get _accountId => stripeStatus?['stripe_user_id'] as String?;
+  bool get _isComplete => _onboardingStatus == 'Complete';
+  bool get _isPending => _onboardingStatus == 'Pending';
+
+  Color get _statusColor {
+    if (_isComplete) return Colors.green;
+    if (_isPending) return Colors.orange;
+    return Colors.grey;
+  }
+
+  IconData get _statusIcon {
+    if (_isComplete) return Icons.check_circle;
+    if (_isPending) return Icons.hourglass_empty;
+    return Icons.link_off;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isConnected =
-        stripeStatus?['charges_enabled'] == true;
-    final detailsSubmitted =
-        stripeStatus?['details_submitted'] == true;
 
     return Card(
       child: Padding(
@@ -269,6 +314,7 @@ class _StripeConnectCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // -- Header row --
             Row(
               children: [
                 const Icon(Icons.credit_card, size: 28, color: Colors.blue),
@@ -282,27 +328,61 @@ class _StripeConnectCard extends StatelessWidget {
                         style: theme.textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        isConnected
-                            ? 'Connected & Ready'
-                            : detailsSubmitted
-                                ? 'Pending Activation'
-                                : 'Not Connected',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isConnected
-                              ? Colors.green
-                              : detailsSubmitted
-                                  ? Colors.orange
-                                  : Colors.grey,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(_statusIcon, size: 16, color: _statusColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            _onboardingStatus,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: _statusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                if (isConnected)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                IconButton(
+                  onPressed: isLoading ? null : onRefresh,
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh, size: 22),
+                  tooltip: 'Refresh status',
+                  visualDensity: VisualDensity.compact,
+                ),
               ],
             ),
+
+            // -- Account ID (when connected) --
+            if (_accountId != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.fingerprint,
+                      size: 14, color: theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Account: $_accountId',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             const SizedBox(height: 12),
             Text(
               'Connect your bank account via Stripe to receive payments for your packages and services directly.',
@@ -311,10 +391,12 @@ class _StripeConnectCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+
+            // -- Connect / Manage button --
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: isLoading ? null : onConnect, // ignore: prefer_const_constructors
+                onPressed: isLoading ? null : onConnect,
                 icon: isLoading
                     ? const SizedBox(
                         width: 18,
@@ -323,12 +405,25 @@ class _StripeConnectCard extends StatelessWidget {
                       )
                     : const Icon(Icons.link),
                 label: Text(
-                  isConnected
+                  _isComplete
                       ? 'Manage Stripe Account'
-                      : 'Connect Stripe Account',
+                      : 'Connect Stripe',
                 ),
               ),
             ),
+
+            // -- Dashboard link (when connected) --
+            if (_isComplete) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onOpenDashboard,
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Open Stripe Dashboard'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

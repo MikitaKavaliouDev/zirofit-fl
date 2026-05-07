@@ -38,6 +38,13 @@ class FakeBillingNotifier extends BillingNotifier {
 
   @override
   Future<String?> createCheckoutSession(String packageId) async => null;
+
+  @override
+  Future<Map<String, dynamic>?> fetchStripeStatus() async => null;
+
+  @override
+  Future<String?> getStripeOnboardingUrl() async =>
+      'https://connect.stripe.com/onboard/test';
 }
 
 Widget buildApp(BillingState state) => ProviderScope(
@@ -99,7 +106,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Stripe Connect'), findsOneWidget);
-      expect(find.text('Connect Stripe Account'), findsOneWidget);
+      expect(find.text('Connect Stripe'), findsOneWidget);
     });
 
     testWidgets('lists payout history', (tester) async {
@@ -169,6 +176,95 @@ void main() {
         find.text('Payouts will appear here once processed'),
         findsOneWidget,
       );
+    });
+
+    // ---------------------------------------------------------------------------
+    // Stripe Connect States
+    // ---------------------------------------------------------------------------
+
+    testWidgets('shows "Not Started" when stripeStatus is null', (tester) async {
+      await tester.pumpWidget(
+        buildApp(const BillingState(isLoading: false, stripeStatus: null)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Stripe Connect'), findsOneWidget);
+      expect(find.text('Not Started'), findsOneWidget);
+      expect(find.text('Connect Stripe'), findsOneWidget);
+    });
+
+    testWidgets('shows "Not Started" when details not submitted', (tester) async {
+      await tester.pumpWidget(
+        buildApp(BillingState(
+          isLoading: false,
+          stripeStatus: <String, dynamic>{
+            'charges_enabled': false,
+            'details_submitted': false,
+          },
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not Started'), findsOneWidget);
+      expect(find.text('Connect Stripe'), findsOneWidget);
+    });
+
+    testWidgets('shows "Pending" when details submitted but not enabled',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(BillingState(
+          isLoading: false,
+          stripeStatus: <String, dynamic>{
+            'charges_enabled': false,
+            'details_submitted': true,
+          },
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // "Pending" appears in the summary row label and the Stripe status
+      expect(find.text('Pending'), findsAtLeast(1));
+      expect(find.text('Connect Stripe'), findsOneWidget);
+    });
+
+    testWidgets('shows "Complete" with account ID when fully onboarded',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(BillingState(
+          isLoading: false,
+          stripeStatus: <String, dynamic>{
+            'charges_enabled': true,
+            'details_submitted': true,
+            'stripe_user_id': 'acct_789',
+            'payouts_enabled': true,
+          },
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Complete'), findsOneWidget);
+      expect(find.text('Account: acct_789'), findsOneWidget);
+      expect(find.text('Manage Stripe Account'), findsOneWidget);
+      expect(find.text('Open Stripe Dashboard'), findsOneWidget);
+    });
+
+    testWidgets('shows refresh button', (tester) async {
+      await tester.pumpWidget(
+        buildApp(const BillingState(isLoading: false)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.refresh), findsOneWidget);
+    });
+
+    testWidgets('shows refresh is disabled while loading', (tester) async {
+      await tester.pumpWidget(
+        buildApp(const BillingState(isLoading: true)),
+      );
+      await tester.pump();
+
+      // Should show a CircularProgressIndicator instead of refresh icon
+      expect(find.byIcon(Icons.refresh), findsNothing);
     });
   });
 }

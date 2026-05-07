@@ -26,7 +26,9 @@ void main() {
 
     test('toJson produces correct wire format', () {
       final model = ExternalLink.fromJson(json);
-      expect(model.toJson(), json);
+      // description is null, so omitted from toJson
+      final expected = Map<String, dynamic>.from(json)..remove('description');
+      expect(model.toJson(), expected);
     });
 
     test('fromJson handles null optional fields', () {
@@ -40,6 +42,22 @@ void main() {
       };
       final model = ExternalLink.fromJson(minimalJson);
       expect(model.deletedAt, isNull);
+      expect(model.description, isNull);
+    });
+
+    test('fromJson parses description when present', () {
+      final withDescription = Map<String, dynamic>.from(json);
+      withDescription['description'] = 'My social media link';
+      final model = ExternalLink.fromJson(withDescription);
+      expect(model.description, 'My social media link');
+    });
+
+    test('copyWith updates fields correctly', () {
+      final model = ExternalLink.fromJson(json);
+      final updated = model.copyWith(label: 'New Label', linkUrl: 'https://new.url');
+      expect(updated.label, 'New Label');
+      expect(updated.linkUrl, 'https://new.url');
+      expect(updated.id, model.id);
     });
 
     test('equality works correctly', () {

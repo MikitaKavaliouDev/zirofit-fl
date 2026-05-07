@@ -10,8 +10,8 @@ class MockApiClient extends Mock implements ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? response,
   }) {
-    when(() => post<Object?>(path, body: any(named: 'body')))
-        .thenAnswer((_) async => response ?? {});
+    when(() => post<Map<String, dynamic>>(path, body: any(named: 'body')))
+        .thenAnswer((_) async => response ?? <String, dynamic>{});
   }
 
   void mockGet(
@@ -20,8 +20,8 @@ class MockApiClient extends Mock implements ApiClient {
     Map<String, dynamic>? queryParams,
     Map<String, dynamic>? response,
   }) {
-    when(() => get<Object?>(path, queryParams: any(named: 'queryParams')))
-        .thenAnswer((_) async => response ?? {});
+    when(() => get<Map<String, dynamic>>(path, queryParams: any(named: 'queryParams')))
+        .thenAnswer((_) async => response ?? <String, dynamic>{});
   }
 
   void mockPut(
@@ -30,8 +30,8 @@ class MockApiClient extends Mock implements ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? response,
   }) {
-    when(() => put<Object?>(path, body: any(named: 'body')))
-        .thenAnswer((_) async => response ?? {});
+    when(() => put<Map<String, dynamic>>(path, body: any(named: 'body')))
+        .thenAnswer((_) async => response ?? <String, dynamic>{});
   }
 
   void mockDelete(String path, {int statusCode = 200}) {
@@ -50,18 +50,18 @@ class MockApiClient extends Mock implements ApiClient {
     );
     switch (method.toUpperCase()) {
       case 'GET':
-        when(() => get<Object?>(path, queryParams: any(named: 'queryParams')))
+        when(() => get<Map<String, dynamic>>(path, queryParams: any(named: 'queryParams')))
             .thenThrow(exception);
         break;
       case 'PUT':
-        when(() => put<Object?>(path, body: any(named: 'body')))
+        when(() => put<Map<String, dynamic>>(path, body: any(named: 'body')))
             .thenThrow(exception);
         break;
       case 'DELETE':
         when(() => delete(path)).thenThrow(exception);
         break;
       default:
-        when(() => post<Object?>(path, body: any(named: 'body')))
+        when(() => post<Map<String, dynamic>>(path, body: any(named: 'body')))
             .thenThrow(exception);
     }
   }

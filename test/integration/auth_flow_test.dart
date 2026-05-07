@@ -106,17 +106,15 @@ void main() {
             refreshToken: any(named: 'refreshToken'),
           )).thenAnswer((_) async {});
 
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.login, _loginResponseBody()));
+          )).thenAnswer((_) async => _loginResponseBody());
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.me, _meResponseBody()));
+          )).thenAnswer((_) async => _meResponseBody());
 
       // Act
       final result = await container
@@ -182,19 +180,18 @@ void main() {
             refreshToken: any(named: 'refreshToken'),
           )).thenAnswer((_) async {});
 
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenAnswer((_) async {
         await Future.delayed(const Duration(milliseconds: 50));
-        return _jsonResponse(ApiConstants.login, _loginResponseBody());
+        return _loginResponseBody();
       });
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.me, _meResponseBody()));
+          )).thenAnswer((_) async => _meResponseBody());
 
       // Act — kick off login and immediately check loading
       final loginFuture = container
@@ -214,11 +211,10 @@ void main() {
   group('AuthNotifier — register', () {
     test('register succeeds and stays unauthenticated', () async {
       // Arrange
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.register,
             body: any(named: 'body'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.register, {'data': {}}));
+          )).thenAnswer((_) async => {'data': <String, dynamic>{}});
 
       // Act
       final result = await container
@@ -276,16 +272,14 @@ void main() {
           )).thenAnswer((_) async {});
       when(() => mockSecureStorage.clearTokens()).thenAnswer((_) async {});
 
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.login, _loginResponseBody()));
-      when(() => mockApiClient.get(
+          )).thenAnswer((_) async => _loginResponseBody());
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.me, _meResponseBody()));
+          )).thenAnswer((_) async => _meResponseBody());
 
       await container
           .read(authProvider.notifier)
@@ -293,9 +287,8 @@ void main() {
       expect(container.read(authProvider).isAuthenticated, isTrue);
 
       // Arrange — mock signout endpoint
-      when(() => mockApiClient.post(ApiConstants.signout))
-          .thenAnswer((_) async =>
-              _jsonResponse(ApiConstants.signout, {}));
+      when(() => mockApiClient.post<Map<String, dynamic>>(ApiConstants.signout, body: any(named: 'body')))
+          .thenAnswer((_) async => <String, dynamic>{});
 
       // Act
       await container.read(authProvider.notifier).signOut();
@@ -318,16 +311,14 @@ void main() {
           )).thenAnswer((_) async {});
       when(() => mockSecureStorage.clearTokens()).thenAnswer((_) async {});
 
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.login, _loginResponseBody()));
-      when(() => mockApiClient.get(
+          )).thenAnswer((_) async => _loginResponseBody());
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async =>
-          _jsonResponse(ApiConstants.me, _meResponseBody()));
+          )).thenAnswer((_) async => _meResponseBody());
 
       await container
           .read(authProvider.notifier)
@@ -335,7 +326,7 @@ void main() {
       expect(container.read(authProvider).isAuthenticated, isTrue);
 
       // Arrange — signout API fails
-      when(() => mockApiClient.post(ApiConstants.signout))
+      when(() => mockApiClient.post<Map<String, dynamic>>(ApiConstants.signout, body: any(named: 'body')))
           .thenThrow(DioException(
         requestOptions: RequestOptions(path: ApiConstants.signout),
         type: DioExceptionType.connectionError,

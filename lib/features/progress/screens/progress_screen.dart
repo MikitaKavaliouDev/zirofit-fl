@@ -19,7 +19,9 @@ import 'package:zirofit_fl/features/progress/widgets/personal_insights_card.dart
 import 'package:zirofit_fl/features/progress/widgets/personal_records_list.dart';
 import 'package:zirofit_fl/features/progress/widgets/volume_progression_chart.dart';
 import 'package:zirofit_fl/features/progress/widgets/weight_history_chart.dart';
+import 'package:zirofit_fl/features/progress/widgets/recovery_widget.dart';
 import 'package:zirofit_fl/features/progress/widgets/workouts_per_week_chart.dart';
+import 'package:zirofit_fl/features/progress/widgets/exercise_progress_widget.dart';
 
 /// Full personal analytics screen replacing the old stub ProgressScreen.
 ///
@@ -228,7 +230,7 @@ class _PersonalAnalyticsScreenState
             ...widgetConfigs
                 .where((wc) => wc.isVisible)
                 .map((wc) => _buildWidgetCard(context, wc, analytics,
-                    progress, goalsState)),
+                    progress, goalsState, isLoading)),
 
             // Bottom padding for safe area
             const SizedBox(height: 120),
@@ -244,6 +246,7 @@ class _PersonalAnalyticsScreenState
     ClientAnalytics? analytics,
     ClientProgress? progress,
     GoalsState goalsState,
+    bool isLoading,
   ) {
     final theme = Theme.of(context);
 
@@ -325,8 +328,8 @@ class _PersonalAnalyticsScreenState
                 ),
                 const SizedBox(height: 12),
                 // Widget content
-                _buildWidgetContent(
-                    context, config.type, analytics, progress, goalsState),
+                _buildWidgetContent(context, config.type, analytics,
+                    progress, goalsState, isLoading),
               ],
             ),
           ),
@@ -357,6 +360,8 @@ class _PersonalAnalyticsScreenState
         return null;
       case AnalyticsWidgetType.recovery:
         return null;
+      case AnalyticsWidgetType.exerciseProgress:
+        return 'Weight & volume trends';
     }
   }
 
@@ -366,6 +371,7 @@ class _PersonalAnalyticsScreenState
     ClientAnalytics? analytics,
     ClientProgress? progress,
     GoalsState goalsState,
+    bool isLoading,
   ) {
     switch (type) {
       case AnalyticsWidgetType.workoutsPerWeek:
@@ -390,20 +396,7 @@ class _PersonalAnalyticsScreenState
         );
 
       case AnalyticsWidgetType.muscleFocus:
-        if ((analytics?.muscleDistribution.length ?? 0) == 0) {
-          return Center(
-            child: Text(
-              'No data',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey),
-            ),
-          );
-        }
-        return MuscleFocusChart(
-          muscleData: analytics?.muscleDistribution ?? [],
-        );
+        return const MuscleFocusChart();
 
       case AnalyticsWidgetType.prs:
         return PersonalRecordsList(
@@ -465,24 +458,16 @@ class _PersonalAnalyticsScreenState
         );
 
       case AnalyticsWidgetType.recovery:
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 30),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(Icons.favorite, size: 28, color: Colors.orange.shade300),
-                const SizedBox(height: 12),
-                Text(
-                  'Recovery tracking and training load analysis is under development.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
+        return const RecoveryWidget();
+
+      case AnalyticsWidgetType.exerciseProgress:
+        return ExerciseProgressWidget(
+          exerciseNames: progress?.exercisePerformance
+                  .map((e) => e.exercise)
+                  .toList() ??
+              [],
+          dataPoints: const [],
+          isLoading: isLoading,
         );
     }
   }

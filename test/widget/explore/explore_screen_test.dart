@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
+import 'package:zirofit_fl/data/models/public_trainer_profile_data.dart';
 import 'package:zirofit_fl/features/explore/providers/explore_provider.dart';
 import 'package:zirofit_fl/features/explore/screens/explore_screen.dart';
 import '../../helpers/test_setup.dart';
@@ -27,6 +28,37 @@ class FakeExploreNotifier extends ExploreNotifier {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> loadFeatured() async {}
+
+  @override
+  Future<void> loadMetadata() async {}
+
+  @override
+  Future<void> loadUpcomingEvents({int limit = 10}) async {}
+
+  @override
+  Future<void> loadSpecialties() async {}
+
+  @override
+  Future<PublicTrainerProfileData?> fetchFullPublicProfile(
+      String username) async {
+    // Return profile data from the state's trainers so the destination
+    // screen renders immediately instead of hitting a real API.
+    final trainer = _overriddenState.trainers.isNotEmpty
+        ? _overriddenState.trainers.first
+        : Profile(
+            id: 'trainer-1',
+            userId: 'user-trainer-1',
+            aboutMe: username,
+            specialties: const ['Yoga'],
+            businessCurrency: 'PLN',
+            createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+            updatedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+          );
+    return PublicTrainerProfileData(profile: trainer);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -107,13 +139,13 @@ void main() {
     ));
     await tester.pump();
 
-    // Check trainer names appear
-    expect(find.text('John Doe'), findsOneWidget);
-    expect(find.text('Jane Smith'), findsOneWidget);
+    // Check trainer names appear (each appears in featured + nearby sections)
+    expect(find.text('John Doe'), findsAtLeast(1));
+    expect(find.text('Jane Smith'), findsAtLeast(1));
 
-    // Check specialties appear
-    expect(find.text('Yoga, Pilates'), findsOneWidget);
-    expect(find.text('HIIT'), findsOneWidget);
+    // Check first specialty shown (only first per card)
+    expect(find.text('Yoga'), findsWidgets);
+    expect(find.text('HIIT'), findsWidgets);
 
     // Check ratings appear
     expect(find.text('4.5'), findsOneWidget);
@@ -130,7 +162,9 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.text('No trainers found'), findsOneWidget);
+    // Screen renders header with 'Select City' and empty RefreshIndicator
+    expect(find.text('Select City'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
   });
 
   testWidgets('shows error state with retry button', (tester) async {
@@ -143,7 +177,7 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.text('Failed to load trainers'), findsOneWidget);
+    expect(find.text('Failed to load'), findsOneWidget);
     expect(find.text('Network error'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
     expect(find.byType(FilledButton), findsOneWidget);
@@ -163,8 +197,8 @@ void main() {
     ));
     await tester.pump();
 
-    // Tap on the trainer card
-    await tester.tap(find.text('John Doe'));
+    // Tap on the first John Doe text (featured card)
+    await tester.tap(find.text('John Doe').first);
     await tester.pumpAndSettle();
 
     // Should navigate to PublicTrainerProfileScreen

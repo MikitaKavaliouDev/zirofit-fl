@@ -27,6 +27,7 @@ class ActiveWorkoutState {
   final int restSeconds;
   final bool isRestRunning;
   final Map<String, String> exerciseNames; // exerciseId → exerciseName
+  final String? clientName; // target client name for trainer-led sessions
 
   const ActiveWorkoutState({
     this.session,
@@ -36,6 +37,7 @@ class ActiveWorkoutState {
     this.restSeconds = 0,
     this.isRestRunning = false,
     this.exerciseNames = const {},
+    this.clientName,
   });
 
   ActiveWorkoutState copyWith({
@@ -46,6 +48,7 @@ class ActiveWorkoutState {
     int? restSeconds,
     bool? isRestRunning,
     Map<String, String>? exerciseNames,
+    String? clientName,
     bool clearError = false,
   }) {
     return ActiveWorkoutState(
@@ -56,11 +59,14 @@ class ActiveWorkoutState {
       restSeconds: restSeconds ?? this.restSeconds,
       isRestRunning: isRestRunning ?? this.isRestRunning,
       exerciseNames: exerciseNames ?? this.exerciseNames,
+      clientName: clientName ?? this.clientName,
     );
   }
 
   bool get hasActiveSession => session != null;
   bool get isIdle => !isLoading && session == null && error == null;
+  /// Whether this is a trainer-led session (training a client).
+  bool get isTrainerLed => clientName != null;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +101,33 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         logs: [],
         restSeconds: 90, // default rest timer
         exerciseNames: const {},
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// POST /api/workout-sessions/start (trainer-led)
+  /// Starts a new workout session for a specific client.
+  Future<void> startSessionForClient({
+    required String clientId,
+    required String clientName,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final session = await _remoteSource.startWorkout(
+        clientId: clientId,
+      );
+      state = ActiveWorkoutState(
+        session: session,
+        logs: [],
+        restSeconds: 90,
+        exerciseNames: const {},
+        clientName: clientName,
       );
     } catch (e) {
       state = state.copyWith(

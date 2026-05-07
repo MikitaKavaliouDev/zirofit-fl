@@ -8,6 +8,7 @@ import 'package:zirofit_fl/data/models/client_analytics.dart';
 import 'package:zirofit_fl/features/progress/data/analytics_remote_source.dart';
 import 'package:zirofit_fl/features/progress/models/analytics_widget_config.dart';
 import 'package:zirofit_fl/features/progress/providers/analytics_provider.dart';
+import '../../helpers/test_setup.dart';
 import 'package:zirofit_fl/features/progress/providers/goal_provider.dart'
     hide VolumePoint;
 import 'package:zirofit_fl/features/progress/providers/widget_config_provider.dart';
@@ -121,6 +122,7 @@ extension PumpProgressScreen on WidgetTester {
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    configureTestApiClient();
   });
 
   group('PersonalAnalyticsScreen', () {

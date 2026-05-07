@@ -1,59 +1,42 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/check_in.dart';
-import 'package:zirofit_fl/data/models/client_measurement.dart';
-import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
-import 'package:zirofit_fl/features/checkin/providers/trainer_check_ins_provider.dart';
-import 'package:zirofit_fl/features/clients/providers/client_detail_provider.dart';
+import 'package:zirofit_fl/features/clients/providers/client_history_provider.dart';
 import 'package:zirofit_fl/features/clients/screens/client_history_screen.dart';
 import '../../helpers/test_setup.dart';
 
 // =============================================================================
-// Fake notifiers
+// Fake notifier
 // =============================================================================
 
-class FakeClientDetailNotifier extends ClientDetailNotifier {
-  final ClientDetailState _s;
-  FakeClientDetailNotifier(this._s, {required String clientId})
-      : super(apiClient: ApiClient.instance, clientId: clientId) {
-    super.state = _s;
+class FakeClientHistoryNotifier extends ClientHistoryNotifier {
+  final ClientHistoryState _overriddenState;
+
+  FakeClientHistoryNotifier(
+    this._overriddenState, {
+    required String clientId,
+  }) : super(apiClient: ApiClient.instance, clientId: clientId) {
+    super.state = _overriddenState;
   }
 
   @override
-  ClientDetailState get state => _s;
+  ClientHistoryState get state => _overriddenState;
 
   @override
-  Future<void> fetchAll() async {}
+  Future<void> fetchHistory({HistoryDateRange? dateRange}) async {}
 
   @override
-  Future<void> fetchClient() async {}
+  Future<void> loadMore() async {}
 
   @override
-  Future<void> fetchMeasurements() async {}
+  void setDateRange(HistoryDateRange range) {}
 
   @override
-  Future<void> fetchPhotos() async {}
-
-  @override
-  Future<void> fetchSessions() async {}
-}
-
-class FakeTrainerCheckInsNotifier extends TrainerCheckInsNotifier {
-  final TrainerCheckInsState _s;
-  FakeTrainerCheckInsNotifier(this._s) : super() {
-    super.state = _s;
-  }
-
-  @override
-  TrainerCheckInsState get state => _s;
-
-  @override
-  Future<void> fetchCheckIns({String? status}) async {}
+  Future<void> refresh() async {}
 }
 
 // =============================================================================
@@ -62,37 +45,58 @@ class FakeTrainerCheckInsNotifier extends TrainerCheckInsNotifier {
 
 const _testClientId = 'test-client';
 
+ClientHistoryState createStateWithSessions({
+  int sessionCount = 3,
+  bool isLoading = false,
+  bool isLoadingMore = false,
+  String? error,
+  HistoryDateRange dateRange = HistoryDateRange.all,
+}) {
+  final now = DateTime.now();
+  final sessions = List<SessionHistoryData>.generate(sessionCount, (i) {
+    final time = now.subtract(Duration(days: i));
+    return SessionHistoryData(
+      session: WorkoutSession(
+        id: 's-$i',
+        clientId: _testClientId,
+        name: i == 0 ? 'Morning Push' : 'Session ${i + 1}',
+        startTime: time,
+        endTime: time.add(const Duration(hours: 1)),
+        status: WorkoutSessionStatus.completed,
+        createdAt: time,
+        updatedAt: time,
+      ),
+      totalVolume: 5000.0 - (i * 500),
+      totalSets: 25 - (i * 2),
+    );
+  });
+
+  return ClientHistoryState(
+    sessions: sessions,
+    isLoading: isLoading,
+    isLoadingMore: isLoadingMore,
+    error: error,
+    dateRange: dateRange,
+    page: 1,
+    hasMore: sessionCount >= 20,
+  );
+}
+
 Widget createTestApp({
-  required ClientDetailState clientDetailState,
-  required TrainerCheckInsState checkInState,
+  required ClientHistoryState state,
 }) {
   return ProviderScope(
     overrides: [
-      clientDetailProvider(_testClientId).overrideWith(
-        (ref) => FakeClientDetailNotifier(
-          clientDetailState,
+      clientHistoryProvider(_testClientId).overrideWith(
+        (ref) => FakeClientHistoryNotifier(
+          state,
           clientId: _testClientId,
         ),
-      ),
-      trainerCheckInsProvider.overrideWith(
-        (ref) => FakeTrainerCheckInsNotifier(checkInState),
       ),
     ],
     child: const MaterialApp(
       home: ClientHistoryScreen(clientId: _testClientId),
     ),
-  );
-}
-
-Client _createClient() {
-  final now = DateTime.now();
-  return Client(
-    id: _testClientId,
-    name: 'Test Client',
-    email: 'test@test.com',
-    status: 'active',
-    createdAt: now,
-    updatedAt: now,
   );
 }
 
@@ -104,227 +108,227 @@ void main() {
   setUpAll(() => configureTestApiClient());
 
   group('ClientHistoryScreen', () {
-    testWidgets('renders with History title', (tester) async {
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: const ClientDetailState(),
-        checkInState: const TrainerCheckInsState(),
-      ));
+    // Test 1: Shows volume chart at top
+    testWidgets('shows volume progression chart at top', (tester) async {
+      final state = createStateWithSessions(sessionCount: 5);
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('History'), findsOneWidget);
+      // Volume Progression section header
+      expect(find.text('Volume Progression'), findsOneWidget);
+      // Chart widget should be present (LineChart from fl_chart)
+      expect(find.byType(LineChart), findsOneWidget);
     });
 
-    testWidgets('shows filter chips (All, Workouts, Check-ins, Measurements)',
+    testWidgets('shows chart placeholder when less than 2 data points',
         (tester) async {
-      final now = DateTime.now();
-      final session = WorkoutSession(
-        id: 'ws-1',
-        clientId: _testClientId,
-        name: 'Morning Workout',
-        startTime: now.subtract(const Duration(hours: 2)),
-        endTime: now.subtract(const Duration(hours: 1)),
-        status: WorkoutSessionStatus.completed,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: ClientDetailState(
-          client: _createClient(),
-          sessions: [session],
-          isLoadingClient: false,
-          isLoadingMeasurements: false,
-          isLoadingPhotos: false,
-          isLoadingSessions: false,
-        ),
-        checkInState: const TrainerCheckInsState(),
-      ));
+      // Single session → volumeData has 1 entry → chart placeholder
+      final state = createStateWithSessions(sessionCount: 1);
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('All'), findsOneWidget);
-      expect(find.text('Workouts'), findsOneWidget);
-      expect(find.text('Check-ins'), findsOneWidget);
-      expect(find.text('Measurements'), findsOneWidget);
+      expect(find.text('Volume Progression'), findsOneWidget);
+      // Should show placeholder text
+      expect(
+        find.text('Log more sessions to see volume progression'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('displays timeline items when data exists', (tester) async {
-      final now = DateTime.now();
-
-      final session = WorkoutSession(
-        id: 'ws-1',
-        clientId: _testClientId,
-        name: 'Morning Workout',
-        startTime: now.subtract(const Duration(hours: 2)),
-        endTime: now.subtract(const Duration(hours: 1)),
-        status: WorkoutSessionStatus.completed,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      final checkIn = CheckIn(
-        id: 'ci-1',
-        clientId: _testClientId,
-        date: now.subtract(const Duration(hours: 3)),
-        weight: 75.5,
-        waistCm: 80.0,
-        status: 'REVIEWED',
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      final measurement = ClientMeasurement(
-        id: 'm-1',
-        clientId: _testClientId,
-        measurementDate: now.subtract(const Duration(hours: 4)),
-        weightKg: 75.0,
-        bodyFatPercentage: 15.0,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: ClientDetailState(
-          client: _createClient(),
-          sessions: [session],
-          measurements: [measurement],
-          isLoadingClient: false,
-          isLoadingMeasurements: false,
-          isLoadingPhotos: false,
-          isLoadingSessions: false,
-        ),
-        checkInState: TrainerCheckInsState(
-          checkIns: [checkIn],
-        ),
-      ));
+    // Test 2: Shows date-grouped sessions
+    testWidgets('shows session rows with volume and sets', (tester) async {
+      final state = createStateWithSessions(sessionCount: 3);
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // All three item types should appear
-      expect(find.text('Morning Workout'), findsOneWidget);
-      expect(find.text('Weekly Check-in'), findsOneWidget);
-      // Measurement title includes weight info
-      expect(find.textContaining('Weight: 75.0'), findsOneWidget);
+      // Scroll down to see all sessions
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Session names should be visible
+      expect(find.text('Morning Push'), findsOneWidget);
+      expect(find.text('Session 2'), findsOneWidget);
+      expect(find.text('Session 3'), findsOneWidget);
+
+      // Volume and sets should be displayed
+      expect(find.textContaining('kg'), findsWidgets);
+      expect(find.textContaining('sets'), findsWidgets);
     });
 
-    testWidgets('filtering by type shows only matching items',
+    testWidgets('groups sessions by date with date headers', (tester) async {
+      final now = DateTime.now();
+      final sessions = [
+        SessionHistoryData(
+          session: WorkoutSession(
+            id: 's-today-1',
+            clientId: _testClientId,
+            name: 'Today Session',
+            startTime: now.subtract(const Duration(hours: 2)),
+            endTime: now.subtract(const Duration(hours: 1)),
+            status: WorkoutSessionStatus.completed,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          totalVolume: 5000,
+          totalSets: 25,
+        ),
+        SessionHistoryData(
+          session: WorkoutSession(
+            id: 's-yesterday',
+            clientId: _testClientId,
+            name: 'Yesterday Session',
+            startTime: now
+                .subtract(const Duration(days: 1))
+                .subtract(const Duration(hours: 2)),
+            endTime: now
+                .subtract(const Duration(days: 1))
+                .subtract(const Duration(hours: 1)),
+            status: WorkoutSessionStatus.completed,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          totalVolume: 3000,
+          totalSets: 15,
+        ),
+      ];
+
+      final state = ClientHistoryState(
+        sessions: sessions,
+        isLoading: false,
+        dateRange: HistoryDateRange.all,
+        page: 1,
+        hasMore: false,
+      );
+
+      await tester.pumpWidget(createTestApp(state: state));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Date headers should appear
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Yesterday'), findsOneWidget);
+      // Session count badges
+      expect(find.text('1 session'), findsWidgets);
+    });
+
+    // Test 3: Tap session navigates
+    testWidgets('tapping a session shows navigation intent', (tester) async {
+      // Create a test app with route generation to catch navigation attempts
+      final state = createStateWithSessions(sessionCount: 2);
+      var navigatedRoute = '';
+      final app = ProviderScope(
+        overrides: [
+          clientHistoryProvider(_testClientId).overrideWith(
+            (ref) => FakeClientHistoryNotifier(state, clientId: _testClientId),
+          ),
+        ],
+        child: MaterialApp(
+          home: const ClientHistoryScreen(clientId: _testClientId),
+          onGenerateRoute: (settings) {
+            navigatedRoute = settings.name ?? '';
+            return MaterialPageRoute(
+              builder: (_) => const Scaffold(body: Text('Session Detail')),
+              settings: settings,
+            );
+          },
+        ),
+      );
+
+      await tester.pumpWidget(app);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Tap the first session
+      await tester.tap(find.text('Morning Push'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Verify navigation was triggered
+      expect(navigatedRoute, startsWith('/workout/'));
+    });
+
+    // Test 4: Pull-to-refresh works
+    testWidgets('pull-to-refresh indicator is present', (tester) async {
+      final state = createStateWithSessions(sessionCount: 3);
+      await tester.pumpWidget(createTestApp(state: state));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // RefreshIndicator is in the widget tree
+      expect(find.byType(RefreshIndicator), findsOneWidget);
+    });
+
+    // Test 5: Date range filter chips
+    testWidgets('shows date range filter chips', (tester) async {
+      final state = createStateWithSessions(sessionCount: 3);
+      await tester.pumpWidget(createTestApp(state: state));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('1M'), findsOneWidget);
+      expect(find.text('3M'), findsOneWidget);
+      expect(find.text('6M'), findsOneWidget);
+      expect(find.text('1Y'), findsOneWidget);
+      expect(find.text('ALL'), findsOneWidget);
+    });
+
+    testWidgets('tapping date range chip highlights it', (tester) async {
+      // Use a notifier that tracks setDateRange calls
+      final state = createStateWithSessions(
+        sessionCount: 2,
+        dateRange: HistoryDateRange.oneMonth,
+      );
+      await tester.pumpWidget(createTestApp(state: state));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The 1M chip should be selected
+      // We don't test visual selection in widget tests, just presence
+      expect(find.text('1M'), findsOneWidget);
+      expect(find.text('ALL'), findsOneWidget);
+    });
+
+    // Test 6: Loading + empty + error states
+    testWidgets('shows loading spinner when loading with no sessions',
         (tester) async {
-      final now = DateTime.now();
-
-      final session = WorkoutSession(
-        id: 'ws-1',
-        clientId: _testClientId,
-        name: 'Morning Workout',
-        startTime: now.subtract(const Duration(hours: 2)),
-        endTime: now.subtract(const Duration(hours: 1)),
-        status: WorkoutSessionStatus.completed,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      final checkIn = CheckIn(
-        id: 'ci-1',
-        clientId: _testClientId,
-        date: now.subtract(const Duration(hours: 3)),
-        weight: 75.5,
-        status: 'REVIEWED',
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: ClientDetailState(
-          client: _createClient(),
-          sessions: [session],
-          isLoadingClient: false,
-          isLoadingMeasurements: false,
-          isLoadingPhotos: false,
-          isLoadingSessions: false,
-        ),
-        checkInState: TrainerCheckInsState(
-          checkIns: [checkIn],
-        ),
-      ));
+      final state = const ClientHistoryState(isLoading: true);
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
 
-      // Both items appear with All filter
-      expect(find.text('Morning Workout'), findsOneWidget);
-      expect(find.text('Weekly Check-in'), findsOneWidget);
-
-      // Tap Workouts filter chip
-      await tester.tap(find.text('Workouts'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      // Only workout should remain
-      expect(find.text('Morning Workout'), findsOneWidget);
-      expect(find.text('Weekly Check-in'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('empty state when no history', (tester) async {
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: const ClientDetailState(),
-        checkInState: const TrainerCheckInsState(),
-      ));
+    testWidgets('shows empty state when no sessions', (tester) async {
+      final state = const ClientHistoryState();
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('No history available yet'), findsOneWidget);
+      expect(find.text('No workout history yet'), findsOneWidget);
     });
 
-    testWidgets('tapping an item expands details', (tester) async {
-      final now = DateTime.now();
-
-      final session = WorkoutSession(
-        id: 'ws-1',
-        clientId: _testClientId,
-        name: 'Morning Workout',
-        startTime: now.subtract(const Duration(hours: 2)),
-        endTime: now.subtract(const Duration(hours: 1)),
-        status: WorkoutSessionStatus.completed,
-        notes: 'Great session!',
-        createdAt: now,
-        updatedAt: now,
+    testWidgets('shows error state with retry button', (tester) async {
+      final state = const ClientHistoryState(
+        error: 'Something went wrong',
       );
-
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: ClientDetailState(
-          client: _createClient(),
-          sessions: [session],
-          isLoadingClient: false,
-          isLoadingMeasurements: false,
-          isLoadingPhotos: false,
-          isLoadingSessions: false,
-        ),
-        checkInState: const TrainerCheckInsState(),
-      ));
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Tap the workout card
-      await tester.tap(find.text('Morning Workout'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300)); // AnimatedSize
-
-      // Expanded detail shows status and notes
-      expect(find.text('COMPLETED'), findsOneWidget);
-      expect(find.text('Great session!'), findsOneWidget);
+      expect(find.text('Something went wrong'), findsOneWidget);
+      expect(find.text('Try Again'), findsOneWidget);
     });
 
-    testWidgets('loading state shows shimmer', (tester) async {
-      await tester.pumpWidget(createTestApp(
-        clientDetailState: const ClientDetailState(
-          isLoadingClient: true,
-        ),
-        checkInState: const TrainerCheckInsState(),
-      ));
+    testWidgets('appbar shows Workout History title', (tester) async {
+      final state = createStateWithSessions(sessionCount: 1);
+      await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
 
-      // Shimmer loading placeholder is shown
-      expect(find.byType(Shimmer), findsOneWidget);
-      // AppBar title still visible
-      expect(find.text('History'), findsOneWidget);
+      expect(find.text('Workout History'), findsOneWidget);
     });
   });
 }

@@ -36,6 +36,13 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('WorkoutHistoryNotifier', () {
+    test('initial state: searchQuery empty, dateRange null', () {
+      final state = notifier.state;
+      expect(state.searchQuery, '');
+      expect(state.dateRange, isNull);
+      expect(state.filteredSessions, isEmpty);
+    });
+
     test('initial state: sessions empty, isLoading=false, hasMore=true', () {
       final state = notifier.state;
       expect(state.sessions, isEmpty);
@@ -289,6 +296,174 @@ void main() {
         expect(state.isLoading, false);
         expect(state.sessions, isEmpty);
         expect(state.error, contains('Refresh failed'));
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Search & Filter
+    // -------------------------------------------------------------------------
+
+    group('search & filter', () {
+      // Sessions used across search/filter tests
+      final now = DateTime.now();
+      final sessions = [
+        WorkoutSession(
+          id: 's1',
+          clientId: 'c1',
+          name: 'Upper Body',
+          notes: 'Felt strong today',
+          startTime: now.subtract(const Duration(days: 1)),
+          createdAt: now,
+          updatedAt: now,
+        ),
+        WorkoutSession(
+          id: 's2',
+          clientId: 'c1',
+          name: 'Leg Day',
+          notes: 'Squats and deadlifts',
+          startTime: now.subtract(const Duration(days: 5)),
+          createdAt: now,
+          updatedAt: now,
+        ),
+        WorkoutSession(
+          id: 's3',
+          clientId: 'c1',
+          name: 'Push Day',
+          notes: 'Bench press focus',
+          startTime: now.subtract(const Duration(days: 15)),
+          createdAt: now,
+          updatedAt: now,
+        ),
+        WorkoutSession(
+          id: 's4',
+          clientId: 'c1',
+          name: 'Pull Day',
+          notes: 'Rows and pull-ups',
+          startTime: now.subtract(const Duration(days: 45)),
+          createdAt: now,
+          updatedAt: now,
+        ),
+        WorkoutSession(
+          id: 's5',
+          clientId: 'c1',
+          name: 'Cardio',
+          notes: 'Treadmill intervals',
+          startTime: now.subtract(const Duration(days: 100)),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+
+      setUp(() {
+        // Manually set state with the test sessions and no filters
+        notifier = WorkoutHistoryNotifier(remoteSource: mockRemoteSource)
+          ..state = WorkoutHistoryState(
+            sessions: sessions,
+            hasMore: false,
+          );
+      });
+
+      test('setSearchQuery filters by session name', () {
+        notifier.setSearchQuery('Upper');
+        expect(notifier.state.filteredSessions.length, 1);
+        expect(notifier.state.filteredSessions.first.name, 'Upper Body');
+      });
+
+      test('setSearchQuery filters by notes', () {
+        notifier.setSearchQuery('squats');
+        expect(notifier.state.filteredSessions.length, 1);
+        expect(notifier.state.filteredSessions.first.name, 'Leg Day');
+      });
+
+      test('setSearchQuery is case-insensitive', () {
+        notifier.setSearchQuery('upper');
+        expect(notifier.state.filteredSessions.length, 1);
+        expect(notifier.state.filteredSessions.first.name, 'Upper Body');
+      });
+
+      test('setSearchQuery matches multiple sessions in name and notes', () {
+        notifier.setSearchQuery('day');
+        // Matches: "Leg Day", "Push Day", "Pull Day" (name),
+        // and "Felt strong today" (notes of Upper Body)
+        expect(notifier.state.filteredSessions.length, 4);
+      });
+
+      test('clear search restores full list', () {
+        notifier.setSearchQuery('Upper');
+        expect(notifier.state.filteredSessions.length, 1);
+
+        notifier.setSearchQuery('');
+        expect(notifier.state.filteredSessions.length, sessions.length);
+      });
+
+      test('setDateRange filters by last 7 days', () {
+        notifier.setDateRange(DateRange.last7Days());
+        expect(notifier.state.filteredSessions.length, 2);
+      });
+
+      test('setDateRange filters by last 30 days', () {
+        notifier.setDateRange(DateRange.last30Days());
+        expect(notifier.state.filteredSessions.length, 3);
+      });
+
+      test('setDateRange filters by last 3 months', () {
+        notifier.setDateRange(DateRange.last3Months());
+        expect(notifier.state.filteredSessions.length, 4);
+      });
+
+      test('clearing dateRange restores full list', () {
+        notifier.setDateRange(DateRange.last7Days());
+        expect(notifier.state.filteredSessions.length, 2);
+
+        notifier.setDateRange(null);
+        expect(notifier.state.filteredSessions.length, sessions.length);
+      });
+
+      test('combined search + date filter', () {
+        notifier.setSearchQuery('day');
+        notifier.setDateRange(DateRange.last30Days());
+        // Within last 30 days: "Leg Day" (day 5), "Push Day" (day 15),
+        // and "Upper Body" notes "Felt strong today" (day 1)
+        expect(notifier.state.filteredSessions.length, 3);
+      });
+
+      test('combined filter returns empty when no match', () {
+        notifier.setSearchQuery('Upper');
+        notifier.setDateRange(DateRange.last3Months());
+        // "Upper Body" is within 3 months, so 1 result
+        expect(notifier.state.filteredSessions.length, 1);
+
+        // Now narrow further
+        notifier.setDateRange(DateRange.last7Days());
+        // "Upper Body" is 1 day old, still within 7 days
+        notifier.setSearchQuery('nonexistent');
+        expect(notifier.state.filteredSessions, isEmpty);
+      });
+
+      test('filteredSessions is empty when no sessions match date range', () {
+        notifier.setDateRange(DateRange(
+          start: now.subtract(const Duration(days: 200)),
+          end: now.subtract(const Duration(days: 150)),
+          preset: DateRangePreset.custom,
+        ));
+        // Session 5 is at day 100, which is before day 150-200 range
+        // Actually session 5 is at day 100, which is after day 150-200
+        // Let me recalculate: day 100 = 100 days ago. Range: 200-150 days ago
+        // Session 5: 100 days ago - NOT in range (100 > 150 = later)
+        // Session 4: 45 days ago - NOT in range
+        // All sessions are too recent for this range
+        expect(notifier.state.filteredSessions, isEmpty);
+      });
+
+      test('setSearchQuery persists in state', () {
+        notifier.setSearchQuery('Leg Day');
+        expect(notifier.state.searchQuery, 'Leg Day');
+      });
+
+      test('setDateRange persists in state', () {
+        final range = DateRange.last30Days();
+        notifier.setDateRange(range);
+        expect(notifier.state.dateRange, range);
       });
     });
   });

@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
+import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
+import 'package:zirofit_fl/data/models/workout_session.dart';
+import 'package:zirofit_fl/features/clients/providers/client_list_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
+import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
+import 'package:zirofit_fl/features/workout/services/voice_log_service.dart';
 import 'package:zirofit_fl/features/workout/widgets/exercise_selection_view.dart';
 import 'package:zirofit_fl/features/workout/widgets/set_input_sheet.dart';
+import 'package:zirofit_fl/features/workout/widgets/voice_input_overlay.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
   final String? templateId;
@@ -17,11 +24,15 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
+  final VoiceFeedbackService _voiceService = VoiceFeedbackService();
+  final VoiceLogService _voiceLogService = VoiceLogService();
+
   @override
   void initState() {
     super.initState();
     // Schedule the async init to avoid calling during build.
     Future.microtask(() => _initWorkout());
+    Future.microtask(() => _voiceService.initialize());
   }
 
   Future<void> _initWorkout() async {
@@ -35,13 +46,27 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
   @override
   void dispose() {
+    _voiceService.stop();
+    _voiceLogService.stopListening();
     super.dispose();
+  }
+
+  /// Called whenever [ActiveWorkoutState] changes to trigger voice announcements.
+  void _onWorkoutStateChanged(ActiveWorkoutState? prev, ActiveWorkoutState next) {
+    // Detect rest timer just started
+    final wasRestRunning = prev?.isRestRunning ?? false;
+    if (next.isRestRunning && !wasRestRunning && next.restSeconds > 0) {
+      _voiceService.announceRestTimer(next.restSeconds);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(activeWorkoutProvider);
     final theme = Theme.of(context);
+
+    // Listen to state transitions for voice announcements
+    ref.listen<ActiveWorkoutState>(activeWorkoutProvider, _onWorkoutStateChanged);
 
     return Scaffold(
       appBar: AppBar(
@@ -50,6 +75,23 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           style: theme.textTheme.titleMedium,
         ),
         actions: [
+          // Speaker toggle
+          if (state.hasActiveSession)
+            IconButton(
+              icon: Icon(
+                _voiceService.isEnabled
+                    ? Icons.volume_up
+                    : Icons.volume_off,
+              ),
+              tooltip: _voiceService.isEnabled
+                  ? 'Mute voice feedback'
+                  : 'Enable voice feedback',
+              onPressed: () {
+                setState(() {
+                  _voiceService.setEnabled(!_voiceService.isEnabled);
+                });
+              },
+            ),
           if (state.hasActiveSession)
             IconButton(
               icon: const Icon(Icons.close),
@@ -125,6 +167,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 icon: const Icon(Icons.play_arrow),
                 label: const Text('Start Workout'),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => _showClientSelector(context),
+                icon: const Icon(Icons.group_add),
+                label: const Text('Start Trainer-Led Session'),
+              ),
             ],
           ),
         ),
@@ -160,6 +208,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 ref.read(activeWorkoutProvider.notifier).endRest(),
           ),
 
+        // Trainer-led session indicator
+        if (state.isTrainerLed)
+          _TrainerLedHeader(clientName: state.clientName!),
+
         // Main content
         Expanded(
           child: state.logs.isEmpty
@@ -174,14 +226,34 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Add set button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => _showExerciseSelection(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Set'),
-                  ),
+                // Voice + Add set row
+                Row(
+                  children: [
+                    // Microphone button
+                    SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: FilledButton.tonal(
+                        onPressed: () => _onVoiceInput(context),
+                        style: FilledButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: const Icon(Icons.mic),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Add set button (fills remaining width)
+                    Expanded(
+                      child: SizedBox(
+                        height: 56,
+                        child: FilledButton.icon(
+                          onPressed: () => _showExerciseSelection(context),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Set'),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 // Finish workout button
@@ -235,6 +307,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Widget _buildExerciseLog(List<ClientExerciseLog> logs, ThemeData theme) {
+    final state = ref.watch(activeWorkoutProvider);
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: logs.length,
@@ -257,11 +331,37 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            subtitle: Text(
-              '${log.weight != null ? '${log.weight!.toStringAsFixed(1)} kg' : '—'} × '
-              '${log.reps != null ? '${log.reps} reps' : '—'}'
-              '${log.side != 'BOTH' ? ' (${log.side})' : ''}',
-              style: theme.textTheme.bodySmall,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${log.weight != null ? '${log.weight!.toStringAsFixed(1)} kg' : '—'} × '
+                  '${log.reps != null ? '${log.reps} reps' : '—'}'
+                  '${log.side != 'BOTH' ? ' (${log.side})' : ''}',
+                  style: theme.textTheme.bodySmall,
+                ),
+                if (state.isTrainerLed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          state.clientName!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             trailing: isCompleted
                 ? Icon(Icons.check, color: theme.colorScheme.primary)
@@ -327,13 +427,19 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     final exercise = exercises[index];
 
-    SetInputSheet.show(
+      SetInputSheet.show(
       context,
       exercise: exercise,
       onLog: ({required int reps, double? weight, String? side}) {
         final notifier = ref.read(activeWorkoutProvider.notifier);
         notifier.logExercise(
           exerciseId: exercise.id,
+          reps: reps,
+          weight: weight,
+        );
+        // Voice feedback: announce the logged set
+        _voiceService.speakConfirmation(
+          exerciseName: exercise.name,
           reps: reps,
           weight: weight,
         );
@@ -367,11 +473,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
 
     if (confirmed == true && mounted) {
+      // Capture logs before finishing (finishWorkout clears state)
+      final currentLogs = ref.read(activeWorkoutProvider).logs.toList();
       final notifier = ref.read(activeWorkoutProvider.notifier);
       final finishedSession = await notifier.finishWorkout();
       if (finishedSession != null && mounted) {
+        // Voice feedback: announce workout complete
+        _voiceService.announceWorkoutComplete();
         // ignore: use_build_context_synchronously
-        _navigateToSummary(context, finishedSession);
+        _navigateToSummary(context, finishedSession, currentLogs);
       }
     }
   }
@@ -411,15 +521,19 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     }
   }
 
-  void _navigateToSummary(BuildContext context, dynamic session) {
-    // For now, pop back. In the full app this would navigate to a summary screen.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Workout completed: ${session.name ?? 'Finished'}'),
-        behavior: SnackBarBehavior.floating,
+  void _navigateToSummary(
+    BuildContext context,
+    WorkoutSession session,
+    List<ClientExerciseLog> logs,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WorkoutSummaryScreen(
+          session: session,
+          logs: logs,
+        ),
       ),
     );
-    Navigator.of(context).pop();
   }
 
   Future<void> _onStartWorkout() async {
@@ -431,6 +545,286 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       // Template exercises are populated when available through the exercise
       // selection flow or via the template's exercise list.
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trainer-Led Session
+  // ---------------------------------------------------------------------------
+
+  Future<void> _showClientSelector(BuildContext context) async {
+    // Fetch clients and show a selection dialog
+    final notifier = ref.read(clientListProvider.notifier);
+    await notifier.fetchClients();
+
+    if (!mounted) return;
+
+    final client = await showDialog<Client>(
+      context: context,
+      builder: (ctx) => _ClientSelectorDialog(),
+    );
+
+    if (client != null && mounted) {
+      await _onStartTrainerSession(client);
+    }
+  }
+
+  Future<void> _onStartTrainerSession(Client client) async {
+    final notifier = ref.read(activeWorkoutProvider.notifier);
+    await notifier.startSessionForClient(
+      clientId: client.id,
+      clientName: client.name,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Voice Input
+  // ---------------------------------------------------------------------------
+
+  Future<void> _onVoiceInput(BuildContext context) async {
+    // Use exercise names already known in the session to help NLP matching
+    final knownExercises =
+        ref.read(activeWorkoutProvider).exerciseNames.values.toList();
+
+    final parsed = await VoiceInputOverlay.show(
+      context,
+      service: _voiceLogService,
+      knownExercises: knownExercises,
+    );
+
+    if (parsed == null || !mounted) return;
+
+    // Log the recognised set using the first known exercise if a name was
+    // recognised, or fall back to the exercise selection flow.
+    if (parsed.exerciseName != null) {
+      // Try to match the recognised name to a known exercise ID
+      final state = ref.read(activeWorkoutProvider);
+      final matchedEntry = state.exerciseNames.entries.firstWhere(
+        (e) =>
+            e.value.toLowerCase() == parsed.exerciseName!.toLowerCase(),
+        orElse: () => const MapEntry('', ''),
+      );
+
+      if (matchedEntry.key.isNotEmpty) {
+        // Found a matching exercise — log directly
+        await ref.read(activeWorkoutProvider.notifier).logExercise(
+              exerciseId: matchedEntry.key,
+              reps: parsed.reps,
+              weight: parsed.weight,
+            );
+        return;
+      }
+    }
+
+    // No exercise name matched — fall back to the exercise selection sheet so
+    // the user can pick which exercise this set belongs to.
+    if (!mounted) return;
+    _showExerciseSelectionWithPreFill(context, parsed);
+  }
+
+  void _showExerciseSelectionWithPreFill(
+    BuildContext context,
+    ParsedVoiceInput parsed,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => ExerciseSelectionView(
+        onDone: (selectedExercises) {
+          if (selectedExercises.isEmpty) return;
+          final notifier = ref.read(activeWorkoutProvider.notifier);
+          for (final exercise in selectedExercises) {
+            notifier.setExerciseName(exercise.id, exercise.name);
+          }
+          // Log the set against the first selected exercise with voice data
+          final exercise = selectedExercises.first;
+          notifier.logExercise(
+            exerciseId: exercise.id,
+            reps: parsed.reps,
+            weight: parsed.weight,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Trainer-Led Header
+// ---------------------------------------------------------------------------
+
+class _TrainerLedHeader extends StatelessWidget {
+  final String clientName;
+
+  const _TrainerLedHeader({required this.clientName});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.person,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Trainer-Led Session',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Training: $clientName',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onPrimaryContainer.withAlpha(25),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'LIVE',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Client Selector Dialog
+// ---------------------------------------------------------------------------
+
+class _ClientSelectorDialog extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_ClientSelectorDialog> createState() =>
+      _ClientSelectorDialogState();
+}
+
+class _ClientSelectorDialogState
+    extends ConsumerState<_ClientSelectorDialog> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(clientListProvider);
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: const Text('Select Client'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search clients...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (value) {
+                ref.read(clientListProvider.notifier).setSearch(value);
+              },
+            ),
+            const SizedBox(height: 12),
+            state.isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  )
+                : state.filteredClients.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          state.clients.isEmpty
+                              ? 'No clients found.'
+                              : 'No matching clients.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    : SizedBox(
+                        height: 300,
+                        child: ListView.builder(
+                          itemCount: state.filteredClients.length,
+                          itemBuilder: (context, index) {
+                            final client = state.filteredClients[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    theme.colorScheme.primaryContainer,
+                                child: Text(
+                                  client.name.isNotEmpty
+                                      ? client.name[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                              title: Text(client.name),
+                              subtitle: client.email != null
+                                  ? Text(
+                                      client.email!,
+                                      style: theme.textTheme.bodySmall,
+                                    )
+                                  : null,
+                              onTap: () => Navigator.of(context).pop(client),
+                            );
+                          },
+                        ),
+                      ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
   }
 }
 

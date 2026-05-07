@@ -295,6 +295,52 @@ class TrainerProfileNotifier extends StateNotifier<TrainerProfileState> {
     }
   }
 
+  // -- Reorder packages (optimistic local update) --
+
+  void reorderPackages(List<Package> updatedPackages) {
+    state = state.copyWith(packages: updatedPackages);
+  }
+
+  /// Sets a package as the default (active) package.
+  Future<void> setDefaultPackage(String id) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      await _apiClient.put(
+        '${ApiConstants.profileMePackages}/$id',
+        body: {'is_active': true},
+      );
+
+      // Deactivate all others locally, activate the target
+      final updatedPackages = state.packages.map((p) {
+        return Package(
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: p.price,
+          numberOfSessions: p.numberOfSessions,
+          isActive: p.id == id,
+          stripeProductId: p.stripeProductId,
+          stripePriceId: p.stripePriceId,
+          trainerId: p.trainerId,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          deletedAt: p.deletedAt,
+        );
+      }).toList();
+
+      state = state.copyWith(
+        packages: updatedPackages,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
   // -- Testimonials CRUD --
 
   Future<void> addTestimonial(Map<String, dynamic> data) async {
@@ -311,6 +357,24 @@ class TrainerProfileNotifier extends StateNotifier<TrainerProfileState> {
         testimonials: [...state.testimonials, response],
         isLoading: false,
       );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  /// Sends a request to a client asking them to leave a review/testimonial.
+  Future<void> requestTestimonialReview(String clientId) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      await _apiClient.post(
+        '${ApiConstants.profileMeTestimonials}/request-review',
+        body: {'client_id': clientId},
+      );
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -377,6 +441,12 @@ class TrainerProfileNotifier extends StateNotifier<TrainerProfileState> {
         error: _extractErrorMessage(e),
       );
     }
+  }
+
+  // -- Reorder services (optimistic local update) --
+
+  void reorderServices(List<Service> updatedServices) {
+    state = state.copyWith(services: updatedServices);
   }
 
   // -- Active tab --

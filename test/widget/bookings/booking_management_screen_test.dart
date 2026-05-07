@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/booking.dart';
 import 'package:zirofit_fl/data/models/enums/booking_status.dart';
-import 'package:zirofit_fl/features/bookings/providers/bookings_provider.dart';
+import 'package:zirofit_fl/features/bookings/providers/booking_management_provider.dart';
 import 'package:zirofit_fl/features/bookings/screens/booking_management_screen.dart';
 import '../../helpers/test_setup.dart';
 
@@ -12,22 +12,19 @@ import '../../helpers/test_setup.dart';
 // Fake notifier for testing
 // ---------------------------------------------------------------------------
 
-class FakeBookingsNotifier extends BookingsNotifier {
-  final BookingsState _overriddenState;
-
-  FakeBookingsNotifier(this._overriddenState)
-      : super(apiClient: ApiClient.instance) {
-    state = _overriddenState;
-  }
+class FakeBookingManagementNotifier extends BookingManagementNotifier {
+  FakeBookingManagementNotifier() : super(apiClient: ApiClient.instance);
 
   @override
-  BookingsState get state => _overriddenState;
+  BookingManagementState get state => _overriddenState;
+  set testState(BookingManagementState s) => _overriddenState = s;
+  BookingManagementState _overriddenState = const BookingManagementState();
 
   @override
-  Future<void> fetchBookings() async {}
+  Future<void> fetchAll() async {}
 
   @override
-  Future<bool> confirmBooking(String id) async => true;
+  Future<bool> approveBooking(String id) async => true;
 
   @override
   Future<bool> declineBooking(String id) async => true;
@@ -59,10 +56,16 @@ Booking _createBooking({
   );
 }
 
-Widget buildTestApp(BookingsState state) {
+Widget buildTestApp(BookingManagementState state) {
   return ProviderScope(
     overrides: [
-      bookingsProvider.overrideWith((ref) => FakeBookingsNotifier(state)),
+      bookingManagementProvider.overrideWith(
+        (ref) {
+          final notifier = FakeBookingManagementNotifier();
+          notifier.testState = state;
+          return notifier;
+        },
+      ),
     ],
     child: const MaterialApp(
       home: BookingManagementScreen(),
@@ -78,41 +81,23 @@ void main() {
   setUpAll(() => configureTestApiClient());
 
   group('BookingManagementScreen', () {
-    testWidgets('renders with Booking Management title', (tester) async {
+    // Test 1: Shows 3 tabs
+    testWidgets('shows Pending / Confirmed / Declined tabs', (tester) async {
       await tester.pumpWidget(buildTestApp(
-        const BookingsState(isLoading: false),
+        const BookingManagementState(isLoading: false),
       ));
       await tester.pump();
 
-      expect(find.text('Booking Management'), findsOneWidget);
-    });
-
-    testWidgets('shows All/Pending/Confirmed/Declined filter tabs',
-        (tester) async {
-      await tester.pumpWidget(buildTestApp(
-        BookingsState(
-          bookings: [
-            _createBooking(
-              id: 'bkg-1',
-              clientName: 'John Doe',
-              status: BookingStatus.pending,
-            ),
-          ],
-          isLoading: false,
-        ),
-      ));
-      await tester.pump();
-
-      expect(find.text('All'), findsOneWidget);
       expect(find.text('Pending'), findsOneWidget);
       expect(find.text('Confirmed'), findsOneWidget);
       expect(find.text('Declined'), findsOneWidget);
     });
 
-    testWidgets('expanding a booking shows details', (tester) async {
+    // Test 2: Pending tab shows requests
+    testWidgets('Pending tab shows booking requests', (tester) async {
       await tester.pumpWidget(buildTestApp(
-        BookingsState(
-          bookings: [
+        BookingManagementState(
+          pendingBookings: [
             _createBooking(
               id: 'bkg-1',
               clientName: 'John Doe',
@@ -125,23 +110,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // Initially the details should not be visible
-      expect(find.text('Booking ID'), findsNothing);
-
-      // Tap on the booking card to expand (tap on client name)
-      await tester.tap(find.text('John Doe'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Now details should be visible
-      expect(find.text('Booking ID'), findsOneWidget);
-      expect(find.text('bkg-1'), findsOneWidget);
+      // Pending tab is shown by default
+      expect(find.text('John Doe'), findsOneWidget);
+      expect(find.text('PENDING'), findsOneWidget);
     });
 
-    testWidgets('confirm button calls accept action', (tester) async {
+    // Test 3: Approve action with confirmation
+    testWidgets('Approve button shows confirmation dialog', (tester) async {
       await tester.pumpWidget(buildTestApp(
-        BookingsState(
-          bookings: [
+        BookingManagementState(
+          pendingBookings: [
             _createBooking(
               id: 'bkg-1',
               clientName: 'John Doe',
@@ -159,19 +137,21 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Tap Confirm button
-      await tester.tap(find.text('Confirm'));
+      // Tap Approve button
+      await tester.tap(find.text('Approve'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // SnackBar should confirm the action
-      expect(find.text('Booking confirmed'), findsOneWidget);
+      // Confirmation dialog should appear
+      expect(find.text('Approve Booking'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
     });
 
-    testWidgets('decline button calls reject action', (tester) async {
+    // Test 4: Decline action with confirmation
+    testWidgets('Decline button shows confirmation dialog', (tester) async {
       await tester.pumpWidget(buildTestApp(
-        BookingsState(
-          bookings: [
+        BookingManagementState(
+          pendingBookings: [
             _createBooking(
               id: 'bkg-1',
               clientName: 'John Doe',
@@ -194,20 +174,150 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // SnackBar should confirm the action
-      expect(find.text('Booking declined'), findsOneWidget);
+      // Confirmation dialog should appear
+      expect(find.text('Decline Booking'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
     });
 
-    testWidgets('empty state when no bookings', (tester) async {
+    // Test 5: Empty state per tab
+    testWidgets('shows empty state for pending tab when no bookings',
+        (tester) async {
       await tester.pumpWidget(buildTestApp(
-        const BookingsState(bookings: [], isLoading: false),
+        const BookingManagementState(isLoading: false),
       ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      // The default "All" tab shows "No bookings yet"
-      expect(find.text('No bookings yet'), findsOneWidget);
-      expect(find.text('Create a new booking to get started'), findsOneWidget);
+      // Default tab is Pending
+      expect(find.text('No pending bookings'), findsOneWidget);
+      expect(find.text('New requests will appear here'), findsOneWidget);
+    });
+
+    testWidgets('shows empty state for confirmed tab', (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        const BookingManagementState(isLoading: false),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Navigate to Confirmed tab
+      await tester.tap(find.text('Confirmed'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('No confirmed bookings'), findsOneWidget);
+      expect(find.text('Approved bookings will appear here'), findsOneWidget);
+    });
+
+    testWidgets('shows empty state for declined tab', (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        const BookingManagementState(isLoading: false),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Navigate to Declined tab
+      await tester.tap(find.text('Declined'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('No declined bookings'), findsOneWidget);
+      expect(find.text('Declined bookings will appear here'), findsOneWidget);
+    });
+
+    testWidgets('expanding a booking shows details and notes', (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        BookingManagementState(
+          pendingBookings: [
+            _createBooking(
+              id: 'bkg-1',
+              clientName: 'John Doe',
+              status: BookingStatus.pending,
+              clientNotes: 'Looking forward to my session',
+            ),
+          ],
+          isLoading: false,
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Initially details should not be visible
+      expect(find.text('Client Notes'), findsNothing);
+
+      // Tap to expand
+      await tester.tap(find.text('John Doe'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Now details should be visible
+      expect(find.text('Client Notes'), findsOneWidget);
+      expect(find.text('Looking forward to my session'), findsOneWidget);
+      // Action buttons visible for pending
+      expect(find.text('Approve'), findsOneWidget);
+      expect(find.text('Decline'), findsOneWidget);
+    });
+
+    testWidgets('shows loading indicator when loading', (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        const BookingManagementState(isLoading: true),
+      ));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('confirmed tab shows confirmed bookings', (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        BookingManagementState(
+          confirmedBookings: [
+            _createBooking(
+              id: 'bkg-2',
+              clientName: 'Jane Confirmed',
+              status: BookingStatus.confirmed,
+            ),
+          ],
+          isLoading: false,
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Navigate to Confirmed tab
+      await tester.tap(find.text('Confirmed'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Jane Confirmed'), findsOneWidget);
+      expect(find.text('CONFIRMED'), findsOneWidget);
+      // No Approve/Decline buttons for confirmed bookings
+      expect(find.text('Approve'), findsNothing);
+      expect(find.text('Decline'), findsNothing);
+    });
+
+    testWidgets('declined tab shows declined bookings', (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        BookingManagementState(
+          declinedBookings: [
+            _createBooking(
+              id: 'bkg-3',
+              clientName: 'Bob Declined',
+              status: BookingStatus.cancelled,
+            ),
+          ],
+          isLoading: false,
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Navigate to Declined tab
+      await tester.tap(find.text('Declined'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Bob Declined'), findsOneWidget);
+      expect(find.text('DECLINED'), findsOneWidget);
     });
   });
 }

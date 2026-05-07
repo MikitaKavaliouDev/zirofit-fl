@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/features/billing/providers/billing_provider.dart';
+import 'package:zirofit_fl/features/billing/providers/subscription_provider.dart';
 import 'package:zirofit_fl/features/billing/screens/trainer_subscription_screen.dart';
 import '../../helpers/test_setup.dart';
 
@@ -10,39 +11,39 @@ import '../../helpers/test_setup.dart';
 // FakeNotifier
 // ---------------------------------------------------------------------------
 
-class FakeBillingNotifier extends BillingNotifier {
-  BillingState _state;
-  FakeBillingNotifier(this._state) : super(apiClient: ApiClient.instance) {
+class FakeSubscriptionNotifier extends SubscriptionNotifier {
+  SubscriptionState _state;
+  bool getPortalLinkCalled = false;
+  String? portalLinkResult;
+
+  FakeSubscriptionNotifier(this._state)
+      : super(apiClient: ApiClient.instance) {
     super.state = _state;
   }
 
   @override
-  BillingState get state => _state;
+  SubscriptionState get state => _state;
 
-  void emit(BillingState s) {
+  void emit(SubscriptionState s) {
     _state = s;
     super.state = s;
   }
 
   @override
-  Future<void> fetchPayouts() async {}
-
-  @override
-  Future<void> fetchRevenue() async {}
-
-  @override
   Future<void> fetchSubscription() async {}
 
   @override
-  Future<String?> fetchStripeOnboardingUrl() async => null;
-
-  @override
-  Future<String?> createCheckoutSession(String packageId) async => null;
+  Future<String?> getPortalLink() async {
+    getPortalLinkCalled = true;
+    return portalLinkResult;
+  }
 }
 
-Widget buildApp(BillingState state) => ProviderScope(
+Widget buildApp(SubscriptionState state) => ProviderScope(
       overrides: [
-        billingProvider.overrideWith((ref) => FakeBillingNotifier(state)),
+        subscriptionProvider.overrideWith(
+          (ref) => FakeSubscriptionNotifier(state),
+        ),
       ],
       child: const MaterialApp(home: TrainerSubscriptionScreen()),
     );
@@ -51,6 +52,44 @@ Widget buildApp(BillingState state) => ProviderScope(
 Future<void> scrollToBottom(WidgetTester tester) async {
   await tester.drag(find.byType(ListView), const Offset(0, -800));
   await tester.pumpAndSettle();
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+TrainerSubscription _activeSubscription({
+  DateTime? nextBillingDate,
+}) {
+  return TrainerSubscription(
+    planName: 'Trainer Pro',
+    price: '29.99',
+    currency: 'USD',
+    interval: 'month',
+    status: 'active',
+    nextBillingDate:
+        nextBillingDate ?? DateTime(2026, 2, 28),
+    features: const [
+      'Unlimited client management',
+      'Advanced analytics & reporting',
+      'Custom storefront & branding',
+      'Stripe Connect payouts',
+      'Priority support',
+      'Marketplace listing',
+    ],
+  );
+}
+
+TrainerSubscription _canceledSubscription() {
+  return const TrainerSubscription(
+    planName: 'Free Plan',
+    price: '0.00',
+    currency: 'USD',
+    interval: 'month',
+    status: 'canceled',
+    nextBillingDate: null,
+    features: [],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -63,8 +102,8 @@ void main() {
   group('TrainerSubscriptionScreen', () {
     testWidgets('renders with subscription title', (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
-          subscriptionStatus: 'active',
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(),
           isLoading: false,
         )),
       );
@@ -73,26 +112,31 @@ void main() {
       expect(find.text('My Subscription'), findsOneWidget);
     });
 
-    testWidgets('renders current plan info - active', (tester) async {
+    // ---------------------------------------------------------------------------
+    // Test 1: Shows current plan
+    // ---------------------------------------------------------------------------
+    testWidgets('shows current plan name and tier badge when active',
+        (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
-          subscriptionStatus: 'active',
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(),
           isLoading: false,
         )),
       );
       await tester.pumpAndSettle();
 
+      // Plan name
       expect(find.text('Trainer Pro'), findsOneWidget);
+      // Price
       expect(find.text('\$29.99 / month'), findsOneWidget);
+      // Tier badge (ACTIVE)
       expect(find.text('ACTIVE'), findsOneWidget);
-      // Next billing date
-      expect(find.text('Next billing date'), findsOneWidget);
     });
 
-    testWidgets('renders current plan info - canceled', (tester) async {
+    testWidgets('shows current plan info when canceled', (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
-          subscriptionStatus: 'canceled',
+        buildApp(SubscriptionState(
+          subscription: _canceledSubscription(),
           isLoading: false,
         )),
       );
@@ -103,10 +147,45 @@ void main() {
       expect(find.text('CANCELED'), findsOneWidget);
     });
 
+    // ---------------------------------------------------------------------------
+    // Test 2: Shows billing date
+    // ---------------------------------------------------------------------------
+    testWidgets('shows next billing date when active', (tester) async {
+      await tester.pumpWidget(
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(
+            nextBillingDate: DateTime(2026, 2, 28),
+          ),
+          isLoading: false,
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next billing date'), findsOneWidget);
+      // Formatted date using the same pattern as the screen
+      final formatted = DateFormat.yMMMd().format(DateTime(2026, 2, 28));
+      expect(find.text(formatted), findsOneWidget);
+    });
+
+    testWidgets('does not show billing date when not active', (tester) async {
+      await tester.pumpWidget(
+        buildApp(SubscriptionState(
+          subscription: _canceledSubscription(),
+          isLoading: false,
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next billing date'), findsNothing);
+    });
+
+    // ---------------------------------------------------------------------------
+    // Plan features
+    // ---------------------------------------------------------------------------
     testWidgets('shows plan features for active plan', (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
-          subscriptionStatus: 'active',
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(),
           isLoading: false,
         )),
       );
@@ -121,10 +200,11 @@ void main() {
       expect(find.text('Marketplace listing'), findsOneWidget);
     });
 
-    testWidgets('shows plan features for free plan', (tester) async {
+    testWidgets('shows default features when no subscription data',
+        (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
-          subscriptionStatus: 'canceled',
+        buildApp(const SubscriptionState(
+          subscription: null,
           isLoading: false,
         )),
       );
@@ -137,10 +217,13 @@ void main() {
       expect(find.text('Limited storefront'), findsOneWidget);
     });
 
-    testWidgets('shows upgrade options', (tester) async {
+    // ---------------------------------------------------------------------------
+    // Action buttons
+    // ---------------------------------------------------------------------------
+    testWidgets('shows action buttons when active', (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
-          subscriptionStatus: 'active',
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(),
           isLoading: false,
         )),
       );
@@ -154,9 +237,70 @@ void main() {
       expect(find.text('Cancel Subscription'), findsOneWidget);
     });
 
-    testWidgets('shows loading indicator', (tester) async {
+    // ---------------------------------------------------------------------------
+    // Test 3: Upgrade button calls getPortalLink
+    // ---------------------------------------------------------------------------
+    testWidgets('upgrade button calls getPortalLink when tapped',
+        (tester) async {
+      final notifier = FakeSubscriptionNotifier(
+        SubscriptionState(
+          subscription: _activeSubscription(),
+          isLoading: false,
+        ),
+      );
+      notifier.portalLinkResult = 'https://billing.stripe.com/portal';
+
       await tester.pumpWidget(
-        buildApp(const BillingState(
+        ProviderScope(
+          overrides: [
+            subscriptionProvider.overrideWith((ref) => notifier),
+          ],
+          child: const MaterialApp(home: TrainerSubscriptionScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap the Upgrade Plan button
+      await tester.tap(find.text('Upgrade Plan'));
+      await tester.pumpAndSettle();
+
+      expect(notifier.getPortalLinkCalled, isTrue);
+    });
+
+    testWidgets('billing history button calls getPortalLink when tapped',
+        (tester) async {
+      final notifier = FakeSubscriptionNotifier(
+        SubscriptionState(
+          subscription: _activeSubscription(),
+          isLoading: false,
+        ),
+      );
+      notifier.portalLinkResult = 'https://billing.stripe.com/portal';
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            subscriptionProvider.overrideWith((ref) => notifier),
+          ],
+          child: const MaterialApp(home: TrainerSubscriptionScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap the Billing History button
+      await tester.tap(find.text('Billing History'));
+      await tester.pumpAndSettle();
+
+      expect(notifier.getPortalLinkCalled, isTrue);
+    });
+
+    // ---------------------------------------------------------------------------
+    // Test 4: Loading state
+    // ---------------------------------------------------------------------------
+    testWidgets('shows loading indicator when loading and no subscription',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(const SubscriptionState(
           isLoading: true,
         )),
       );
@@ -164,9 +308,27 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
+    testWidgets('does not show loading when subscription already loaded',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(),
+          isLoading: true, // still loading but we have data
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Should show content, not full-screen loader
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Trainer Pro'), findsOneWidget);
+    });
+
+    // ---------------------------------------------------------------------------
+    // Error state
+    // ---------------------------------------------------------------------------
     testWidgets('shows error state with retry', (tester) async {
       await tester.pumpWidget(
-        buildApp(const BillingState(
+        buildApp(const SubscriptionState(
           error: 'Network error',
         )),
       );
@@ -174,6 +336,33 @@ void main() {
 
       expect(find.text('Network error'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
+    });
+
+    // ---------------------------------------------------------------------------
+    // Cancel subscription confirmation
+    // ---------------------------------------------------------------------------
+    testWidgets('shows cancel confirmation dialog', (tester) async {
+      await tester.pumpWidget(
+        buildApp(SubscriptionState(
+          subscription: _activeSubscription(),
+          isLoading: false,
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll to make Cancel Subscription visible
+      final cancelButton = find.text('Cancel Subscription');
+      await tester.ensureVisible(cancelButton);
+      await tester.pumpAndSettle();
+
+      // Tap Cancel Subscription
+      await tester.tap(cancelButton);
+      await tester.pumpAndSettle();
+
+      // Dialog should appear
+      expect(find.textContaining('Are you sure'), findsOneWidget);
+      expect(find.text('Keep Subscription'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
     });
   });
 }

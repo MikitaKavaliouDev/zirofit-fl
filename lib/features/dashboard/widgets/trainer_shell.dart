@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
 
-class TrainerShell extends StatelessWidget {
+class TrainerShell extends ConsumerWidget {
   final Widget child;
 
   const TrainerShell({super.key, required this.child});
@@ -17,7 +19,7 @@ class TrainerShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _selectedIndex(location);
 
@@ -26,6 +28,11 @@ class TrainerShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
+          if (i == 6) {
+            // Mode switch — router handles the redirect automatically
+            ref.read(modeSwitchProvider.notifier).switchMode();
+            return;
+          }
           switch (i) {
             case 0:
               context.go('/trainer/dashboard');
@@ -77,6 +84,11 @@ class TrainerShell extends StatelessWidget {
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.swap_horiz),
+            selectedIcon: Icon(Icons.swap_horiz),
+            label: 'Personal',
           ),
         ],
       ),

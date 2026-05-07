@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/settings/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -87,6 +88,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // Assessment Templates Section
+                    const _SectionHeader(
+                      icon: Icons.assignment,
+                      title: 'Assessment Templates',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.assignment_outlined),
+                        title: const Text('Manage Templates'),
+                        subtitle: const Text(
+                          'Create and manage assessment templates for clients',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/trainer/assessments'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Weight Unit Section
                     const _SectionHeader(
                       icon: Icons.monitor_weight,
@@ -101,6 +121,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             .read(settingsProvider.notifier)
                             .toggleWeightUnit(unit);
                       },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Data Sharing Section
+                    const _SectionHeader(
+                      icon: Icons.share,
+                      title: 'Data & Privacy',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.sync_alt),
+                        title: const Text('Data Sharing'),
+                        subtitle: const Text(
+                          'Choose what data to share with your trainer',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/data-sharing'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Account Section
+                    const _SectionHeader(
+                      icon: Icons.account_circle,
+                      title: 'Account',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.lock_outline),
+                        title: const Text('Change Password'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/auth/update-password'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: Icon(Icons.delete_forever, color: Colors.red.shade600),
+                        title: Text(
+                          'Delete Account',
+                          style: TextStyle(color: Colors.red.shade600),
+                        ),
+                        subtitle: const Text('Permanently remove your account and data'),
+                        onTap: () => context.push('/delete-account'),
+                      ),
                     ),
                   ],
                 ),

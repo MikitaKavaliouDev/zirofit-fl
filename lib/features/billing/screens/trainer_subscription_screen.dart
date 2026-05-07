@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart'
     show apiClientProvider;
-import 'package:zirofit_fl/features/billing/providers/billing_provider.dart';
+import 'package:zirofit_fl/features/billing/providers/subscription_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Trainer Subscription Screen
@@ -26,13 +27,13 @@ class _TrainerSubscriptionScreenState
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(billingProvider.notifier).fetchSubscription();
+      ref.read(subscriptionProvider.notifier).fetchSubscription();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(billingProvider);
+    final state = ref.watch(subscriptionProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -41,12 +42,12 @@ class _TrainerSubscriptionScreenState
     );
   }
 
-  Widget _buildBody(BillingState state, ThemeData theme) {
-    if (state.isLoading && state.subscriptionStatus == null) {
+  Widget _buildBody(SubscriptionState state, ThemeData theme) {
+    if (state.isLoading && state.subscription == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state.error != null && state.subscriptionStatus == null) {
+    if (state.error != null && state.subscription == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -64,7 +65,7 @@ class _TrainerSubscriptionScreenState
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () =>
-                    ref.read(billingProvider.notifier).fetchSubscription(),
+                    ref.read(subscriptionProvider.notifier).fetchSubscription(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
               ),
@@ -74,15 +75,20 @@ class _TrainerSubscriptionScreenState
       );
     }
 
+    final subscription = state.subscription;
+    final isActive = subscription?.status == 'active';
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // -- Current Plan Card --
         _CurrentPlanCard(
-          planName: _planLabel(state.subscriptionStatus),
-          price: _planPrice(state.subscriptionStatus),
-          status: state.subscriptionStatus,
-          nextBillingDate: 'Feb 28, 2026', // Placeholder
+          planName: subscription?.planName ?? 'Free Plan',
+          price: subscription != null && isActive
+              ? '\$${subscription.price} / ${subscription.interval}'
+              : 'Free',
+          status: subscription?.status,
+          nextBillingDate: subscription?.nextBillingDate,
         ),
         const SizedBox(height: 24),
 
@@ -93,7 +99,7 @@ class _TrainerSubscriptionScreenState
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        ..._planFeatures(state.subscriptionStatus).map(
+        ...(subscription?.features ?? _defaultFreeFeatures()).map(
           (feature) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(
@@ -109,15 +115,11 @@ class _TrainerSubscriptionScreenState
         const SizedBox(height: 24),
 
         // -- Action Buttons --
-        if (state.subscriptionStatus == 'active') ...[
+        if (isActive) ...[
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Upgrade options coming soon')),
-              ),
+              onPressed: () => _openBillingPortal(context),
               icon: const Icon(Icons.arrow_upward),
               label: const Text('Upgrade Plan'),
             ),
@@ -132,7 +134,7 @@ class _TrainerSubscriptionScreenState
             label: const Text('Billing History'),
           ),
         ),
-        if (state.subscriptionStatus == 'active') ...[
+        if (isActive) ...[
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -153,42 +155,7 @@ class _TrainerSubscriptionScreenState
     );
   }
 
-  String _planLabel(String? status) {
-    switch (status) {
-      case 'active':
-        return 'Trainer Pro';
-      case 'past_due':
-        return 'Trainer Pro (Past Due)';
-      case 'canceled':
-        return 'Free Plan';
-      case 'incomplete':
-        return 'Pending Activation';
-      default:
-        return 'Free Plan';
-    }
-  }
-
-  String _planPrice(String? status) {
-    switch (status) {
-      case 'active':
-      case 'past_due':
-        return '\$29.99 / month';
-      default:
-        return 'Free';
-    }
-  }
-
-  List<String> _planFeatures(String? status) {
-    if (status == 'active' || status == 'past_due') {
-      return [
-        'Unlimited client management',
-        'Advanced analytics & reporting',
-        'Custom storefront & branding',
-        'Stripe Connect payouts',
-        'Priority support',
-        'Marketplace listing',
-      ];
-    }
+  List<String> _defaultFreeFeatures() {
     return [
       'Basic client management',
       'Standard workout tracking',
@@ -198,28 +165,19 @@ class _TrainerSubscriptionScreenState
   }
 
   Future<void> _openBillingPortal(BuildContext context) async {
-    try {
-      final api = ref.read(apiClientProvider);
-      final response = await api.get<Map<String, dynamic>>(
-        ApiConstants.billingPortal,
+    final notifier = ref.read(subscriptionProvider.notifier);
+    final url = await notifier.getPortalLink();
+
+    if (url != null && context.mounted) {
+      await launchUrl(Uri.parse(url),
+          mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Could not open billing portal. Please try again.'),
+        ),
       );
-
-      final data = response['data'] as Map<String, dynamic>?;
-      final url = data?['url'] as String?;
-
-      if (url != null && context.mounted) {
-        await launchUrl(Uri.parse(url),
-            mode: LaunchMode.externalApplication);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Could not open billing portal. Please try again.'),
-          ),
-        );
-      }
     }
   }
 
@@ -267,13 +225,13 @@ class _CurrentPlanCard extends StatelessWidget {
   final String planName;
   final String price;
   final String? status;
-  final String nextBillingDate;
+  final DateTime? nextBillingDate;
 
   const _CurrentPlanCard({
     required this.planName,
     required this.price,
     this.status,
-    required this.nextBillingDate,
+    this.nextBillingDate,
   });
 
   @override
@@ -314,6 +272,7 @@ class _CurrentPlanCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                // -- Tier Badge --
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -324,7 +283,7 @@ class _CurrentPlanCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    status?.toUpperCase() ?? 'INACTIVE',
+                    isActive ? 'ACTIVE' : (status?.toUpperCase() ?? 'INACTIVE'),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: isActive ? Colors.green : Colors.orange,
                       fontWeight: FontWeight.bold,
@@ -333,7 +292,7 @@ class _CurrentPlanCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (isActive) ...[
+            if (isActive && nextBillingDate != null) ...[
               const Divider(height: 24),
               Row(
                 children: [
@@ -345,7 +304,7 @@ class _CurrentPlanCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    nextBillingDate,
+                    DateFormat.yMMMd().format(nextBillingDate!),
                     style: theme.textTheme.bodySmall
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),

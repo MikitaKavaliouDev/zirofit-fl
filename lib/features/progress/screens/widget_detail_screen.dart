@@ -1,8 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_analytics.dart';
 import 'package:zirofit_fl/features/progress/models/analytics_widget_config.dart';
 import 'package:zirofit_fl/features/progress/widgets/activity_heatmap_widget.dart';
+import 'package:zirofit_fl/features/progress/widgets/muscle_focus_chart.dart';
 
 /// Expanded detail view of a single analytics widget.
 ///
@@ -245,29 +247,9 @@ class WidgetDetailScreen extends StatelessWidget {
   }
 
   Widget _buildMuscleChart(BuildContext context) {
-    if (muscleData.isEmpty) {
-      return const Center(child: Text('No muscle data'));
-    }
-
-    const colors = [Colors.blue, Colors.purple, Colors.orange, Colors.pink, Colors.green];
-
-    return SizedBox(
+    return const SizedBox(
       height: 250,
-      child: PieChart(
-        PieChartData(
-          sections: muscleData.asMap().entries.map((entry) {
-            return PieChartSectionData(
-              color: colors[entry.key % colors.length],
-              value: entry.value.count.toDouble(),
-              title: '${((entry.value.count / muscleData.fold<int>(0, (a, b) => a + b.count)) * 100).toInt()}%',
-              radius: 50,
-              titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-            );
-          }).toList(),
-          centerSpaceRadius: 40,
-          sectionsSpace: 2,
-        ),
-      ),
+      child: MuscleFocusChart(),
     );
   }
 

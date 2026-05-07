@@ -76,33 +76,28 @@ void main() {
       final trainersJson = [
         {
           'id': 'trainer-1',
-          'user_id': 'user-1',
-          'about_me': 'John Doe',
+          'name': 'John Doe',
+          'avatarUrl': 'https://example.com/photo1.jpg',
+          'rating': 4.5,
+          'isVerified': true,
           'specialties': ['Yoga', 'Pilates'],
-          'average_rating': 4.5,
-          'location': 'New York',
-          'profile_photo_path': 'https://example.com/photo1.jpg',
-          'business_currency': 'PLN',
-          'created_at': 1700000000000,
-          'updated_at': 1700000000000,
         },
         {
           'id': 'trainer-2',
-          'user_id': 'user-2',
-          'about_me': 'Jane Smith',
+          'name': 'Jane Smith',
+          'avatarUrl': 'https://example.com/photo2.jpg',
+          'rating': 4.8,
+          'isVerified': true,
           'specialties': ['HIIT', 'Strength Training'],
-          'average_rating': 4.8,
-          'location': 'Los Angeles',
-          'business_currency': 'PLN',
-          'created_at': 1700000000000,
-          'updated_at': 1700000000000,
         },
       ];
 
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => {
-            'data': trainersJson,
+            'data': <String, dynamic>{
+              'featuredTrainers': trainersJson,
+            },
           });
 
       await container.read(exploreProvider.notifier).fetchFeatured();
@@ -142,7 +137,7 @@ void main() {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => {
-            'data': [],
+            'data': <String, dynamic>{},
           });
 
       await container.read(exploreProvider.notifier).fetchFeatured();
@@ -169,22 +164,21 @@ void main() {
 
   group('refresh', () {
     test('calls fetchFeatured', () async {
-      final trainersJson = [
-        {
-          'id': 'trainer-1',
-          'user_id': 'user-1',
-          'about_me': 'John Doe',
-          'specialties': ['Yoga'],
-          'business_currency': 'PLN',
-          'created_at': 1700000000000,
-          'updated_at': 1700000000000,
-        },
-      ];
-
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => {
-            'data': trainersJson,
+            'data': <String, dynamic>{
+              'featuredTrainers': [
+                {
+                  'id': 'trainer-1',
+                  'name': 'John Doe',
+                  'avatarUrl': '',
+                  'rating': 4.5,
+                  'isVerified': true,
+                  'specialties': ['Yoga'],
+                },
+              ],
+            },
           });
 
       await container.read(exploreProvider.notifier).refresh();
@@ -199,18 +193,20 @@ void main() {
   group('search', () {
     test('searches trainers with query and specialty', () async {
       final searchJson = {
-        'data': [
-          {
-            'id': 'trainer-1',
-            'name': 'John Doe',
-            'specialties': ['Yoga'],
-            'rating': 4.5,
-            'location': 'New York',
-            'distance': 2.3,
-            'is_connected': false,
-          },
-        ],
-        'has_more': false,
+        'data': <String, dynamic>{
+          'trainers': [
+            {
+              'id': 'trainer-1',
+              'name': 'John Doe',
+              'specialties': ['Yoga'],
+              'rating': 4.5,
+              'location': 'New York',
+              'distance': 2.3,
+              'is_connected': false,
+            },
+          ],
+          'pagination': <String, dynamic>{'has_more': false},
+        },
       };
 
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
@@ -243,7 +239,7 @@ void main() {
         expect(params['search'], 'pilates');
         expect(params['specialty'], 'Pilates');
         expect(params['page'], 1);
-        return {'data': [], 'has_more': false};
+        return {'data': <String, dynamic>{'trainers': [], 'pagination': {'has_more': false}}};
       });
 
       await container
@@ -261,7 +257,7 @@ void main() {
         expect(params['lat'], 52.2297);
         expect(params['lon'], 21.0122);
         expect(params['location'], 'Warsaw');
-        return {'data': [], 'has_more': false};
+        return {'data': <String, dynamic>{'trainers': [], 'pagination': {'has_more': false}}};
       });
 
       await container
@@ -298,8 +294,10 @@ void main() {
             ApiConstants.trainersSearch,
             queryParams: any(named: 'queryParams'),
           )).thenAnswer((_) async => {
-            'data': [],
-            'has_more': false,
+            'data': <String, dynamic>{
+              'trainers': [],
+              'pagination': <String, dynamic>{'has_more': false},
+            },
           });
 
       await container.read(exploreProvider.notifier).search(query: 'unknown');
@@ -319,27 +317,31 @@ void main() {
             invocation.namedArguments[#queryParams] as Map<String, dynamic>;
         if (params['page'] == 1) {
           return {
-            'data': [
-              {
-                'id': 't1',
-                'name': 'Trainer 1',
-                'specialties': ['Yoga'],
-                'rating': 4.0,
-              },
-            ],
-            'has_more': true,
+            'data': <String, dynamic>{
+              'trainers': [
+                {
+                  'id': 't1',
+                  'name': 'Trainer 1',
+                  'specialties': ['Yoga'],
+                  'rating': 4.0,
+                },
+              ],
+              'pagination': <String, dynamic>{'has_more': true},
+            },
           };
         }
         return {
-          'data': [
-            {
-              'id': 't2',
-              'name': 'Trainer 2',
-              'specialties': ['Pilates'],
-              'rating': 4.5,
-            },
-          ],
-          'has_more': false,
+          'data': <String, dynamic>{
+            'trainers': [
+              {
+                'id': 't2',
+                'name': 'Trainer 2',
+                'specialties': ['Pilates'],
+                'rating': 4.5,
+              },
+            ],
+            'pagination': <String, dynamic>{'has_more': false},
+          },
         };
       });
 
@@ -365,8 +367,10 @@ void main() {
             ApiConstants.trainersSearch,
             queryParams: any(named: 'queryParams'),
           )).thenAnswer((_) async => {
-            'data': [],
-            'has_more': false,
+            'data': <String, dynamic>{
+              'trainers': [],
+              'pagination': <String, dynamic>{'has_more': false},
+            },
           });
 
       // Set isLoading manually
@@ -388,7 +392,7 @@ void main() {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.trainersSpecialties,
           )).thenAnswer((_) async => {
-            'data': ['Yoga', 'Pilates', 'HIIT'],
+            'data': <String, dynamic>{'specialties': ['Yoga', 'Pilates', 'HIIT']},
           });
 
       await container.read(exploreProvider.notifier).loadSpecialties();
@@ -401,7 +405,7 @@ void main() {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.trainersSpecialties,
           )).thenAnswer((_) async => {
-            'data': ['Yoga'],
+            'data': <String, dynamic>{'specialties': ['Yoga']},
           });
 
       await container.read(exploreProvider.notifier).loadSpecialties();
@@ -413,11 +417,11 @@ void main() {
       // Still only 1 API call (mocktail tracks it)
     });
 
-    test('handles alternate response format', () async {
+    test('handles response with specialties key in data', () async {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.trainersSpecialties,
           )).thenAnswer((_) async => {
-            'specialties': ['Cardio', 'Strength'],
+            'data': <String, dynamic>{'specialties': ['Cardio', 'Strength']},
           });
 
       await container.read(exploreProvider.notifier).loadSpecialties();
@@ -448,33 +452,35 @@ void main() {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => {
-            'data': [
-              {
-                'id': 't1',
-                'user_id': 'u1',
-                'about_me': 'Alice',
-                'specialties': ['Yoga'],
-                'business_currency': 'PLN',
-                'created_at': 1700000000000,
-                'updated_at': 1700000000000,
-              },
-            ],
-            'events': [
-              {
-                'id': 'e1',
-                'trainer_id': 'u1',
-                'title': 'Morning Yoga',
-                'start_time': 1700000000000,
-                'end_time': 1700100000000,
-                'price': 0,
-                'currency': 'PLN',
-                'capacity': 20,
-                'enrolled_count': 5,
-                'status': 'APPROVED',
-                'created_at': 1700000000000,
-                'updated_at': 1700000000000,
-              },
-            ],
+            'data': <String, dynamic>{
+              'featuredTrainers': [
+                {
+                  'id': 't1',
+                  'name': 'Alice',
+                  'avatarUrl': '',
+                  'rating': 4.5,
+                  'tier': 'PRO',
+                  'isVerified': true,
+                  'specialties': ['Yoga'],
+                },
+              ],
+              'featuredEvents': [
+                {
+                  'id': 'e1',
+                  'trainer_id': 'u1',
+                  'title': 'Morning Yoga',
+                  'start_time': 1700000000000,
+                  'end_time': 1700100000000,
+                  'price': 0,
+                  'currency': 'PLN',
+                  'capacity': 20,
+                  'enrolled_count': 5,
+                  'status': 'APPROVED',
+                  'created_at': 1700000000000,
+                  'updated_at': 1700000000000,
+                },
+              ],
+            },
           });
 
       await container.read(exploreProvider.notifier).loadFeatured();
@@ -491,7 +497,7 @@ void main() {
       when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => {
-            'data': [],
+            'data': <String, dynamic>{},
           });
 
       await container.read(exploreProvider.notifier).loadFeatured();

@@ -21,6 +21,11 @@ class Fake extends ActiveWorkoutNotifier {
   @override
   Future<void> startWorkout({String? templateId}) async {}
   @override
+  Future<void> startSessionForClient({
+    required String clientId,
+    required String clientName,
+  }) async {}
+  @override
   Future<void> loadActiveSession() async {}
   @override
   Future<void> logExercise({
@@ -62,11 +67,23 @@ class FakeReturnsSession extends Fake {
 class FakeWithStartTracking extends Fake {
   bool startWorkoutCalled = false;
   String? startTemplateId;
+  bool startSessionForClientCalled = false;
+  String? sessionClientId;
+  String? sessionClientName;
   FakeWithStartTracking(super.s);
   @override
   Future<void> startWorkout({String? templateId}) async {
     startWorkoutCalled = true;
     startTemplateId = templateId;
+  }
+  @override
+  Future<void> startSessionForClient({
+    required String clientId,
+    required String clientName,
+  }) async {
+    startSessionForClientCalled = true;
+    sessionClientId = clientId;
+    sessionClientName = clientName;
   }
 }
 
@@ -77,6 +94,11 @@ class FakeMutable extends ActiveWorkoutNotifier {
   }
   @override
   Future<void> startWorkout({String? templateId}) async {}
+  @override
+  Future<void> startSessionForClient({
+    required String clientId,
+    required String clientName,
+  }) async {}
   @override
   Future<void> loadActiveSession() async {}
   @override
@@ -422,7 +444,8 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
   });
 
-  testWidgets('Finish workout dialog - confirms and navigates', (t) async {
+  testWidgets('Finish workout dialog - confirms and navigates to summary',
+      (t) async {
     final sess = WorkoutSession(
       id: '1',
       clientId: 'c1',
@@ -443,7 +466,6 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
-    final observer = TestNavigatorObserver();
 
     await t.pumpWidget(
       ProviderScope(
@@ -455,25 +477,11 @@ void main() {
             ),
           ),
         ],
-        child: MaterialApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ActiveWorkoutScreen(),
-                ),
-              ),
-              child: const Text('Push Screen'),
-            ),
-          ),
-          navigatorObservers: [observer],
+        child: const MaterialApp(
+          home: ActiveWorkoutScreen(),
         ),
       ),
     );
-    await t.pumpAndSettle();
-
-    // Push the screen
-    await t.tap(find.text('Push Screen'));
     await t.pumpAndSettle();
 
     // Tap Finish Workout
@@ -488,9 +496,8 @@ void main() {
     await t.tap(find.widgetWithText(FilledButton, 'Finish'));
     await t.pumpAndSettle();
 
-    // Should have popped back to home (snackbar is dismissed by route pop)
-    expect(find.text('Push Screen'), findsOneWidget);
-    expect(observer.popDidHappen, isTrue);
+    // Should navigate to summary screen
+    expect(find.text('Done'), findsOneWidget);
   });
 
   testWidgets('Finish workout dialog - cancel does nothing', (t) async {
@@ -718,5 +725,82 @@ void main() {
 
     expect(fake.startWorkoutCalled, isTrue);
     expect(fake.startTemplateId, 'tpl-1');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Trainer-led session tests
+  // ---------------------------------------------------------------------------
+
+  testWidgets('trainer-led — shows client name header', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Session',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await t.pumpWidget(
+      b(ActiveWorkoutState(
+        session: sess,
+        clientName: 'Jane Doe',
+        isLoading: false,
+      )),
+    );
+    await t.pump();
+
+    // Trainer-led header with client name
+    expect(find.text('Trainer-Led Session'), findsOneWidget);
+    expect(find.text('Training: Jane Doe'), findsOneWidget);
+  });
+
+  testWidgets('trainer-led — client indicator on exercise set', (t) async {
+    final sess = WorkoutSession(
+      id: '1',
+      clientId: 'c1',
+      name: 'Session',
+      startTime: now,
+      status: WorkoutSessionStatus.inProgress,
+      isTrainerLed: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final log = ClientExerciseLog(
+      id: 'log-1',
+      clientId: 'c1',
+      exerciseId: 'ex-123456',
+      reps: 10,
+      weight: 80.0,
+      side: 'BOTH',
+      workoutSessionId: '1',
+      createdAt: now,
+      updatedAt: now,
+    );
+    await t.pumpWidget(
+      b(ActiveWorkoutState(
+        session: sess,
+        logs: [log],
+        clientName: 'Jane Doe',
+        isLoading: false,
+      )),
+    );
+    await t.pump();
+
+    // Client name indicator on the exercise card
+    expect(find.text('Jane Doe'), findsWidgets);
+    // Person icon from the set card
+    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+  });
+
+  testWidgets('idle — shows Start Trainer-Led Session button', (t) async {
+    await t.pumpWidget(b(const ActiveWorkoutState()));
+    await t.pump(const Duration(milliseconds: 100));
+
+    expect(
+      find.widgetWithText(OutlinedButton, 'Start Trainer-Led Session'),
+      findsOneWidget,
+    );
   });
 }

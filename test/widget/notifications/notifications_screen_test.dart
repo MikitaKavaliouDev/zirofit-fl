@@ -21,7 +21,7 @@ class Fake extends NotificationsNotifier {
   NotificationsState get state => _s;
 
   @override
-  Future<void> fetchNotifications() async {}
+  Future<void> fetchNotifications({List<String>? notificationTypes}) async {}
 
   @override
   Future<void> markRead(String id) async {}
@@ -66,6 +66,7 @@ models.Notification _notif({
 
 void main() {
   setUpAll(() => configureTestApiClient());
+  mainLinkRequest();
 
   testWidgets('shows loading spinner when isLoading and empty',
       (tester) async {
@@ -188,10 +189,146 @@ class _MarkReadTracker extends NotificationsNotifier {
   }
 
   @override
-  Future<void> fetchNotifications() async {}
+  Future<void> fetchNotifications({List<String>? notificationTypes}) async {}
 
   @override
   Future<void> markRead(String id) async {
     onMarkRead(id);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Link Request Tests
+// ---------------------------------------------------------------------------
+
+class _LinkRequestFake extends NotificationsNotifier {
+  bool acceptCalled = false;
+  bool declineCalled = false;
+  String? acceptedClientId;
+  String? declinedClientId;
+
+  _LinkRequestFake() : super(apiClient: ApiClient.instance) {
+    final notif1 = models.Notification(
+      id: 'lr-1',
+      userId: 'user-1',
+      message: 'John Doe wants to connect with you',
+      type: 'client_link_request',
+      readStatus: false,
+      metadata: const {'client_id': 'client-123', 'client_name': 'John Doe'},
+      createdAt: _baseTime,
+      updatedAt: _baseTime,
+    );
+    super.state = NotificationsState(
+      notifications: [notif1],
+      unreadCount: 1,
+      isLoading: false,
+    );
+  }
+
+  @override
+  Future<void> fetchNotifications({List<String>? notificationTypes}) async {}
+
+  @override
+  Future<void> acceptLinkRequest(String clientId) async {
+    acceptCalled = true;
+    acceptedClientId = clientId;
+    // Remove the notification from state
+    final remaining = state.notifications.where((n) {
+      return n.metadata?['client_id'] != clientId;
+    }).toList();
+    super.state = state.copyWith(
+      notifications: remaining,
+      unreadCount: remaining.where((n) => !n.readStatus).length,
+    );
+  }
+
+  @override
+  Future<void> declineLinkRequest(String clientId) async {
+    declineCalled = true;
+    declinedClientId = clientId;
+    // Remove the notification from state
+    final remaining = state.notifications.where((n) {
+      return n.metadata?['client_id'] != clientId;
+    }).toList();
+    super.state = state.copyWith(
+      notifications: remaining,
+      unreadCount: remaining.where((n) => !n.readStatus).length,
+    );
+  }
+}
+
+void mainLinkRequest() {
+  setUpAll(() => configureTestApiClient());
+
+  testWidgets('shows accept and decline buttons for link request',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          notificationsProvider.overrideWith((ref) => _LinkRequestFake()),
+        ],
+        child: const MaterialApp(home: NotificationsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('John Doe wants to connect with you'), findsOneWidget);
+    expect(find.text('Accept'), findsOneWidget);
+    expect(find.text('Decline'), findsOneWidget);
+  });
+
+  testWidgets('accept removes notification and updates badge', (tester) async {
+    final fake = _LinkRequestFake();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          notificationsProvider.overrideWith((ref) => fake),
+        ],
+        child: const MaterialApp(home: NotificationsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Accept
+    await tester.tap(find.text('Accept'));
+    await tester.pumpAndSettle();
+
+    expect(fake.acceptCalled, true);
+    expect(fake.acceptedClientId, 'client-123');
+    // Notification removed
+    expect(
+      find.text('John Doe wants to connect with you'),
+      findsNothing,
+    );
+    // Badge gone
+    expect(find.textContaining('new'), findsNothing);
+  });
+
+  testWidgets('decline removes notification and updates badge',
+      (tester) async {
+    final fake = _LinkRequestFake();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          notificationsProvider.overrideWith((ref) => fake),
+        ],
+        child: const MaterialApp(home: NotificationsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Decline
+    await tester.tap(find.text('Decline'));
+    await tester.pumpAndSettle();
+
+    expect(fake.declineCalled, true);
+    expect(fake.declinedClientId, 'client-123');
+    // Notification removed
+    expect(
+      find.text('John Doe wants to connect with you'),
+      findsNothing,
+    );
+    // Badge gone
+    expect(find.textContaining('new'), findsNothing);
+  });
 }

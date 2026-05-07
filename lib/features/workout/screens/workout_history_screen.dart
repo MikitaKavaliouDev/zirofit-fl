@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +16,8 @@ class WorkoutHistoryScreen extends ConsumerStatefulWidget {
 
 class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -30,6 +34,8 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -37,6 +43,35 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       ref.read(workoutHistoryProvider.notifier).fetchMore();
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      ref.read(workoutHistoryProvider.notifier).setSearchQuery(value);
+    });
+  }
+
+  Future<void> _showDateRangePicker() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now,
+      initialDateRange: DateTimeRange(
+        start: now.subtract(const Duration(days: 30)),
+        end: now,
+      ),
+    );
+    if (picked != null && mounted) {
+      ref.read(workoutHistoryProvider.notifier).setDateRange(
+            DateRange(
+              start: picked.start,
+              end: picked.end,
+              preset: DateRangePreset.custom,
+            ),
+          );
     }
   }
 
@@ -86,7 +121,7 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
       );
     }
 
-    // Empty state
+    // No sessions at all (not just filtered)
     if (state.sessions.isEmpty && !state.isLoading) {
       return Center(
         child: Padding(
@@ -125,31 +160,231 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
       );
     }
 
-    // Workout list
+    // Has sessions — build full UI with search + filter
+    return Column(
+      children: [
+        // Search bar
+        _buildSearchBar(theme),
+        // Date range filter chips
+        _buildFilterChips(state, theme),
+        // Content
+        Expanded(child: _buildContent(state, theme)),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        decoration: InputDecoration(
+          hintText: 'Search by exercise or notes...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(workoutHistoryProvider.notifier).setSearchQuery('');
+                  },
+                )
+              : null,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(WorkoutHistoryState state, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _FilterChipButton(
+              label: 'All',
+              selected: state.dateRange == null,
+              onTap: () =>
+                  ref.read(workoutHistoryProvider.notifier).setDateRange(null),
+            ),
+            const SizedBox(width: 8),
+            _FilterChipButton(
+              label: '7D',
+              selected: state.dateRange?.preset == DateRangePreset.last7Days,
+              onTap: () => ref
+                  .read(workoutHistoryProvider.notifier)
+                  .setDateRange(DateRange.last7Days()),
+            ),
+            const SizedBox(width: 8),
+            _FilterChipButton(
+              label: '30D',
+              selected: state.dateRange?.preset == DateRangePreset.last30Days,
+              onTap: () => ref
+                  .read(workoutHistoryProvider.notifier)
+                  .setDateRange(DateRange.last30Days()),
+            ),
+            const SizedBox(width: 8),
+            _FilterChipButton(
+              label: '3M',
+              selected: state.dateRange?.preset == DateRangePreset.last3Months,
+              onTap: () => ref
+                  .read(workoutHistoryProvider.notifier)
+                  .setDateRange(DateRange.last3Months()),
+            ),
+            const SizedBox(width: 8),
+            _FilterChipButton(
+              label: 'Custom',
+              selected: state.dateRange?.preset == DateRangePreset.custom,
+              onTap: _showDateRangePicker,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(WorkoutHistoryState state, ThemeData theme) {
+    final filtered = state.filteredSessions;
+
+    // Empty filtered results
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.search_off_rounded,
+                size: 56,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No matches found',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                state.searchQuery.isNotEmpty && state.dateRange != null
+                    ? 'Try adjusting your search or filters.'
+                    : state.searchQuery.isNotEmpty
+                        ? 'No workouts match "${
+                            state.searchQuery.length > 20
+                                ? '${state.searchQuery.substring(0, 20)}…'
+                                : state.searchQuery
+                          }".'
+                        : 'No workouts in this date range.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  ref.read(workoutHistoryProvider.notifier).setSearchQuery('');
+                  ref.read(workoutHistoryProvider.notifier).setDateRange(null);
+                },
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear filters'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Group by date
+    final grouped = _groupByDate(filtered);
+    final entries = grouped.entries.toList();
+
     return RefreshIndicator(
       onRefresh: () =>
           ref.read(workoutHistoryProvider.notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: state.sessions.length + (state.hasMore ? 1 : 0),
+        itemCount: entries.length + (state.hasMore && _isNoActiveFilter(state) ? 1 : 0),
         itemBuilder: (context, index) {
-          // Loading indicator for pagination
-          if (index == state.sessions.length) {
+          // Loading indicator for pagination (only when no active filter)
+          if (index == entries.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             );
           }
 
-          final session = state.sessions[index];
-          return _WorkoutHistoryCard(
-            session: session,
-            onTap: () => _showWorkoutSummary(context, session),
+          final entry = entries[index];
+          final dateStr = entry.key;
+          final sessions = entry.value;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date section header
+              Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                child: Text(
+                  _formatDateHeader(dateStr),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              // Session cards for this date
+              ...sessions.map(
+                (session) => _WorkoutHistoryCard(
+                  session: session,
+                  onTap: () => _showWorkoutSummary(context, session),
+                ),
+              ),
+            ],
           );
         },
       ),
     );
+  }
+
+  bool _isNoActiveFilter(WorkoutHistoryState state) {
+    return state.searchQuery.isEmpty && state.dateRange == null;
+  }
+
+  /// Groups sessions by their date (yyyy-MM-dd).
+  Map<String, List<WorkoutSession>> _groupByDate(
+    List<WorkoutSession> sessions,
+  ) {
+    final grouped = <String, List<WorkoutSession>>{};
+    for (final session in sessions) {
+      final key = DateFormat('yyyy-MM-dd').format(session.startTime);
+      grouped.putIfAbsent(key, () => []).add(session);
+    }
+    return grouped;
+  }
+
+  /// Formats a yyyy-MM-dd date string into a human-readable header.
+  String _formatDateHeader(String dateStr) {
+    final date = DateTime.tryParse(dateStr);
+    if (date == null) return dateStr;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final dateDay = DateTime(date.year, date.month, date.day);
+
+    if (dateDay == today) return 'Today';
+    if (dateDay == yesterday) return 'Yesterday';
+
+    return DateFormat('EEEE, MMMM d, yyyy').format(date);
   }
 
   void _showWorkoutSummary(BuildContext context, WorkoutSession session) {
@@ -248,6 +483,55 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
       return '${hours}h ${minutes}m';
     }
     return '${minutes}m';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Filter Chip Button
+// ---------------------------------------------------------------------------
+
+class _FilterChipButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChipButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
+          ),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: selected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurfaceVariant,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -293,6 +293,62 @@ class BillingNotifier extends StateNotifier<BillingState> {
     }
   }
 
+  /// Fetches the trainer's Stripe Connect onboarding status from
+  /// the trainer-specific endpoint.
+  Future<Map<String, dynamic>?> fetchStripeStatus() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final response = await _api.get<Map<String, dynamic>>(
+        ApiConstants.trainerStripeStatus,
+      );
+
+      final data =
+          response['data'] as Map<String, dynamic>? ?? response;
+
+      state = state.copyWith(
+        stripeStatus: data,
+        isLoading: false,
+      );
+
+      return data;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+      return null;
+    }
+  }
+
+  /// Creates a Stripe Connect onboarding link for the trainer and returns
+  /// the URL to open in a browser.
+  Future<String?> getStripeOnboardingUrl() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final response = await _api.post<Map<String, dynamic>>(
+        ApiConstants.trainerStripeOnboarding,
+      );
+
+      final data = response['data'] as Map<String, dynamic>?;
+      final url = data?['url'] as String?;
+
+      state = state.copyWith(
+        stripeOnboardingUrl: url,
+        isLoading: false,
+      );
+
+      return url;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+      return null;
+    }
+  }
+
   /// Creates a checkout session for the given [packageId] and returns the
   /// checkout URL.
   Future<String?> createCheckoutSession(String packageId) async {

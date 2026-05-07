@@ -83,8 +83,16 @@ void main() {
       );
       await tester.pump();
 
+      // Scroll down to reveal the submit button (ListView lazily builds children)
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pump();
+
       // Submit without entering title
-      await tester.tap(find.byType(ElevatedButton));
+      await tester.tap(find.byType(FilledButton));
+      await tester.pump();
+
+      // Scroll back to top to see validation message
+      await tester.drag(find.byType(ListView), const Offset(0, 500));
       await tester.pump();
 
       expect(find.text('Please enter a title'), findsOneWidget);
@@ -110,7 +118,15 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.byType(ElevatedButton));
+      // Scroll down to reveal the submit button (ListView lazily builds children)
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pump();
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pump();
+
+      // Scroll back to top to see validation message
+      await tester.drag(find.byType(ListView), const Offset(0, 500));
       await tester.pump();
 
       expect(find.text('Please select a client'), findsOneWidget);
@@ -146,6 +162,10 @@ void main() {
       await tester.tap(find.text('Select Client'));
       await tester.pump();
       await tester.tap(find.text('John Doe').last);
+      await tester.pump();
+
+      // Scroll down to reveal the submit button (ListView lazily builds children)
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
       await tester.pump();
 
       // Submit
@@ -185,6 +205,10 @@ void main() {
       await tester.tap(find.text('John Doe').last);
       await tester.pump();
 
+      // Scroll down to reveal the submit button (ListView lazily builds children)
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pump();
+
       // Submit
       await tester.tap(find.widgetWithText(FilledButton, 'Create Session'));
       await tester.pumpAndSettle();
@@ -216,11 +240,17 @@ void main() {
       await tester.tap(find.text('John Doe').last);
       await tester.pump();
 
+      // Scroll down to reveal the submit button (ListView lazily builds children)
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pump();
+
       await tester.tap(find.widgetWithText(FilledButton, 'Create Session'));
-      await tester.pumpAndSettle();
+      // SnackBar is shown before Navigator.pop completes
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
 
       expect(find.text('Session created successfully'), findsOneWidget);
-      // Navigator.pop(true) should have been called; in test we can't verify pop directly but we can check that the SnackBar is shown
     });
 
     testWidgets('failed submission shows error SnackBar', (tester) async {
@@ -249,8 +279,14 @@ void main() {
       await tester.tap(find.text('John Doe').last);
       await tester.pump();
 
+      // Scroll down to reveal the submit button (ListView lazily builds children)
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pump();
+
       await tester.tap(find.widgetWithText(FilledButton, 'Create Session'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
 
       expect(find.text('Failed to create session'), findsOneWidget);
     });
@@ -267,17 +303,25 @@ void main() {
       );
       await tester.pump();
 
-      // Recurrence dropdown should not be visible initially: only 1 dropdown (template)
-      expect(find.byType(DropdownButtonFormField), findsNWidgets(1));
+      // Recurrence dropdown should not be visible initially: client + template = 2
+      expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
 
       // Toggle recurrence on by tapping the SwitchListTile
       await tester.tap(find.byType(SwitchListTile));
       await tester.pump();
 
-      // Now recurrence pattern dropdown should appear: 2 dropdowns total
-      expect(find.byType(DropdownButtonFormField), findsNWidgets(2));
+      // Scroll just enough to build recurrence dropdown without losing cached top widgets
+      await tester.drag(find.byType(ListView), const Offset(0, -80));
+      await tester.pump();
+
+      // All 3 dropdowns should be built (client + template + recurrence)
+      expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(3));
       expect(
-        find.widgetWithText(DropdownButtonFormField<String>, 'Daily'),
+        find.widgetWithText(DropdownButtonFormField<String>, 'Weekly'),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(DropdownButtonFormField<String>, 'Weekly'),
         findsOneWidget,
       );
     });
@@ -346,3 +390,5 @@ class FakeFailingCalendarNotifier extends CalendarNotifier {
   @override
   Future<bool> createSession(Map<String, dynamic> data) async => false;
 }
+
+

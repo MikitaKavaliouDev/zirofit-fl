@@ -35,19 +35,15 @@ void main() {
       final start = DateTime(2024, 1, 1);
       final end = DateTime(2024, 1, 31);
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             any(),
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 200,
-            data: {
-              'data': {
-                'bookings': [],
-                'sessions': [],
-              },
+          )).thenAnswer((_) async => {
+            'data': {
+              'bookings': <dynamic>[],
+              'sessions': <dynamic>[],
             },
-          ));
+          });
 
       await container.read(calendarProvider.notifier).fetchEvents(start, end);
 
@@ -65,26 +61,22 @@ void main() {
         'end_time': 1704070800000, // 2024-01-01 01:00:00
       };
 
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             any(),
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 201,
-            data: {
-              'data': {
-                'id': 'session-1',
-                'client_id': 'client-1',
-                'name': 'Morning Workout',
-                'start_time': 1704067200000,
-                'end_time': 1704070800000,
-                'status': 'PLANNED',
-                'is_trainer_led': true,
-                'created_at': 1704067200000,
-                'updated_at': 1704067200000,
-              },
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'session-1',
+              'client_id': 'client-1',
+              'name': 'Morning Workout',
+              'start_time': 1704067200000,
+              'end_time': 1704070800000,
+              'status': 'PLANNED',
+              'is_trainer_led': true,
+              'created_at': 1704067200000,
+              'updated_at': 1704067200000,
             },
-          ));
+          });
 
       final createSuccess =
           await container.read(calendarProvider.notifier).createSession(newSessionData);
@@ -104,28 +96,23 @@ void main() {
         'notes': 'Bring water bottle',
       };
 
-      when(() => mockApiClient.put(
+      when(() => mockApiClient.put<Map<String, dynamic>>(
             any(),
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions:
-                RequestOptions(path: ApiConstants.calendarSession('session-1')),
-            statusCode: 200,
-            data: {
-              'data': {
-                'id': 'session-1',
-                'client_id': 'client-1',
-                'name': 'Updated Morning Workout',
-                'start_time': 1704067200000,
-                'end_time': 1704070800000,
-                'status': 'PLANNED',
-                'notes': 'Bring water bottle',
-                'is_trainer_led': true,
-                'created_at': 1704067200000,
-                'updated_at': 1704067200001,
-              },
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'session-1',
+              'client_id': 'client-1',
+              'name': 'Updated Morning Workout',
+              'start_time': 1704067200000,
+              'end_time': 1704070800000,
+              'status': 'PLANNED',
+              'notes': 'Bring water bottle',
+              'is_trainer_led': true,
+              'created_at': 1704067200000,
+              'updated_at': 1704067200001,
             },
-          ));
+          });
 
       final updateSuccess = await container
           .read(calendarProvider.notifier)
@@ -140,15 +127,10 @@ void main() {
       // -----------------------------------------------------------------------
       // 4. Send a reminder
       // -----------------------------------------------------------------------
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             any(),
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions:
-                RequestOptions(path: ApiConstants.sessionRemind('session-1')),
-            statusCode: 200,
-            data: {'data': {'message': 'Reminder sent successfully'}},
-          ));
+          )).thenAnswer((_) async => {'data': {'message': 'Reminder sent successfully'}});
 
       final reminderSuccess = await container
           .read(calendarProvider.notifier)
@@ -181,54 +163,50 @@ void main() {
       final start = DateTime(2024, 1, 1);
       final end = DateTime(2024, 1, 31);
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             any(),
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 200,
-            data: {
-              'data': {
-                'bookings': [
-                  {
-                    'id': 'booking-1',
-                    'start_time': 1704067200000,
-                    'end_time': 1704070800000,
-                    'status': 'CONFIRMED',
-                    'trainer_id': 'trainer-1',
-                    'client_id': 'client-1',
-                    'client_name': 'John Doe',
-                    'created_at': 1704067200000,
-                    'updated_at': 1704067200000,
-                  },
-                  {
-                    'id': 'booking-2',
-                    'start_time': 1704153600000, // 2024-01-02
-                    'end_time': 1704157200000,
-                    'status': 'PENDING',
-                    'trainer_id': 'trainer-1',
-                    'client_id': 'client-2',
-                    'client_name': 'Jane Smith',
-                    'created_at': 1704153600000,
-                    'updated_at': 1704153600000,
-                  },
-                ],
-                'sessions': [
-                  {
-                    'id': 'session-1',
-                    'client_id': 'client-3',
-                    'name': 'HIIT Training',
-                    'start_time': 1704070800000,
-                    'end_time': 1704074400000,
-                    'status': 'PLANNED',
-                    'is_trainer_led': true,
-                    'created_at': 1704067200000,
-                    'updated_at': 1704067200000,
-                  },
-                ],
-              },
+          )).thenAnswer((_) async => {
+            'data': {
+              'bookings': [
+                {
+                  'id': 'booking-1',
+                  'start_time': 1704067200000,
+                  'end_time': 1704070800000,
+                  'status': 'CONFIRMED',
+                  'trainer_id': 'trainer-1',
+                  'client_id': 'client-1',
+                  'client_name': 'John Doe',
+                  'created_at': 1704067200000,
+                  'updated_at': 1704067200000,
+                },
+                {
+                  'id': 'booking-2',
+                  'start_time': 1704153600000,
+                  'end_time': 1704157200000,
+                  'status': 'PENDING',
+                  'trainer_id': 'trainer-1',
+                  'client_id': 'client-2',
+                  'client_name': 'Jane Smith',
+                  'created_at': 1704153600000,
+                  'updated_at': 1704153600000,
+                },
+              ],
+              'sessions': [
+                {
+                  'id': 'session-1',
+                  'client_id': 'client-3',
+                  'name': 'HIIT Training',
+                  'start_time': 1704070800000,
+                  'end_time': 1704074400000,
+                  'status': 'PLANNED',
+                  'is_trainer_led': true,
+                  'created_at': 1704067200000,
+                  'updated_at': 1704067200000,
+                },
+              ],
             },
-          ));
+          });
 
       await container.read(calendarProvider.notifier).fetchEvents(start, end);
 
@@ -325,26 +303,22 @@ void main() {
 
     test('error handling in delete session', () async {
       // First add a session
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             any(),
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 201,
-            data: {
-              'data': {
-                'id': 'session-1',
-                'client_id': 'client-1',
-                'name': 'Session',
-                'start_time': 1704067200000,
-                'end_time': 1704070800000,
-                'status': 'PLANNED',
-                'is_trainer_led': true,
-                'created_at': 1704067200000,
-                'updated_at': 1704067200000,
-              },
+          )).thenAnswer((_) async => {
+            'data': {
+              'id': 'session-1',
+              'client_id': 'client-1',
+              'name': 'Session',
+              'start_time': 1704067200000,
+              'end_time': 1704070800000,
+              'status': 'PLANNED',
+              'is_trainer_led': true,
+              'created_at': 1704067200000,
+              'updated_at': 1704067200000,
             },
-          ));
+          });
 
       await container.read(calendarProvider.notifier).createSession({'name': 'Session'});
 
@@ -381,17 +355,13 @@ void main() {
       final start = DateTime(2024, 2, 1);
       final end = DateTime(2024, 2, 28);
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             any(),
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 200,
-            data: dataResponse({
-              'bookings': <dynamic>[],
-              'sessions': <dynamic>[],
-            }),
-          ));
+          )).thenAnswer((_) async => dataResponse({
+            'bookings': <dynamic>[],
+            'sessions': <dynamic>[],
+          }));
 
       await container.read(calendarProvider.notifier).fetchEvents(start, end);
 
@@ -406,41 +376,37 @@ void main() {
       final start = DateTime(2024, 3, 1);
       final end = DateTime(2024, 3, 31);
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             any(),
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 200,
-            data: dataResponse({
-              'bookings': [
-                {
-                  'id': 'b-cal',
-                  'start_time': 1709251200000,
-                  'end_time': 1709254800000,
-                  'status': 'CONFIRMED',
-                  'trainer_id': 'trainer-1',
-                  'client_id': 'client-1',
-                  'client_name': 'Alice',
-                  'created_at': 1709251200000,
-                  'updated_at': 1709251200000,
-                },
-              ],
-              'sessions': [
-                {
-                  'id': 's-cal',
-                  'client_id': 'client-2',
-                  'name': 'Yoga',
-                  'start_time': 1709337600000,
-                  'end_time': 1709341200000,
-                  'status': 'PLANNED',
-                  'is_trainer_led': true,
-                  'created_at': 1709251200000,
-                  'updated_at': 1709251200000,
-                },
-              ],
-            }),
-          ));
+          )).thenAnswer((_) async => dataResponse({
+            'bookings': [
+              {
+                'id': 'b-cal',
+                'start_time': 1709251200000,
+                'end_time': 1709254800000,
+                'status': 'CONFIRMED',
+                'trainer_id': 'trainer-1',
+                'client_id': 'client-1',
+                'client_name': 'Alice',
+                'created_at': 1709251200000,
+                'updated_at': 1709251200000,
+              },
+            ],
+            'sessions': [
+              {
+                'id': 's-cal',
+                'client_id': 'client-2',
+                'name': 'Yoga',
+                'start_time': 1709337600000,
+                'end_time': 1709341200000,
+                'status': 'PLANNED',
+                'is_trainer_led': true,
+                'created_at': 1709251200000,
+                'updated_at': 1709251200000,
+              },
+            ],
+          }));
 
       await container.read(calendarProvider.notifier).fetchEvents(start, end);
 
@@ -464,29 +430,25 @@ void main() {
       final start = DateTime(2024, 4, 1);
       final end = DateTime(2024, 4, 30);
 
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             any(),
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.trainerCalendar),
-            statusCode: 200,
-            data: dataResponse({
-              'bookings': [
-                {
-                  'id': 'b-null',
-                  'start_time': 1711929600000,
-                  'end_time': 1711933200000,
-                  'status': 'PENDING',
-                  'trainer_id': 'trainer-1',
-                  'client_id': null,
-                  'client_name': null,
-                  'created_at': 1711929600000,
-                  'updated_at': 1711929600000,
-                },
-              ],
-              'sessions': <dynamic>[],
-            }),
-          ));
+          )).thenAnswer((_) async => dataResponse({
+            'bookings': [
+              {
+                'id': 'b-null',
+                'start_time': 1711929600000,
+                'end_time': 1711933200000,
+                'status': 'PENDING',
+                'trainer_id': 'trainer-1',
+                'client_id': null,
+                'client_name': null,
+                'created_at': 1711929600000,
+                'updated_at': 1711929600000,
+              },
+            ],
+            'sessions': <dynamic>[],
+          }));
 
       await container.read(calendarProvider.notifier).fetchEvents(start, end);
 

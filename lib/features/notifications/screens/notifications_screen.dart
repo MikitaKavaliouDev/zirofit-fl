@@ -147,15 +147,30 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           }
 
           final notification = state.notifications[index];
+          final notifier = ref.read(notificationsProvider.notifier);
           return _NotificationCard(
             notification: notification,
             onTap: () {
               if (!notification.readStatus) {
-                ref
-                    .read(notificationsProvider.notifier)
-                    .markRead(notification.id);
+                notifier.markRead(notification.id);
               }
             },
+            onAccept: notification.type == 'client_link_request'
+                ? () {
+                    final clientId = notification.metadata?['client_id'] as String?;
+                    if (clientId != null) {
+                      notifier.acceptLinkRequest(clientId);
+                    }
+                  }
+                : null,
+            onDecline: notification.type == 'client_link_request'
+                ? () {
+                    final clientId = notification.metadata?['client_id'] as String?;
+                    if (clientId != null) {
+                      notifier.declineLinkRequest(clientId);
+                    }
+                  }
+                : null,
           );
         },
       ),
@@ -170,10 +185,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 class _NotificationCard extends StatelessWidget {
   final Notification notification;
   final VoidCallback onTap;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
 
   const _NotificationCard({
     required this.notification,
     required this.onTap,
+    this.onAccept,
+    this.onDecline,
   });
 
   IconData _iconForType(String type) {
@@ -192,6 +211,8 @@ class _NotificationCard extends StatelessWidget {
         return Icons.trending_up;
       case 'system':
         return Icons.info_outline;
+      case 'client_link_request':
+        return Icons.link;
       default:
         return Icons.notifications_outlined;
     }
@@ -202,6 +223,7 @@ class _NotificationCard extends StatelessWidget {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
     final timeFormat = DateFormat('hh:mm a');
+    final showActions = onAccept != null || onDecline != null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -213,64 +235,95 @@ class _NotificationCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Type icon
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: notification.readStatus
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _iconForType(notification.type),
-                  size: 22,
-                  color: notification.readStatus
-                      ? theme.colorScheme.onSurfaceVariant
-                      : theme.colorScheme.onPrimaryContainer,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Type icon
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: notification.readStatus
+                          ? theme.colorScheme.surfaceContainerHighest
+                          : theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _iconForType(notification.type),
+                      size: 22,
+                      color: notification.readStatus
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          notification.message,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: notification.readStatus
+                                ? FontWeight.normal
+                                : FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${dateFormat.format(notification.createdAt)} at ${timeFormat.format(notification.createdAt)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Unread badge
+                  if (!notification.readStatus)
+                    Container(
+                      width: 10,
+                      height: 10,
+                      margin: const EdgeInsets.only(left: 8, top: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(width: 14),
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Accept / Decline buttons
+              if (showActions) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
-                      notification.message,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: notification.readStatus
-                            ? FontWeight.normal
-                            : FontWeight.w600,
+                    if (onDecline != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: OutlinedButton(
+                          onPressed: onDecline,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.colorScheme.error,
+                            side: BorderSide(color: theme.colorScheme.error),
+                          ),
+                          child: const Text('Decline'),
+                        ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${dateFormat.format(notification.createdAt)} at ${timeFormat.format(notification.createdAt)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    if (onAccept != null)
+                      FilledButton(
+                        onPressed: onAccept,
+                        child: const Text('Accept'),
                       ),
-                    ),
                   ],
                 ),
-              ),
-              // Unread badge
-              if (!notification.readStatus)
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(left: 8, top: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+              ],
             ],
           ),
         ),

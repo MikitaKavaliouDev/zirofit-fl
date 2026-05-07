@@ -7,7 +7,9 @@ import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/client_progress_photo.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/clients/providers/client_detail_provider.dart';
+import 'package:zirofit_fl/features/clients/screens/assign_program_screen.dart';
 
 class ClientDetailScreen extends ConsumerStatefulWidget {
   final String id;
@@ -50,10 +52,31 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
         actions: [
           if (state.client != null)
             PopupMenuButton<String>(
-              onSelected: (value) {
-                // Future actions: edit, assign program, etc.
+              onSelected: (value) async {
+                if (value == 'assign') {
+                  final result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => AssignProgramScreen(
+                        clientId: widget.id,
+                        clientName: state.client!.name,
+                        clientAvatarPath: state.client!.avatarPath,
+                      ),
+                    ),
+                  );
+                  if (result == true) {
+                    ref.read(clientDetailProvider(widget.id).notifier)
+                        .fetchAll();
+                  }
+                }
               },
               itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'assign',
+                  child: ListTile(
+                    leading: Icon(Icons.assignment),
+                    title: Text('Assign Program'),
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
@@ -1062,6 +1085,14 @@ class _SessionsTab extends ConsumerWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (sessions.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => context.push('/trainer/clients/$clientId/sessions'),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('History'),
+                ),
+              ],
             ],
           ),
         ),

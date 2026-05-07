@@ -11,7 +11,8 @@ enum AnalyticsWidgetType {
   weightHistory,
   insights,
   goal,
-  recovery;
+  recovery,
+  exerciseProgress;
 
   String get displayName {
     switch (this) {
@@ -35,6 +36,8 @@ enum AnalyticsWidgetType {
         return 'Fitness Goal';
       case AnalyticsWidgetType.recovery:
         return 'Recovery & Load';
+      case AnalyticsWidgetType.exerciseProgress:
+        return 'Exercise Progress';
     }
   }
 
@@ -60,6 +63,8 @@ enum AnalyticsWidgetType {
         return 'track_changes';
       case AnalyticsWidgetType.recovery:
         return 'favorite';
+      case AnalyticsWidgetType.exerciseProgress:
+        return 'fitness_center';
     }
   }
 }
@@ -117,5 +122,7 @@ class AnalyticsWidgetConfig {
     AnalyticsWidgetConfig(type: AnalyticsWidgetType.insights, order: 7),
     AnalyticsWidgetConfig(type: AnalyticsWidgetType.goal, order: 8),
     AnalyticsWidgetConfig(type: AnalyticsWidgetType.recovery, order: 9),
+    AnalyticsWidgetConfig(
+        type: AnalyticsWidgetType.exerciseProgress, order: 10),
   ];
 }

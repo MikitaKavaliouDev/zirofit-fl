@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/features/dashboard/providers/trainer_dashboard_provider.dart';
@@ -26,12 +27,8 @@ void main() {
     });
 
     test('fetchDashboard sets data on success', () async {
-      when(() => mockApiClient.get('/api/mobile/home')).thenAnswer(
-        (_) async => Response(
-          requestOptions: RequestOptions(path: '/api/mobile/home'),
-          statusCode: 200,
-          data: <String, dynamic>{},
-        ),
+      when(() => mockApiClient.get(ApiConstants.mobileHome)).thenAnswer(
+        (_) async => <String, dynamic>{},
       );
 
       await notifier.fetchDashboard();
@@ -44,7 +41,7 @@ void main() {
     });
 
     test('fetchDashboard sets error on API failure', () async {
-      when(() => mockApiClient.get('/api/mobile/home')).thenThrow(
+      when(() => mockApiClient.get('/mobile/home')).thenThrow(
         Exception('Network error'),
       );
 
@@ -59,12 +56,8 @@ void main() {
     });
 
     test('fetchDashboard properly parses mock API response into TrainerDashboardData', () async {
-      when(() => mockApiClient.get('/api/mobile/home')).thenAnswer(
-        (_) async => Response(
-          requestOptions: RequestOptions(path: '/api/mobile/home'),
-          statusCode: 200,
-          data: <String, dynamic>{},
-        ),
+      when(() => mockApiClient.get(ApiConstants.mobileHome)).thenAnswer(
+        (_) async => <String, dynamic>{},
       );
 
       await notifier.fetchDashboard();

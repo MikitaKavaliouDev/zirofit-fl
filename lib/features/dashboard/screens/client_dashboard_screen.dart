@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
+import 'package:zirofit_fl/features/checkin/screens/completed_session_detail_screen.dart';
 import 'package:zirofit_fl/features/dashboard/providers/client_dashboard_provider.dart';
-import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/daily_target_provider.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/quick_weight_log.dart';
+import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
+import 'package:zirofit_fl/features/programs/screens/workout_templates_screen.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_history_provider.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
+
+/// SharedPreferences key for the educational overlay.
+const _kEducationOverlayKey = 'dashboard_education_seen';
 
 class ClientDashboardScreen extends ConsumerStatefulWidget {
   const ClientDashboardScreen({super.key});
@@ -22,6 +30,8 @@ class _ClientDashboardScreenState
     extends ConsumerState<ClientDashboardScreen> {
   bool _findCoachDismissed = false;
   bool _checkInBannerDismissed = false;
+  bool _showEducationOverlay = false;
+  bool _educationOverlayLoaded = false;
 
   @override
   void initState() {
@@ -31,6 +41,26 @@ class _ClientDashboardScreenState
       ref.read(clientProgramsProvider.notifier).fetchPrograms();
       ref.read(dailyTargetProvider.notifier).loadTargets(DateTime.now());
       ref.read(workoutHistoryProvider.notifier).fetchHistory();
+      _checkEducationOverlay();
+    });
+  }
+
+  Future<void> _checkEducationOverlay() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool(_kEducationOverlayKey) ?? false;
+    if (!mounted) return;
+    setState(() {
+      _showEducationOverlay = !seen;
+      _educationOverlayLoaded = true;
+    });
+  }
+
+  Future<void> _dismissEducationOverlay() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kEducationOverlayKey, true);
+    if (!mounted) return;
+    setState(() {
+      _showEducationOverlay = false;
     });
   }
 
@@ -44,25 +74,31 @@ class _ClientDashboardScreenState
     final historyState = ref.watch(workoutHistoryProvider);
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            ref.read(clientDashboardProvider.notifier).refresh(),
-            ref.read(clientProgramsProvider.notifier).fetchPrograms(),
-            ref.read(workoutHistoryProvider.notifier).refresh(),
-          ]);
-          await ref
-              .read(dailyTargetProvider.notifier)
-              .loadTargets(DateTime.now());
-        },
-        child: _buildBody(
-          theme,
-          authState,
-          dashboardState,
-          programsState,
-          dailyTargetState,
-          historyState,
-        ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              await Future.wait([
+                ref.read(clientDashboardProvider.notifier).refresh(),
+                ref.read(clientProgramsProvider.notifier).fetchPrograms(),
+                ref.read(workoutHistoryProvider.notifier).refresh(),
+              ]);
+              await ref
+                  .read(dailyTargetProvider.notifier)
+                  .loadTargets(DateTime.now());
+            },
+            child: _buildBody(
+              theme,
+              authState,
+              dashboardState,
+              programsState,
+              dailyTargetState,
+              historyState,
+            ),
+          ),
+          if (_showEducationOverlay && _educationOverlayLoaded)
+            _buildEducationOverlay(theme),
+        ],
       ),
     );
   }
@@ -113,7 +149,7 @@ class _ClientDashboardScreenState
             IconButton(
               icon: const Icon(Icons.notifications_outlined),
               onPressed: () {
-                // TODO: Navigate to notifications
+                context.push('/client/notifications');
               },
             ),
             const SizedBox(width: 8),
@@ -131,7 +167,11 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 2. Coach Card / Find a Coach
+              // 2. Quick Weight Log
+              const QuickWeightLogWidget(),
+              const SizedBox(height: 16),
+
+              // 3. Coach Card / Find a Coach
               if (data.trainerName != null) ...[
                 _buildCoachCard(theme, data.trainerName!),
                 const SizedBox(height: 16),
@@ -140,7 +180,7 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 3. Check-In Banner (enhanced)
+              // 4. Check-In Banner (enhanced)
               if (!_checkInBannerDismissed) ...[
                 if (data.checkInStatus.isCompleted)
                   _buildCheckInCompleteBanner(theme)
@@ -151,7 +191,7 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 4. Active Routine / Program
+              // 5. Active Routine / Program
               if (programsState.activeProgram != null) ...[
                 _buildActiveProgramCard(
                   theme,
@@ -161,31 +201,31 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 5. Upcoming Sessions (horizontal scroll)
+              // 6. Upcoming Sessions (horizontal scroll)
               _buildUpcomingSessions(theme, data.upcomingSessions),
               const SizedBox(height: 24),
 
-              // 6. Daily Targets
+              // 7. Daily Targets
               _buildDailyTargets(theme, dailyTargetState),
               const SizedBox(height: 24),
 
-              // 7. Quick Actions
+              // 8. Quick Actions
               _buildQuickActions(theme, data),
               const SizedBox(height: 24),
 
-              // 8. Last Workout
+              // 9. Last Workout
               _buildSectionHeader(theme, 'Last Workout'),
               const SizedBox(height: 12),
               _buildLastWorkoutCard(theme, data.lastWorkout),
               const SizedBox(height: 24),
 
-              // 9. Progress Summary
+              // 10. Progress Summary
               _buildSectionHeader(theme, 'Your Progress'),
               const SizedBox(height: 12),
               _buildProgressCard(theme, data.progress),
               const SizedBox(height: 24),
 
-              // 10. Recent History
+              // 11. Recent History
               _buildRecentHistory(theme, historyState),
               const SizedBox(height: 32),
             ]),
@@ -280,7 +320,7 @@ class _ClientDashboardScreenState
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {
-          // TODO: Navigate to trainer profile
+          context.push('/client/trainer');
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -353,7 +393,7 @@ class _ClientDashboardScreenState
           Expanded(
             child: GestureDetector(
               onTap: () {
-                // TODO: Navigate to trainer discovery
+                context.push('/client/trainer');
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,7 +451,7 @@ class _ClientDashboardScreenState
   Widget _buildCheckInPendingBanner(ThemeData theme) {
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to check-in screen
+        context.go('/client/check-in');
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -465,48 +505,70 @@ class _ClientDashboardScreenState
   }
 
   Widget _buildCheckInCompleteBanner(ThemeData theme) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _checkInBannerDismissed = true;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: Colors.green,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Check-in Complete',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.green,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Check-in Complete',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Great job! Your trainer will review it shortly.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Great job! Your trainer will review it shortly.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _checkInBannerDismissed = true;
+                  });
+                },
+                child: Icon(
+                  Icons.close,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                context.push('/client/check-in/history');
+              },
+              icon: const Icon(Icons.history, color: Colors.white, size: 18),
+              label: Text(
+                'View History',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const Icon(
-              Icons.check_circle,
-              color: Colors.white,
-              size: 32,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -606,7 +668,7 @@ class _ClientDashboardScreenState
                     return _TemplateChip(
                       template: template,
                       onTap: () {
-                        // TODO: Start session with this template
+                        context.go('/client/workout');
                       },
                     );
                   },
@@ -618,7 +680,7 @@ class _ClientDashboardScreenState
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () {
-                  // TODO: Start session with active program
+                  context.go('/client/workout');
                 },
                 icon: const Icon(Icons.play_arrow),
                 label: const Text('Start Session'),
@@ -683,7 +745,19 @@ class _ClientDashboardScreenState
               itemCount: sessions.length,
               separatorBuilder: (_, _) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
-                return _UpcomingSessionCard(session: sessions[index]);
+                final session = sessions[index];
+                return _UpcomingSessionCard(
+                  session: session,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CompletedSessionDetailScreen(
+                          sessionId: session.id,
+                        ),
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -709,7 +783,7 @@ class _ClientDashboardScreenState
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
-                // TODO: Add daily target
+                context.push('/client/daily-targets');
               },
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -777,7 +851,7 @@ class _ClientDashboardScreenState
             label: 'Quick Start',
             color: Colors.blue,
             onTap: () {
-              // TODO: Quick start workout
+              context.push('/client/workout');
             },
           ),
         ),
@@ -788,7 +862,11 @@ class _ClientDashboardScreenState
             label: 'Templates',
             color: Colors.purple,
             onTap: () {
-              // TODO: Browse templates
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const WorkoutTemplatesScreen(),
+                ),
+              );
             },
           ),
         ),
@@ -846,10 +924,159 @@ class _ClientDashboardScreenState
         else
           Column(
             children: recentSessions.map((session) {
-              return _RecentHistoryTile(session: session);
+              return _RecentHistoryTile(
+                session: session,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CompletedSessionDetailScreen(
+                        sessionId: session.id,
+                      ),
+                    ),
+                  );
+                },
+              );
             }).toList(),
           ),
       ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Educational Onboarding Overlay
+  // ---------------------------------------------------------------------------
+
+  Widget _buildEducationOverlay(ThemeData theme) {
+    return GestureDetector(
+      onTap: () {}, // block taps through
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.6),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Title
+                        Center(
+                          child: Icon(
+                            Icons.explore_outlined,
+                            size: 48,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Text(
+                            'Welcome to Your Dashboard',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Text(
+                            'Here\'s a quick tour of what you can do:',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Divider(),
+                        const SizedBox(height: 8),
+
+                        // Section explanations
+                        _EducationItem(
+                          icon: Icons.bolt,
+                          title: 'Quick Start',
+                          description:
+                              'Jump straight into an empty workout session.',
+                          color: Colors.blue,
+                        ),
+                        _EducationItem(
+                          icon: Icons.grid_view_rounded,
+                          title: 'Templates',
+                          description:
+                              'Browse and pick a pre-made workout template.',
+                          color: Colors.purple,
+                        ),
+                        _EducationItem(
+                          icon: Icons.monitor_weight,
+                          title: 'Quick Weight Log',
+                          description:
+                              'Tap to log your current weight in seconds.',
+                          color: Colors.green,
+                        ),
+                        _EducationItem(
+                          icon: Icons.checklist,
+                          title: 'Check-in',
+                          description:
+                              'Share your weekly progress with your trainer.',
+                          color: Colors.orange,
+                        ),
+                        _EducationItem(
+                          icon: Icons.fitness_center,
+                          title: 'Active Program',
+                          description:
+                              'View and start your current workout program.',
+                          color: theme.colorScheme.primary,
+                        ),
+                        _EducationItem(
+                          icon: Icons.calendar_month,
+                          title: 'Upcoming Sessions',
+                          description:
+                              'See scheduled sessions at a glance.',
+                          color: Colors.deepPurple,
+                        ),
+                        _EducationItem(
+                          icon: Icons.track_changes_outlined,
+                          title: 'Daily Targets',
+                          description:
+                              'Set and track your daily fitness goals.',
+                          color: theme.colorScheme.secondary,
+                        ),
+                        _EducationItem(
+                          icon: Icons.history,
+                          title: 'Recent History',
+                          description:
+                              'Review your past workouts and progress.',
+                          color: Colors.teal,
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Got it button
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _dismissEducationOverlay,
+                            child: const Text('Got it!'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1248,8 +1475,9 @@ class _ProgressStat extends StatelessWidget {
 
 class _UpcomingSessionCard extends StatelessWidget {
   final WorkoutSession session;
+  final VoidCallback? onTap;
 
-  const _UpcomingSessionCard({required this.session});
+  const _UpcomingSessionCard({required this.session, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1265,9 +1493,7 @@ class _UpcomingSessionCard extends StatelessWidget {
         color: isTrainerLed ? Colors.blue : Colors.deepPurple,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            // TODO: Navigate to session details
-          },
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1380,6 +1606,66 @@ class _TemplateChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Education Item (onboarding overlay)
+// ---------------------------------------------------------------------------
+
+class _EducationItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+
+  const _EducationItem({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Daily Target Card
 // ---------------------------------------------------------------------------
 
@@ -1480,8 +1766,9 @@ class _DailyTargetCard extends StatelessWidget {
 
 class _RecentHistoryTile extends StatelessWidget {
   final WorkoutSession session;
+  final VoidCallback? onTap;
 
-  const _RecentHistoryTile({required this.session});
+  const _RecentHistoryTile({required this.session, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1497,9 +1784,7 @@ class _RecentHistoryTile extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // TODO: Navigate to session details
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(

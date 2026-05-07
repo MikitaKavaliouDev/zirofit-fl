@@ -19,7 +19,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String _selectedRole = 'client';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _registrationSuccess = false;
 
   @override
   void dispose() {
@@ -48,7 +47,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
       );
     } else if (!result.hasError && mounted) {
-      setState(() => _registrationSuccess = true);
+      context.push(
+        '/auth/email-verification',
+        extra: _emailController.text.trim(),
+      );
     }
   }
 
@@ -57,51 +59,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final authState = ref.watch(authProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    // Success state
-    if (_registrationSuccess) {
-      return Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.mark_email_read_rounded,
-                    size: 80,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Please verify your email',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'We\'ve sent a verification link to ${_emailController.text.trim()}. Please check your inbox and verify your email before logging in.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: () => context.go('/auth/login'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                    ),
-                    child: const Text('Go to Login'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(

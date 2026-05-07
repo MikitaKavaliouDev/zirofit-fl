@@ -492,5 +492,46 @@ void main() {
         expect(state.restSeconds, 0);
       });
     });
+
+    group('startSessionForClient', () {
+      test('sends clientId to remote source and sets clientName', () async {
+        when(() => mockRemoteSource.startWorkout(
+              clientId: any(named: 'clientId'),
+            )).thenAnswer((_) async => createSession());
+
+        await notifier.startSessionForClient(
+          clientId: 'client-2',
+          clientName: 'Jane Doe',
+        );
+
+        verify(() => mockRemoteSource.startWorkout(
+              clientId: 'client-2',
+            )).called(1);
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, isNotNull);
+        expect(state.clientName, 'Jane Doe');
+        expect(state.isTrainerLed, true);
+      });
+
+      test('sets error on API failure', () async {
+        when(() => mockRemoteSource.startWorkout(
+              clientId: any(named: 'clientId'),
+            )).thenThrow(Exception('Failed to start client session'));
+
+        await notifier.startSessionForClient(
+          clientId: 'client-2',
+          clientName: 'Jane Doe',
+        );
+
+        final state = notifier.state;
+        expect(state.isLoading, false);
+        expect(state.session, isNull);
+        expect(state.clientName, isNull);
+        expect(state.isTrainerLed, false);
+        expect(state.error, contains('Failed to start client session'));
+      });
+    });
   });
 }

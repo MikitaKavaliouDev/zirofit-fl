@@ -47,6 +47,21 @@ class _WorkingHoursScreenState extends ConsumerState<WorkingHoursScreen> {
             ),
           ),
 
+          // Bulk action buttons
+          if (!state.isLoading)
+            _BulkActionBar(
+              onWeekdaysPreset: () {
+                ref
+                    .read(workingHoursProvider.notifier)
+                    .bulkSetWeekdays();
+              },
+              onWeekendsPreset: () {
+                ref
+                    .read(workingHoursProvider.notifier)
+                    .bulkSetWeekends();
+              },
+            ),
+
           // Loading
           if (state.isLoading)
             const Padding(
@@ -58,18 +73,27 @@ class _WorkingHoursScreenState extends ConsumerState<WorkingHoursScreen> {
           if (!state.isLoading)
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
                 itemCount: state.days.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 1),
                 itemBuilder: (context, index) {
                   final day = state.days[index];
+                  final validationError =
+                      ref.read(workingHoursProvider.notifier).validateDay(index);
                   return _DayCard(
                     day: day,
                     index: index,
+                    showCopyButton: index > 0,
+                    validationError: validationError,
                     onToggle: () {
                       ref
                           .read(workingHoursProvider.notifier)
                           .toggleDay(index);
+                    },
+                    onCopyFromPrevious: () {
+                      ref
+                          .read(workingHoursProvider.notifier)
+                          .copyFromPreviousDay(index);
                     },
                     onStartTimeChanged: (time) {
                       ref
@@ -124,20 +148,103 @@ class _WorkingHoursScreenState extends ConsumerState<WorkingHoursScreen> {
 }
 
 // ---------------------------------------------------------------------------
+// Bulk Action Bar
+// ---------------------------------------------------------------------------
+
+class _BulkActionBar extends StatelessWidget {
+  final VoidCallback onWeekdaysPreset;
+  final VoidCallback onWeekendsPreset;
+
+  const _BulkActionBar({
+    required this.onWeekdaysPreset,
+    required this.onWeekendsPreset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          Text(
+            'Quick fill:',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _BulkChip(
+            label: 'Weekdays 9–5',
+            onTap: onWeekdaysPreset,
+          ),
+          const SizedBox(width: 8),
+          _BulkChip(
+            label: 'Weekends 10–2',
+            onTap: onWeekendsPreset,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BulkChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _BulkChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Day Card
 // ---------------------------------------------------------------------------
 
 class _DayCard extends StatelessWidget {
   final DaySchedule day;
   final int index;
+  final bool showCopyButton;
+  final String? validationError;
   final VoidCallback onToggle;
+  final VoidCallback onCopyFromPrevious;
   final ValueChanged<String> onStartTimeChanged;
   final ValueChanged<String> onEndTimeChanged;
 
   const _DayCard({
     required this.day,
     required this.index,
+    required this.showCopyButton,
+    this.validationError,
     required this.onToggle,
+    required this.onCopyFromPrevious,
     required this.onStartTimeChanged,
     required this.onEndTimeChanged,
   });
@@ -156,6 +263,26 @@ class _DayCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
             child: Row(
               children: [
+                // Copy from previous day button
+                if (showCopyButton)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.content_copy,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                      ),
+                      tooltip: 'Copy from ${_previousDayName(index)}',
+                      onPressed: onCopyFromPrevious,
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(28, 28),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,23 +322,51 @@ class _DayCard extends StatelessWidget {
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: _TimePickerTile(
-                      label: 'Start',
-                      time: day.startTime,
-                      onChanged: onStartTimeChanged,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TimePickerTile(
+                          label: 'Start',
+                          time: day.startTime,
+                          hasError: validationError != null,
+                          onChanged: onStartTimeChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _TimePickerTile(
+                          label: 'End',
+                          time: day.endTime,
+                          hasError: validationError != null,
+                          onChanged: onEndTimeChanged,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _TimePickerTile(
-                      label: 'End',
-                      time: day.endTime,
-                      onChanged: onEndTimeChanged,
+                  // Validation error
+                  if (validationError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            size: 14,
+                            color: theme.colorScheme.error,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            validationError!,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -224,6 +379,17 @@ class _DayCard extends StatelessWidget {
       ),
     );
   }
+
+  String _previousDayName(int index) {
+    const names = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
+      'Saturday', 'Sunday',
+    ];
+    if (index > 0 && index < names.length) {
+      return names[index - 1];
+    }
+    return '';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,11 +399,13 @@ class _DayCard extends StatelessWidget {
 class _TimePickerTile extends StatelessWidget {
   final String label;
   final String time;
+  final bool hasError;
   final ValueChanged<String> onChanged;
 
   const _TimePickerTile({
     required this.label,
     required this.time,
+    this.hasError = false,
     required this.onChanged,
   });
 
@@ -291,7 +459,9 @@ class _TimePickerTile extends StatelessWidget {
                   .withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                color: hasError
+                    ? theme.colorScheme.error.withValues(alpha: 0.7)
+                    : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(

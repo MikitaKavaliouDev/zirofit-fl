@@ -34,6 +34,8 @@ class ApiConstants {
   static const String forgotPassword = '/auth/forgot-password';
   static const String updatePassword = '/auth/update-password';
   static const String completeOnboarding = '/auth/complete-onboarding';
+  static const String resendVerification = '/auth/resend-verification';
+  static const String deleteAccount = '/auth/delete-account';
 
   // Sync
   static const String syncPull = '/sync/pull';
@@ -48,6 +50,29 @@ class ApiConstants {
       '/workout-sessions/$id/rest/start';
   static String workoutRestEnd(String id) => '/workout-sessions/$id/rest/end';
   static String workoutCancel(String id) => '/workout-sessions/$id/cancel';
+  static String workoutBulkLog(String id) => '/workout-sessions/$id/bulk-log';
+  static String workoutExercises(String id) => '/workout-sessions/$id/exercises';
+  static String workoutExerciseLog(String sessionId, String logId) =>
+      '/workout-sessions/$sessionId/exercises/$logId';
+  static String workoutSummary(String id) => '/workout-sessions/$id/summary';
+  static String workoutSessionDetail(String id) => '/workout-sessions/$id';
+  static String workoutMedia(String id) => '/workout-sessions/$id/media';
+  static String workoutSaveAsTemplate(String id) =>
+      '/workout-sessions/$id/save-as-template';
+
+  // Custom Exercises
+  static const String customExercises = '/exercises/custom';
+  static const String trainerCustomExercises = '/trainer/exercises/custom';
+
+  // Calendar
+  static String calendarEvent(String id) => '/calendar/events/$id';
+
+  // Programs & Templates
+  static const String workoutPrograms = '/trainer/programs';
+  static String createProgramTemplate(String pId) =>
+      '/trainer/programs/$pId/templates';
+  static String programExercises(String pId) =>
+      '/trainer/programs/$pId/exercises';
 
   // Clients
   static const String clients = '/clients';
@@ -60,6 +85,7 @@ class ApiConstants {
   // Explore
   static const String exploreFeatured = '/explore/featured';
   static const String exploreMetadata = '/explore/metadata';
+  static const String exploreEvents = '/explore/events';
 
   // Trainers
   static const String trainersSearch = '/trainers';
@@ -67,8 +93,10 @@ class ApiConstants {
 
   // Bookings & Events
   static const String bookings = '/bookings';
+  static const String trainerBookings = '/trainer/bookings';
   static String bookingConfirm(String id) => '/bookings/$id/confirm';
   static String bookingDecline(String id) => '/bookings/$id/decline';
+  static String bookingApprove(String id) => '/bookings/$id/approve';
   static const String events = '/events';
   static String eventDetail(String id) => '/events/$id';
   static String eventJoin(String id) => '/events/$id/join';
@@ -80,6 +108,8 @@ class ApiConstants {
   // Notifications
   static const String notifications = '/notifications';
   static String notificationMarkRead(String id) => '/notifications/$id';
+  static const String registerDeviceToken = '/notifications/device-token';
+  static const String unregisterDeviceToken = '/notifications/device-token';
 
   // Habits
   static const String clientHabits = '/client/habits';
@@ -89,6 +119,7 @@ class ApiConstants {
 
   // Check-Ins
   static const String clientCheckIn = '/client/check-in';
+  static const String clientCheckIns = '/client/check-ins';
   static const String trainerCheckIns = '/trainer/check-ins';
 
   /// Builds the trainer check-in detail path.
@@ -111,9 +142,15 @@ class ApiConstants {
       '/trainer/programs/templates/$tId/exercises';
   static String templateCopy(String tId) =>
       '/trainer/programs/templates/$tId/copy';
+  static String programAssign(String programId) =>
+      '/trainer/programs/$programId/assign';
 
   // Chat
   static const String chat = '/chat';
+
+  // Client Booking
+  static String trainerSchedule(String trainerId) => '/trainers/$trainerId/schedule';
+  static String bookingCancel(String id) => '/bookings/$id/cancel';
 
   // Profile
   static const String profileMe = '/profile/me';
@@ -122,9 +159,19 @@ class ApiConstants {
   static const String profileMePackages = '/profile/me/packages';
   static const String profileMeTestimonials = '/profile/me/testimonials';
   static const String profileMeBenefits = '/profile/me/benefits';
+  static const String profileMeTransformations = '/profile/me/transformations';
+  static const String profileMeExternalLinks = '/profile/me/external-links';
+  static const String profileMeSocialLinks = '/profile/me/social-links';
+
+  // Trainer Branding
+  static const String trainerProfileAvatar = '/trainer/profile/avatar';
+  static const String trainerProfileBanner = '/trainer/profile/banner';
+  static const String trainerProfileBranding = '/trainer/profile/branding';
 
   // Trainer Settings
   static const String trainerSettings = '/trainer/settings';
+  static const String trainerBookingSettings = '/trainer/booking/settings';
+  static const String trainerAvailability = '/trainer/availability';
 
   // Resource Vault
   static const String trainerResourceVault = '/trainer/resource-vault';
@@ -141,6 +188,10 @@ class ApiConstants {
   static const String billingTransactions = '/billing/transactions';
   static const String billingStripeStatus = '/billing/stripe-status';
   static const String billingStripeOnboarding = '/billing/stripe-onboarding';
+
+  // Trainer Stripe Connect
+  static const String trainerStripeStatus = '/trainer/stripe/status';
+  static const String trainerStripeOnboarding = '/trainer/stripe/onboarding';
 
   // Trainer Storefront
   static const String trainerStorefront = '/trainer/storefront';
@@ -180,9 +231,6 @@ class ApiConstants {
   static const String supportTickets = '/support/tickets';
   static const String supportFeedback = '/support/feedback';
 
-  // Workout Session Detail
-  static String workoutSessionDetail(String id) => '/workout-sessions/$id';
-
   // Client Progress
   static const String clientProgress = '/client/progress';
 
@@ -193,4 +241,17 @@ class ApiConstants {
   // Custom Domains
   static const String domainAdd = '/domain/add';
   static const String domainVerify = '/domain/verify';
+
+  // Client Data Sharing
+  static const String clientSharing = '/client/sharing';
+
+  // Trainer Client Link Requests
+  static String trainerClientAccept(String id) => '/trainer/clients/$id/accept';
+  static String trainerClientDecline(String id) => '/trainer/clients/$id/decline';
+
+  // Public Trainer Profile
+  static String trainerPublicProfile(String username) => '/trainers/$username';
+
+  // Client Connect Requests
+  static String clientConnectTrainer(String trainerId) => '/client/trainers/$trainerId/connect';
 }

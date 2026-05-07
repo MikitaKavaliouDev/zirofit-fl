@@ -38,32 +38,28 @@ void main() {
   // Stub helpers
   // ---------------------------------------------------------------------------
 
-  Response<Map<String, dynamic>> loginResponse({
+  Map<String, dynamic> loginResponse({
     String role = 'trainer',
     String userId = 'test-user-id',
     String email = 'trainer@ziro.fit',
     String name = 'Test Trainer',
   }) {
-    return Response(
-      requestOptions: RequestOptions(path: ApiConstants.login),
-      statusCode: 200,
-      data: {
-        'data': {
-          'message': 'Login successful.',
-          'accessToken': 'test-access-token',
-          'refreshToken': 'test-refresh-token',
-          'role': role,
-          'user': {
-            'id': userId,
-            'email': email,
-            'name': name,
-          },
+    return {
+      'data': {
+        'message': 'Login successful.',
+        'accessToken': 'test-access-token',
+        'refreshToken': 'test-refresh-token',
+        'role': role,
+        'user': {
+          'id': userId,
+          'email': email,
+          'name': name,
         },
       },
-    );
+    };
   }
 
-  Response<Map<String, dynamic>> meResponse({
+  Map<String, dynamic> meResponse({
     String id = 'test-user-id',
     String email = 'trainer@ziro.fit',
     String name = 'Test Trainer',
@@ -72,34 +68,26 @@ void main() {
     bool hasCompletedOnboarding = true,
     bool isFreeAccessModeEnabled = false,
   }) {
-    return Response(
-      requestOptions: RequestOptions(path: ApiConstants.me),
-      statusCode: 200,
-      data: {
-        'data': {
-          'id': id,
-          'email': email,
-          'name': name,
-          'role': role,
-          'tier': tier,
-          'hasCompletedOnboarding': hasCompletedOnboarding,
-          'isFreeAccessModeEnabled': isFreeAccessModeEnabled,
-        },
+    return {
+      'data': {
+        'id': id,
+        'email': email,
+        'name': name,
+        'role': role,
+        'tier': tier,
+        'hasCompletedOnboarding': hasCompletedOnboarding,
+        'isFreeAccessModeEnabled': isFreeAccessModeEnabled,
       },
-    );
+    };
   }
 
-  Response<Map<String, dynamic>> refreshResponse() {
-    return Response(
-      requestOptions: RequestOptions(path: ApiConstants.refresh),
-      statusCode: 200,
-      data: {
-        'data': {
-          'accessToken': 'new-access-token',
-          'refreshToken': 'new-refresh-token',
-        },
+  Map<String, dynamic> refreshResponse() {
+    return {
+      'data': {
+        'accessToken': 'new-access-token',
+        'refreshToken': 'new-refresh-token',
       },
-    );
+    };
   }
 
   /// Stubs a successful login flow (post + saveTokens + fetchMe).
@@ -108,7 +96,7 @@ void main() {
     Object? tier = 'PRO',
     bool hasCompletedOnboarding = true,
   }) {
-    when(() => mockApiClient.post(
+    when(() => mockApiClient.post<Map<String, dynamic>>(
           ApiConstants.login,
           body: any(named: 'body'),
         )).thenAnswer((_) async => loginResponse(role: role));
@@ -118,9 +106,10 @@ void main() {
           refreshToken: any(named: 'refreshToken'),
         )).thenAnswer((_) async {});
 
-    when(() => mockApiClient.get(
+    when(() => mockSecureStorage.clearTokens()).thenAnswer((_) async {});
+
+    when(() => mockApiClient.get<Map<String, dynamic>>(
           ApiConstants.me,
-          queryParams: any(named: 'queryParams'),
         )).thenAnswer((_) async => meResponse(
           role: role,
           tier: tier,
@@ -137,7 +126,7 @@ void main() {
     when(() => mockSecureStorage.getRefreshToken())
         .thenAnswer((_) async => 'stored-refresh-token');
 
-    when(() => mockApiClient.post(
+    when(() => mockApiClient.post<Map<String, dynamic>>(
           ApiConstants.refresh,
           body: any(named: 'body'),
         )).thenAnswer((_) async => refreshResponse());
@@ -147,9 +136,10 @@ void main() {
           refreshToken: any(named: 'refreshToken'),
         )).thenAnswer((_) async {});
 
-    when(() => mockApiClient.get(
+    when(() => mockSecureStorage.clearTokens()).thenAnswer((_) async {});
+
+    when(() => mockApiClient.get<Map<String, dynamic>>(
           ApiConstants.me,
-          queryParams: any(named: 'queryParams'),
         )).thenAnswer((_) async => meResponse(
           role: role,
           tier: tier,
@@ -159,14 +149,12 @@ void main() {
 
   /// Stubs sign-out flow.
   void stubSignOutSuccess() {
-    when(() => mockApiClient.post(
+    when(() => mockApiClient.post<Map<String, dynamic>>(
           ApiConstants.signout,
           body: any(named: 'body'),
-        )).thenAnswer((_) async => Response(
-          requestOptions: RequestOptions(path: ApiConstants.signout),
-          statusCode: 200,
-          data: {'data': {'message': 'Signed out.'}},
-        ));
+        )).thenAnswer((_) async => <String, dynamic>{
+          'data': {'message': 'Signed out.'},
+        });
     when(() => mockSecureStorage.clearTokens()).thenAnswer((_) async {});
   }
 
@@ -398,7 +386,7 @@ void main() {
           .thenAnswer((_) async => true);
       when(() => mockSecureStorage.getRefreshToken())
           .thenAnswer((_) async => 'stored-refresh-token');
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.refresh,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -439,7 +427,7 @@ void main() {
           .thenAnswer((_) async => true);
       when(() => mockSecureStorage.getRefreshToken())
           .thenAnswer((_) async => 'stored-refresh-token');
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.refresh,
             body: any(named: 'body'),
           )).thenAnswer((_) async => refreshResponse());
@@ -467,7 +455,7 @@ void main() {
   group('login', () {
     test('state is loading at start of login call', () async {
       final completer = Completer<Map<String, dynamic>>();
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenAnswer((_) => completer.future);
@@ -541,7 +529,7 @@ void main() {
     });
 
     test('success when fetchMe returns flat data (no data key)', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenAnswer((_) async => loginResponse(role: 'trainer'));
@@ -552,22 +540,17 @@ void main() {
           )).thenAnswer((_) async {});
 
       // Flat response: no 'data' wrapper
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.me),
-            statusCode: 200,
-            data: {
-              'id': 'user-1',
-              'email': 'flat@ziro.fit',
-              'name': 'Flat User',
-              'role': 'client',
-              'tier': 'BASIC',
-              'hasCompletedOnboarding': false,
-              'isFreeAccessModeEnabled': true,
-            },
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'id': 'user-1',
+            'email': 'flat@ziro.fit',
+            'name': 'Flat User',
+            'role': 'client',
+            'tier': 'BASIC',
+            'hasCompletedOnboarding': false,
+            'isFreeAccessModeEnabled': true,
+          });
 
       final result = await container
           .read(authProvider.notifier)
@@ -585,7 +568,7 @@ void main() {
 
     test('error: connectionTimeout returns connection timeout message',
         () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -609,7 +592,7 @@ void main() {
     // -- Error: connectionError --
 
     test('error: connectionError returns no internet message', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -633,7 +616,7 @@ void main() {
     // -- Error: badResponse 401 structured --
 
     test('error: badResponse 401 with structured error.message', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -659,7 +642,7 @@ void main() {
     // -- Error: badResponse 401 plain message --
 
     test('error: badResponse 401 with plain message field', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -684,7 +667,7 @@ void main() {
 
     test('error: badResponse 401 with no response data returns default 401 message',
         () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -708,7 +691,7 @@ void main() {
     // -- Error: badResponse 429 --
 
     test('error: badResponse 429 returns too many attempts', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -732,7 +715,7 @@ void main() {
     // -- Error: badResponse 500 --
 
     test('error: badResponse 500 returns network error', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -756,7 +739,7 @@ void main() {
     // -- Error: badResponse 422 --
 
     test('error: badResponse 422 returns network error', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -781,7 +764,7 @@ void main() {
 
     test('error: badResponse with unknown status code returns network error',
         () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -805,7 +788,7 @@ void main() {
     // -- Error: unknown DioException type --
 
     test('error: unknown DioException type returns network error', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -825,7 +808,7 @@ void main() {
     // -- Error: cancel type --
 
     test('error: cancel type returns network error', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -845,7 +828,7 @@ void main() {
     // -- Error: sendTimeout --
 
     test('error: sendTimeout returns connection timeout', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -865,7 +848,7 @@ void main() {
     // -- Error: receiveTimeout --
 
     test('error: receiveTimeout returns connection timeout', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -885,7 +868,7 @@ void main() {
     // -- Error: generic Exception --
 
     test('error: generic Exception returns error.toString()', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(Exception('Something terrible happened'));
@@ -904,7 +887,7 @@ void main() {
     test(
         'error: badResponse 429 with structured error.message returns '
         'the structured message', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -931,7 +914,7 @@ void main() {
 
     test('error: structured error without message returns An error occurred',
         () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.login,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -959,7 +942,7 @@ void main() {
 
   group('register', () {
     test('state is loading at start of register call', () async {
-      final completer = Completer<Map<String, dynamic>>();
+      final completer = Completer<void>();
       when(() => mockApiClient.post(
             ApiConstants.register,
             body: any(named: 'body'),
@@ -980,11 +963,9 @@ void main() {
       when(() => mockApiClient.post(
             ApiConstants.register,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.register),
-            statusCode: 201,
-            data: {'data': {'message': 'Registration successful.'}},
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Registration successful.'},
+          });
 
       await container.read(authProvider.notifier).register(
             'Test User',
@@ -1014,11 +995,9 @@ void main() {
       when(() => mockApiClient.post(
             ApiConstants.register,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.register),
-            statusCode: 201,
-            data: {'data': {'message': 'Registration successful.'}},
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Registration successful.'},
+          });
 
       await container.read(authProvider.notifier).register(
             'Simple User',
@@ -1044,11 +1023,9 @@ void main() {
       when(() => mockApiClient.post(
             ApiConstants.register,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.register),
-            statusCode: 201,
-            data: {'data': {'message': 'Registration successful.'}},
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Registration successful.'},
+          });
 
       await container.read(authProvider.notifier).register(
             'Test', 'test@test.com', 'Password123!',
@@ -1158,7 +1135,7 @@ void main() {
 
     test('API fails (throws), tokens still cleared, state unauthenticated',
         () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.signout,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -1177,14 +1154,12 @@ void main() {
     });
 
     test('propagates exception when clearTokens throws', () async {
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.signout,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.signout),
-            statusCode: 200,
-            data: {'data': {'message': 'Signed out.'}},
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Signed out.'},
+          });
       when(() => mockSecureStorage.clearTokens())
           .thenThrow(Exception('storage error'));
 
@@ -1272,7 +1247,7 @@ void main() {
     test('does not create User when meData id is null', () async {
       when(() => mockSecureStorage.getRefreshToken())
           .thenAnswer((_) async => 'stored-refresh-token');
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.refresh,
             body: any(named: 'body'),
           )).thenAnswer((_) async => refreshResponse());
@@ -1280,13 +1255,9 @@ void main() {
             accessToken: any(named: 'accessToken'),
             refreshToken: any(named: 'refreshToken'),
           )).thenAnswer((_) async {});
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.me),
-            statusCode: 200,
-            data: {
+          )).thenAnswer((_) async => <String, dynamic>{
               'data': {
                 'role': 'trainer',
                 'tier': 'PRO',
@@ -1294,8 +1265,7 @@ void main() {
                 'isFreeAccessModeEnabled': false,
                 // no 'id' field → user should be null
               },
-            },
-          ));
+            });
 
       await container.read(authProvider.notifier).refreshSession();
 
@@ -1309,7 +1279,7 @@ void main() {
     test('failure clears tokens and sets error state', () async {
       when(() => mockSecureStorage.getRefreshToken())
           .thenAnswer((_) async => 'stored-refresh-token');
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.refresh,
             body: any(named: 'body'),
           )).thenThrow(DioException(
@@ -1332,7 +1302,7 @@ void main() {
         () async {
       when(() => mockSecureStorage.getRefreshToken())
           .thenAnswer((_) async => 'stored-refresh-token');
-      when(() => mockApiClient.post(
+      when(() => mockApiClient.post<Map<String, dynamic>>(
             ApiConstants.refresh,
             body: any(named: 'body'),
           )).thenAnswer((_) async => refreshResponse());
@@ -1378,11 +1348,9 @@ void main() {
       when(() => mockApiClient.post(
             ApiConstants.forgotPassword,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.forgotPassword),
-            statusCode: 200,
-            data: {'data': {'message': 'Email sent.'}},
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Email sent.'},
+          });
 
       await container
           .read(authProvider.notifier)
@@ -1425,7 +1393,7 @@ void main() {
 
   group('updatePassword', () {
     test('state is loading during call', () async {
-      final completer = Completer<Map<String, dynamic>>();
+      final completer = Completer<void>();
       when(() => mockApiClient.post(
             ApiConstants.updatePassword,
             body: any(named: 'body'),
@@ -1450,11 +1418,9 @@ void main() {
       when(() => mockApiClient.post(
             ApiConstants.updatePassword,
             body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.updatePassword),
-            statusCode: 200,
-            data: {'data': {'message': 'Password updated.'}},
-          ));
+            )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Password updated.'},
+          });
 
       await container
           .read(authProvider.notifier)
@@ -1505,13 +1471,9 @@ void main() {
     test('success sets hasCompletedOnboarding to true', () async {
       when(() => mockApiClient.post(
             '/auth/complete-onboarding',
-            body: any(named: 'body'),
-          )).thenAnswer((_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/auth/complete-onboarding'),
-            statusCode: 200,
-            data: {'data': {'message': 'Onboarding complete.'}},
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {'message': 'Onboarding complete.'},
+          });
 
       await container.read(authProvider.notifier).completeOnboarding();
 
@@ -1528,7 +1490,6 @@ void main() {
 
       when(() => mockApiClient.post(
             '/auth/complete-onboarding',
-            body: any(named: 'body'),
           )).thenThrow(DioException(
         requestOptions:
             RequestOptions(path: '/auth/complete-onboarding'),
@@ -1560,7 +1521,6 @@ void main() {
 
       when(() => mockApiClient.post(
             '/auth/complete-onboarding',
-            body: any(named: 'body'),
           )).thenThrow(Exception('Unexpected error'));
 
       await expectLater(
@@ -1583,20 +1543,15 @@ void main() {
 
   group('fetchMe', () {
     test('returns data from nested response (data.data exists)', () async {
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.me),
-            statusCode: 200,
-            data: {
-              'data': {
-                'id': 'user-1',
-                'email': 'user@test.com',
-                'role': 'trainer',
-              },
+          )).thenAnswer((_) async => <String, dynamic>{
+            'data': {
+              'id': 'user-1',
+              'email': 'user@test.com',
+              'role': 'trainer',
             },
-          ));
+          });
 
       final result =
           await container.read(authProvider.notifier).fetchMe();
@@ -1609,18 +1564,13 @@ void main() {
 
     test('returns data from flat response (data is the payload directly)',
         () async {
-      when(() => mockApiClient.get(
+      when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.me,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => Response(
-            requestOptions: RequestOptions(path: ApiConstants.me),
-            statusCode: 200,
-            data: {
-              'id': 'user-flat',
-              'email': 'flat@test.com',
-              'role': 'client',
-            },
-          ));
+          )).thenAnswer((_) async => <String, dynamic>{
+            'id': 'user-flat',
+            'email': 'flat@test.com',
+            'role': 'client',
+          });
 
       final result =
           await container.read(authProvider.notifier).fetchMe();

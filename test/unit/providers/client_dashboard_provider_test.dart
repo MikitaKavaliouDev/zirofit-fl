@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/dashboard/providers/client_dashboard_provider.dart';
 
@@ -26,13 +28,8 @@ void main() {
 
     group('fetchDashboard', () {
       test('sets data on success', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenAnswer(
-          (_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
-            statusCode: 200,
-            data: <String, dynamic>{},
-          ),
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenAnswer(
+          (_) async => <String, dynamic>{},
         );
 
         await notifier.fetchDashboard();
@@ -45,7 +42,7 @@ void main() {
       });
 
       test('sets error on API failure', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard'))
+        when(() => mockApiClient.get(ApiConstants.clientDashboard))
             .thenThrow(Exception('Network error'));
 
         await notifier.fetchDashboard();
@@ -59,13 +56,9 @@ void main() {
       });
 
       test('sets loading state during API call', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenAnswer(
-          (_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
-            statusCode: 200,
-            data: <String, dynamic>{},
-          ),
+        final completer = Completer<void>();
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenAnswer(
+          (_) => completer.future,
         );
 
         // Start fetch without awaiting so we can observe the loading state
@@ -76,16 +69,17 @@ void main() {
         expect(notifier.state.isLoading, true);
         expect(notifier.state.hasError, false);
 
+        completer.complete();
         await future;
 
         expect(notifier.state.status, ClientDashboardStatus.loaded);
       });
 
       test('handles DioException connectionTimeout', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenThrow(
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenThrow(
           DioException(
             requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
+                RequestOptions(path: ApiConstants.clientDashboard),
             type: DioExceptionType.connectionTimeout,
             message: 'Connection timeout',
           ),
@@ -100,10 +94,10 @@ void main() {
       });
 
       test('handles DioException connectionError', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenThrow(
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenThrow(
           DioException(
             requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
+                RequestOptions(path: ApiConstants.clientDashboard),
             type: DioExceptionType.connectionError,
             message: 'Connection error',
           ),
@@ -118,15 +112,15 @@ void main() {
       });
 
       test('handles DioException badResponse 401', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenThrow(
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenThrow(
           DioException(
             requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
+                RequestOptions(path: ApiConstants.clientDashboard),
             type: DioExceptionType.badResponse,
             message: 'Unauthorized',
             response: Response(
               requestOptions:
-                  RequestOptions(path: '/api/mobile/client/dashboard'),
+                  RequestOptions(path: ApiConstants.clientDashboard),
               statusCode: 401,
               data: null,
             ),
@@ -142,15 +136,15 @@ void main() {
       });
 
       test('handles DioException badResponse 500', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenThrow(
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenThrow(
           DioException(
             requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
+                RequestOptions(path: ApiConstants.clientDashboard),
             type: DioExceptionType.badResponse,
             message: 'Internal server error',
             response: Response(
               requestOptions:
-                  RequestOptions(path: '/api/mobile/client/dashboard'),
+                  RequestOptions(path: ApiConstants.clientDashboard),
               statusCode: 500,
               data: null,
             ),
@@ -166,13 +160,8 @@ void main() {
       });
 
       test('handles empty API response and still sets data', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenAnswer(
-          (_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
-            statusCode: 200,
-            data: <String, dynamic>{},
-          ),
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenAnswer(
+          (_) async => <String, dynamic>{},
         );
 
         await notifier.fetchDashboard();
@@ -184,13 +173,8 @@ void main() {
       });
 
       test('loaded status has correct flags', () async {
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenAnswer(
-          (_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
-            statusCode: 200,
-            data: <String, dynamic>{},
-          ),
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenAnswer(
+          (_) async => <String, dynamic>{},
         );
 
         await notifier.fetchDashboard();
@@ -206,7 +190,7 @@ void main() {
     group('refresh', () {
       test('resets previous error on success', () async {
         // First make the API fail
-        when(() => mockApiClient.get('/api/mobile/client/dashboard'))
+        when(() => mockApiClient.get(ApiConstants.clientDashboard))
             .thenThrow(Exception('Network error'));
 
         await notifier.fetchDashboard();
@@ -215,13 +199,8 @@ void main() {
         expect(notifier.state.hasError, true);
 
         // Now make refresh succeed
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenAnswer(
-          (_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
-            statusCode: 200,
-            data: <String, dynamic>{},
-          ),
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenAnswer(
+          (_) async => <String, dynamic>{},
         );
 
         await notifier.refresh();
@@ -234,13 +213,8 @@ void main() {
 
       test('failure preserves existing data', () async {
         // First succeed
-        when(() => mockApiClient.get('/api/mobile/client/dashboard')).thenAnswer(
-          (_) async => Response(
-            requestOptions:
-                RequestOptions(path: '/api/mobile/client/dashboard'),
-            statusCode: 200,
-            data: <String, dynamic>{},
-          ),
+        when(() => mockApiClient.get(ApiConstants.clientDashboard)).thenAnswer(
+          (_) async => <String, dynamic>{},
         );
 
         await notifier.fetchDashboard();
@@ -248,7 +222,7 @@ void main() {
         expect(notifier.state.data, isNotNull);
 
         // Now make refresh fail
-        when(() => mockApiClient.get('/api/mobile/client/dashboard'))
+        when(() => mockApiClient.get(ApiConstants.clientDashboard))
             .thenThrow(Exception('Refresh error'));
 
         await notifier.refresh();

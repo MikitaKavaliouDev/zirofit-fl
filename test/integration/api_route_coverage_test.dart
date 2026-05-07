@@ -375,6 +375,12 @@ void main() {
       expect(path, '/workout-sessions/test-id/cancel');
       _expectParameterizedRoute(path, backendRoutes);
     });
+
+    test('workoutSaveAsTemplate — sessionId in path, no body', () {
+      final path = ApiConstants.workoutSaveAsTemplate('test-id');
+      expect(path, '/workout-sessions/test-id/save-as-template');
+      _expectParameterizedRoute(path, backendRoutes);
+    });
   });
 
   // ===========================================================================

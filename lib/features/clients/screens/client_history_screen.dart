@@ -1,66 +1,19 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:zirofit_fl/data/models/check_in.dart';
-import 'package:zirofit_fl/data/models/client_measurement.dart';
+import 'package:zirofit_fl/data/models/client_analytics.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
-import 'package:zirofit_fl/data/models/workout_session.dart';
-import 'package:zirofit_fl/features/checkin/providers/trainer_check_ins_provider.dart';
-import 'package:zirofit_fl/features/clients/providers/client_detail_provider.dart';
-
-// =============================================================================
-// TimelineItem model
-// =============================================================================
-
-/// Discriminated type for each entry in the combined timeline.
-enum TimelineItemType { workout, checkIn, measurement }
-
-/// Active filter for the timeline list.
-enum TimelineFilter { all, workouts, checkIns, measurements }
-
-/// A single entry in the combined client activity timeline.
-@immutable
-class TimelineItem {
-  final String id;
-  final DateTime date;
-  final TimelineItemType type;
-  final String title;
-  final String? subtitle;
-  final IconData icon;
-  final Color color;
-  final Map<String, dynamic> data;
-
-  const TimelineItem({
-    required this.id,
-    required this.date,
-    required this.type,
-    required this.title,
-    this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.data,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TimelineItem &&
-          id == other.id &&
-          type == other.type &&
-          date == other.date;
-
-  @override
-  int get hashCode => Object.hash(id, type, date);
-}
+import 'package:zirofit_fl/features/clients/providers/client_history_provider.dart';
 
 // =============================================================================
 // Screen
 // =============================================================================
 
-/// Displays a combined timeline of a client's activity: workout sessions,
-/// check-ins, and measurements — sorted newest-first with filter chips,
-/// pagination, pull-to-refresh, and expandable detail cards.
+/// Displays a client's workout history with a volume progression chart,
+/// date range filter chips, and a date-grouped session list.
+///
+/// Route: `/trainer/clients/:id/sessions`
 class ClientHistoryScreen extends ConsumerStatefulWidget {
   final String clientId;
 
@@ -72,336 +25,430 @@ class ClientHistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _ClientHistoryScreenState extends ConsumerState<ClientHistoryScreen> {
-  TimelineFilter _activeFilter = TimelineFilter.all;
-  int _visibleCount = 20;
-  static const int _pageSize = 20;
-  final Set<String> _expandedIds = {};
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(clientDetailProvider(widget.clientId).notifier).fetchAll();
-      ref.read(trainerCheckInsProvider.notifier).fetchCheckIns();
+      ref
+          .read(clientHistoryProvider(widget.clientId).notifier)
+          .fetchHistory();
     });
+    _scrollController.addListener(_onScroll);
   }
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-
-  /// Builds a combined, sorted timeline from all data sources.
-  List<TimelineItem> _buildTimeline(
-    ClientDetailState clientState,
-    TrainerCheckInsState checkInState,
-  ) {
-    final items = <TimelineItem>[];
-
-    // Workout sessions
-    for (final session in clientState.sessions) {
-      final date = session.endTime ?? session.startTime;
-      final duration = session.endTime?.difference(session.startTime);
-      final durationStr = duration != null
-          ? '${duration.inMinutes}m ${duration.inSeconds.remainder(60)}s'
-          : null;
-
-      items.add(TimelineItem(
-        id: 'workout_${session.id}',
-        date: date,
-        type: TimelineItemType.workout,
-        title: session.name ?? 'Workout Session',
-        subtitle: [
-          ?durationStr,
-          if (session.status == WorkoutSessionStatus.completed) 'Completed',
-          if (session.status == WorkoutSessionStatus.planned) 'Planned',
-        ].join(' • '),
-        icon: Icons.fitness_center,
-        color: const Color(0xFF3B82F6),
-        data: {'session': session},
-      ));
-    }
-
-    // Measurements
-    for (final m in clientState.measurements) {
-      final parts = <String>[];
-      if (m.weightKg != null) {
-        parts.add('Weight: ${m.weightKg!.toStringAsFixed(1)} kg');
-      }
-      if (m.bodyFatPercentage != null) {
-        parts.add('Body Fat: ${m.bodyFatPercentage!.toStringAsFixed(1)}%');
-      }
-
-      items.add(TimelineItem(
-        id: 'measurement_${m.id}',
-        date: m.measurementDate,
-        type: TimelineItemType.measurement,
-        title: parts.isNotEmpty
-            ? parts.join(', ')
-            : 'Measurements recorded',
-        subtitle: m.notes,
-        icon: Icons.monitor_weight_outlined,
-        color: const Color(0xFF10B981),
-        data: {'measurement': m},
-      ));
-    }
-
-    // Check-ins (filtered by this client)
-    final clientCheckIns =
-        checkInState.checkIns.where((c) => c.clientId == widget.clientId);
-    for (final ci in clientCheckIns) {
-      final metrics = <String>[];
-      if (ci.weight != null) {
-        metrics.add('${ci.weight!.toStringAsFixed(1)} kg');
-      }
-      if (ci.waistCm != null) {
-        metrics.add('Waist: ${ci.waistCm!.toStringAsFixed(1)} cm');
-      }
-
-      items.add(TimelineItem(
-        id: 'checkin_${ci.id}',
-        date: ci.date,
-        type: TimelineItemType.checkIn,
-        title: 'Weekly Check-in',
-        subtitle: metrics.isNotEmpty ? metrics.join(' • ') : ci.status,
-        icon: Icons.task_alt,
-        color: const Color(0xFFF59E0B),
-        data: {'checkIn': ci},
-      ));
-    }
-
-    // Sort newest first
-    items.sort((a, b) => b.date.compareTo(a.date));
-    return items;
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  /// Applies the current filter and pagination.
-  List<TimelineItem> _applyFilter(
-    List<TimelineItem> all,
-    TimelineFilter filter,
-  ) {
-    if (filter == TimelineFilter.all) return all;
-    return all.where((item) {
-      switch (filter) {
-        case TimelineFilter.workouts:
-          return item.type == TimelineItemType.workout;
-        case TimelineFilter.checkIns:
-          return item.type == TimelineItemType.checkIn;
-        case TimelineFilter.measurements:
-          return item.type == TimelineItemType.measurement;
-        default:
-          return true;
-      }
-    }).toList();
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref
+          .read(clientHistoryProvider(widget.clientId).notifier)
+          .loadMore();
+    }
   }
-
-  bool get _hasMore =>
-      _applyFilter(
-        _buildTimeline(
-          ref.read(clientDetailProvider(widget.clientId)),
-          ref.read(trainerCheckInsProvider),
-        ),
-        _activeFilter,
-      ).length >
-      _visibleCount;
-
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final clientState = ref.watch(clientDetailProvider(widget.clientId));
-    final checkInState = ref.watch(trainerCheckInsProvider);
+    final state = ref.watch(clientHistoryProvider(widget.clientId));
     final theme = Theme.of(context);
-
-    final clientName = clientState.client?.name ?? 'Client';
-    final isLoading =
-        clientState.isLoading && clientState.client == null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History'),
+        title: const Text('Workout History'),
       ),
-      body: isLoading
-          ? const _ShimmerLoading()
-          : _buildBody(theme, clientState, checkInState, clientName),
+      body: _buildBody(state, theme),
     );
   }
 
-  Widget _buildBody(
-    ThemeData theme,
-    ClientDetailState clientState,
-    TrainerCheckInsState checkInState,
-    String clientName,
-  ) {
-    final allItems = _buildTimeline(clientState, checkInState);
-    final filteredItems = _applyFilter(allItems, _activeFilter);
-    final visibleItems =
-        filteredItems.take(_visibleCount).toList();
+  Widget _buildBody(ClientHistoryState state, ThemeData theme) {
+    if (state.isLoading && state.sessions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    if (allItems.isEmpty && !clientState.isLoading) {
-      return _EmptyHistory(
-        onRefresh: () async {
-          await ref
-              .read(clientDetailProvider(widget.clientId).notifier)
-              .fetchAll();
-          await ref
-              .read(trainerCheckInsProvider.notifier)
-              .fetchCheckIns();
-        },
+    if (state.error != null && state.sessions.isEmpty) {
+      return _ErrorState(
+        error: state.error!,
+        onRetry: () =>
+            ref.read(clientHistoryProvider(widget.clientId).notifier).refresh(),
+      );
+    }
+
+    if (!state.isLoading && state.sessions.isEmpty) {
+      return _EmptyState(
+        onRefresh: () =>
+            ref.read(clientHistoryProvider(widget.clientId).notifier).refresh(),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () async {
-        await ref
-            .read(clientDetailProvider(widget.clientId).notifier)
-            .fetchAll();
-        await ref
-            .read(trainerCheckInsProvider.notifier)
-            .fetchCheckIns();
-        setState(() {
-          _visibleCount = _pageSize;
-          _expandedIds.clear();
-        });
-      },
-      child: Column(
-        children: [
-          // Filter chips
-          _FilterChipRow(
-            activeFilter: _activeFilter,
-            onFilterChanged: (filter) {
-              setState(() {
-                _activeFilter = filter;
-                _visibleCount = _pageSize;
-                _expandedIds.clear();
-              });
-            },
+      onRefresh: () =>
+          ref.read(clientHistoryProvider(widget.clientId).notifier).refresh(),
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // Volume chart section
+          SliverToBoxAdapter(
+            child: _VolumeChartSection(
+              volumeData: state.volumeData,
+              theme: theme,
+            ),
           ),
 
-          // Timeline list
-          Expanded(
-            child: visibleItems.isEmpty
-                ? _buildEmptyFilterResult(theme)
-                : _buildTimelineList(theme, visibleItems),
+          // Date range filter chips
+          SliverToBoxAdapter(
+            child: _DateRangeChips(
+              activeRange: state.dateRange,
+              onRangeChanged: (range) {
+                ref
+                    .read(clientHistoryProvider(widget.clientId).notifier)
+                    .setDateRange(range);
+              },
+            ),
+          ),
+
+          // Date-grouped session list
+          ..._buildSessionGroups(state, theme),
+
+          // Loading more indicator
+          if (state.isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            ),
+
+          // Bottom padding
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 24),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyFilterResult(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.filter_list_off,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No items match this filter',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _activeFilter = TimelineFilter.all;
-                  _visibleCount = _pageSize;
-                });
-              },
-              icon: const Icon(Icons.clear, size: 18),
-              label: const Text('Clear filter'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  List<Widget> _buildSessionGroups(ClientHistoryState state, ThemeData theme) {
+    if (state.sessions.isEmpty) return [];
 
-  Widget _buildTimelineList(ThemeData theme, List<TimelineItem> items) {
-    // Group items by date
-    final grouped = <DateTime, List<TimelineItem>>{};
-    for (final item in items) {
+    // Group sessions by date (newest first)
+    final grouped = <DateTime, List<SessionHistoryData>>{};
+    for (final s in state.sessions) {
       final dayKey = DateTime(
-        item.date.year,
-        item.date.month,
-        item.date.day,
+        s.startTime.year,
+        s.startTime.month,
+        s.startTime.day,
       );
       grouped.putIfAbsent(dayKey, () => []);
-      grouped[dayKey]!.add(item);
+      grouped[dayKey]!.add(s);
     }
 
-    // Sort date groups newest-first
     final sortedDates = grouped.keys.toList()
       ..sort((a, b) => b.compareTo(a));
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 24),
-      itemCount: sortedDates.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == sortedDates.length) {
-          // Load more button
-          return _LoadMoreButton(
-            onTap: () {
-              setState(() {
-                _visibleCount += _pageSize;
-              });
-            },
-          );
-        }
+    final widgets = <Widget>[];
+    for (final date in sortedDates) {
+      final daySessions = grouped[date]!;
+      widgets.add(
+        SliverToBoxAdapter(
+          child: _DateHeader(date: date, sessionCount: daySessions.length),
+        ),
+      );
 
-        final date = sortedDates[index];
-        final dayItems = grouped[date]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date header
-            _DateHeader(date: date),
-            // Timeline items for this date
-            ...dayItems.map((item) {
-              final isExpanded = _expandedIds.contains(item.id);
-              return _TimelineItemCard(
-                item: item,
-                isExpanded: isExpanded,
-                isLast: dayItems.last == item,
-                onToggleExpand: () {
-                  setState(() {
-                    if (isExpanded) {
-                      _expandedIds.remove(item.id);
-                    } else {
-                      _expandedIds.add(item.id);
-                    }
-                  });
-                },
-              );
-            }),
-          ],
+      for (final sessionData in daySessions) {
+        widgets.add(
+          SliverToBoxAdapter(
+            child: _SessionRow(
+              data: sessionData,
+              onTap: () => _navigateToSessionDetail(sessionData.id),
+            ),
+          ),
         );
-      },
+      }
+    }
+
+    return widgets;
+  }
+
+  void _navigateToSessionDetail(String sessionId) {
+    // Navigate to session detail screen using the existing workout route pattern
+    Navigator.of(context).pushNamed(
+      '/workout/$sessionId',
+      arguments: sessionId,
     );
   }
 }
 
 // =============================================================================
-// Filter chip row
+// Volume chart section
 // =============================================================================
 
-class _FilterChipRow extends StatelessWidget {
-  final TimelineFilter activeFilter;
-  final ValueChanged<TimelineFilter> onFilterChanged;
+class _VolumeChartSection extends StatelessWidget {
+  final List<VolumePoint> volumeData;
+  final ThemeData theme;
 
-  const _FilterChipRow({
-    required this.activeFilter,
-    required this.onFilterChanged,
+  const _VolumeChartSection({
+    required this.volumeData,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Card(
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Volume Progression',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 200,
+                child: volumeData.length < 2
+                    ? _ChartPlaceholder(theme: theme)
+                    : _VolumeLineChart(
+                        volumeData: volumeData,
+                        theme: theme,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChartPlaceholder extends StatelessWidget {
+  final ThemeData theme;
+
+  const _ChartPlaceholder({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.show_chart,
+            size: 40,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Log more sessions to see volume progression',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VolumeLineChart extends StatelessWidget {
+  final List<VolumePoint> volumeData;
+  final ThemeData theme;
+
+  const _VolumeLineChart({
+    required this.volumeData,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = theme.colorScheme.primary;
+    final spots = <FlSpot>[];
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
+
+    for (int i = 0; i < volumeData.length; i++) {
+      final vol = volumeData[i].volume;
+      spots.add(FlSpot(i.toDouble(), vol));
+      if (vol < minY) minY = vol;
+      if (vol > maxY) maxY = vol;
+    }
+
+    final yPadding = (maxY - minY) * 0.15;
+    final yMin = (minY - yPadding).clamp(0.0, double.infinity);
+    final yMax = maxY + yPadding;
+
+    return LineChart(
+      LineChartData(
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: primaryColor,
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: spots.length < 30,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 3,
+                  color: Colors.white,
+                  strokeWidth: 2,
+                  strokeColor: primaryColor,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  primaryColor.withValues(alpha: 0.2),
+                  primaryColor.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ],
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: _calculateInterval(spots.length),
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index < 0 || index >= volumeData.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    volumeData[index].date.substring(5), // MM-DD
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              getTitlesWidget: (value, meta) {
+                if (value == meta.max) return const SizedBox.shrink();
+                return Text(
+                  _formatVolume(value),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                );
+              },
+            ),
+          ),
+          topTitles:
+              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+              strokeWidth: 1,
+            );
+          },
+        ),
+        borderData: FlBorderData(show: false),
+        minY: yMin,
+        maxY: yMax,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final index = spot.spotIndex;
+                final dateStr = index < volumeData.length
+                    ? volumeData[index].date
+                    : '';
+                return LineTooltipItem(
+                  '$dateStr\n${_formatVolume(spot.y)} kg',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _calculateInterval(int length) {
+    if (length <= 7) return 1;
+    if (length <= 14) return 2;
+    if (length <= 30) return 5;
+    return (length / 6).ceilToDouble();
+  }
+
+  String _formatVolume(double value) {
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}k';
+    }
+    return value.toInt().toString();
+  }
+}
+
+// =============================================================================
+// Date range filter chips
+// =============================================================================
+
+class _DateRangeChips extends StatelessWidget {
+  final HistoryDateRange activeRange;
+  final ValueChanged<HistoryDateRange> onRangeChanged;
+
+  const _DateRangeChips({
+    required this.activeRange,
+    required this.onRangeChanged,
   });
 
   @override
@@ -410,88 +457,38 @@ class _FilterChipRow extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: [
-            _buildChip(
-              theme: theme,
-              label: 'All',
-              filter: TimelineFilter.all,
-            ),
-            const SizedBox(width: 8),
-            _buildChip(
-              theme: theme,
-              label: 'Workouts',
-              filter: TimelineFilter.workouts,
-              icon: Icons.fitness_center,
-              color: const Color(0xFF3B82F6),
-            ),
-            const SizedBox(width: 8),
-            _buildChip(
-              theme: theme,
-              label: 'Check-ins',
-              filter: TimelineFilter.checkIns,
-              icon: Icons.task_alt,
-              color: const Color(0xFFF59E0B),
-            ),
-            const SizedBox(width: 8),
-            _buildChip(
-              theme: theme,
-              label: 'Measurements',
-              filter: TimelineFilter.measurements,
-              icon: Icons.monitor_weight_outlined,
-              color: const Color(0xFF10B981),
-            ),
-          ],
+          children: HistoryDateRange.values.map((range) {
+            final isActive = activeRange == range;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(range.label),
+                selected: isActive,
+                onSelected: (_) => onRangeChanged(range),
+                selectedColor: theme.colorScheme.primaryContainer,
+                labelStyle: TextStyle(
+                  color: isActive
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 12,
+                ),
+                side: BorderSide(
+                  color: isActive
+                      ? theme.colorScheme.primaryContainer
+                      : theme.colorScheme.outlineVariant,
+                ),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            );
+          }).toList(),
         ),
       ),
-    );
-  }
-
-  Widget _buildChip({
-    required ThemeData theme,
-    required String label,
-    required TimelineFilter filter,
-    IconData? icon,
-    Color? color,
-  }) {
-    final isActive = activeFilter == filter;
-    final chipColor = color ?? theme.colorScheme.primary;
-
-    return FilterChip(
-      selected: isActive,
-      label: Text(label),
-      avatar: icon != null
-          ? Icon(
-              icon,
-              size: 16,
-              color: isActive ? Colors.white : chipColor,
-            )
-          : null,
-      onSelected: (_) => onFilterChanged(filter),
-      selectedColor: chipColor,
-      checkmarkColor: Colors.white,
-      labelStyle: TextStyle(
-        color: isActive ? Colors.white : theme.colorScheme.onSurface,
-        fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-        fontSize: 13,
-      ),
-      side: BorderSide(
-        color: isActive ? chipColor : theme.colorScheme.outlineVariant,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
     );
   }
 }
@@ -502,8 +499,12 @@ class _FilterChipRow extends StatelessWidget {
 
 class _DateHeader extends StatelessWidget {
   final DateTime date;
+  final int sessionCount;
 
-  const _DateHeader({required this.date});
+  const _DateHeader({
+    required this.date,
+    required this.sessionCount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -524,31 +525,30 @@ class _DateHeader extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Row(
         children: [
-          // Timeline line connector
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.primaryContainer,
-              border: Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                width: 2,
-              ),
+          Text(
+            dateLabel,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurfaceVariant,
+              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(width: 12),
-          // Vertical line extending down
-          Expanded(
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Text(
-              dateLabel,
-              style: theme.textTheme.titleSmall?.copyWith(
+              '$sessionCount session${sessionCount == 1 ? '' : 's'}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurfaceVariant,
-                letterSpacing: 0.3,
+                fontSize: 10,
               ),
             ),
           ),
@@ -559,267 +559,142 @@ class _DateHeader extends StatelessWidget {
 }
 
 // =============================================================================
-// Timeline item card
+// Session row
 // =============================================================================
 
-class _TimelineItemCard extends StatelessWidget {
-  final TimelineItem item;
-  final bool isExpanded;
-  final bool isLast;
-  final VoidCallback onToggleExpand;
+class _SessionRow extends StatelessWidget {
+  final SessionHistoryData data;
+  final VoidCallback onTap;
 
-  const _TimelineItemCard({
-    required this.item,
-    required this.isExpanded,
-    required this.isLast,
-    required this.onToggleExpand,
+  const _SessionRow({
+    required this.data,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Timeline indicator column
-          SizedBox(
-            width: 40,
-            child: Column(
-              children: [
-                const SizedBox(height: 4),
-                // Dot
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: item.color,
-                    border: Border.all(
-                      color: item.color.withValues(alpha: 0.3),
-                      width: 3,
-                    ),
-                  ),
-                ),
-                // Line
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      color: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.4),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // Card
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: 16,
-                bottom: isLast ? 8 : 4,
-              ),
-              child: Card(
-                margin: EdgeInsets.zero,
-                elevation: isExpanded ? 2 : 0.5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: theme.colorScheme.outlineVariant
-                        .withValues(alpha: 0.5),
-                  ),
-                ),
-                child: InkWell(
-                  onTap: onToggleExpand,
-                  borderRadius: BorderRadius.circular(12),
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeInOut,
-                    alignment: Alignment.topCenter,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header row
-                        Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Row(
-                            children: [
-                              // Type icon
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: item.color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  item.icon,
-                                  size: 20,
-                                  color: item.color,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              // Title & subtitle
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.title,
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (item.subtitle != null &&
-                                        item.subtitle!.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        item.subtitle!,
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme
-                                              .onSurfaceVariant,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              // Time
-                              Text(
-                                DateFormat('HH:mm').format(item.date),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              // Expand icon
-                              Icon(
-                                isExpanded
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                size: 20,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Expanded detail
-                        if (isExpanded) ...[
-                          Divider(
-                            height: 1,
-                            color: theme.colorScheme.outlineVariant
-                                .withValues(alpha: 0.5),
-                          ),
-          _buildExpandedContent(theme),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpandedContent(ThemeData theme) {
-    switch (item.type) {
-      case TimelineItemType.workout:
-        return _WorkoutDetail(
-          session: item.data['session'] as WorkoutSession,
-          theme: theme,
-        );
-      case TimelineItemType.checkIn:
-        return _CheckInDetail(
-          checkIn: item.data['checkIn'] as CheckIn,
-          theme: theme,
-        );
-      case TimelineItemType.measurement:
-        return _MeasurementDetail(
-          measurement: item.data['measurement'] as ClientMeasurement,
-          theme: theme,
-        );
-    }
-  }
-}
-
-// =============================================================================
-// Expanded detail widgets
-// =============================================================================
-
-class _WorkoutDetail extends StatelessWidget {
-  final WorkoutSession session;
-  final ThemeData theme;
-
-  const _WorkoutDetail({
-    required this.session,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = session.endTime?.difference(session.startTime);
+    final duration = data.endTime?.difference(data.startTime);
     final durationStr = duration != null
         ? '${duration.inMinutes}m ${duration.inSeconds.remainder(60)}s'
         : 'In progress';
-    final statusColor = _sessionStatusColor(session.status);
+    final statusColor = _statusColor(data.status);
+    final timeStr = DateFormat('HH:mm').format(data.startTime);
 
     return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Stats row
-          Row(
-            children: [
-              _DetailStat(
-                label: 'Status',
-                value: session.status.name.toUpperCase(),
-                color: statusColor,
-              ),
-              const SizedBox(width: 16),
-              _DetailStat(
-                label: 'Duration',
-                value: durationStr,
-                color: theme.colorScheme.primary,
-              ),
-            ],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      child: Card(
+        elevation: 0.5,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
-
-          // Notes
-          if (session.notes != null && session.notes!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                session.notes!,
-                style: theme.textTheme.bodySmall,
-              ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                // Status indicator
+                Container(
+                  width: 4,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Session info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data.name,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 13,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            timeStr,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 13,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            durationStr,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Stats column
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (data.totalVolume > 0)
+                      Text(
+                        '${data.totalVolume.toStringAsFixed(0)} kg',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    if (data.totalVolume > 0) const SizedBox(height: 2),
+                    Text(
+                      '${data.totalSets} sets',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
 
-  Color _sessionStatusColor(WorkoutSessionStatus status) {
+  Color _statusColor(WorkoutSessionStatus status) {
     switch (status) {
       case WorkoutSessionStatus.completed:
         return Colors.green;
@@ -831,466 +706,21 @@ class _WorkoutDetail extends StatelessWidget {
   }
 }
 
-class _CheckInDetail extends StatelessWidget {
-  final CheckIn checkIn;
-  final ThemeData theme;
-
-  const _CheckInDetail({
-    required this.checkIn,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Metrics grid
-          Row(
-            children: [
-              Expanded(
-                child: _DetailStat(
-                  label: 'Weight',
-                  value: checkIn.weight != null
-                      ? '${checkIn.weight!.toStringAsFixed(1)} kg'
-                      : '--',
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              Expanded(
-                child: _DetailStat(
-                  label: 'Waist',
-                  value: checkIn.waistCm != null
-                      ? '${checkIn.waistCm!.toStringAsFixed(1)} cm'
-                      : '--',
-                  color: theme.colorScheme.secondary,
-                ),
-              ),
-              Expanded(
-                child: _DetailStat(
-                  label: 'Sleep',
-                  value: checkIn.sleepHours != null
-                      ? '${checkIn.sleepHours!.toStringAsFixed(1)} hrs'
-                      : '--',
-                  color: Colors.indigo,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Wellness row
-          Row(
-            children: [
-              _WellnessChip(
-                label: 'Energy',
-                value: checkIn.energyLevel,
-                icon: Icons.bolt,
-              ),
-              const SizedBox(width: 6),
-              _WellnessChip(
-                label: 'Stress',
-                value: checkIn.stressLevel,
-                icon: Icons.psychology,
-              ),
-              const SizedBox(width: 6),
-              _WellnessChip(
-                label: 'Hunger',
-                value: checkIn.hungerLevel,
-                icon: Icons.restaurant,
-              ),
-              const SizedBox(width: 6),
-              _WellnessChip(
-                label: 'Digestion',
-                value: checkIn.digestionLevel,
-                icon: Icons.monitor_heart_outlined,
-              ),
-            ],
-          ),
-
-          // Nutrition compliance
-          if (checkIn.nutritionCompliance != null) ...[
-            const SizedBox(height: 12),
-            _buildInfoRow(
-              icon: Icons.restaurant_menu,
-              label: 'Nutrition',
-              value: _formatNutrition(checkIn.nutritionCompliance!),
-            ),
-          ],
-
-          // Client notes
-          if (checkIn.clientNotes != null &&
-              checkIn.clientNotes!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                checkIn.clientNotes!,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-          ],
-
-          // Trainer response
-          if (checkIn.trainerResponse != null &&
-              checkIn.trainerResponse!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondaryContainer
-                    .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.reply,
-                        size: 14,
-                        color: theme.colorScheme.onSecondaryContainer,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Trainer Response',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSecondaryContainer,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    checkIn.trainerResponse!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // Status badge
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: checkIn.status == 'SUBMITTED'
-                    ? Colors.orange.withValues(alpha: 0.1)
-                    : Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                checkIn.status == 'SUBMITTED' ? 'Pending Review' : 'Reviewed',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: checkIn.status == 'SUBMITTED'
-                      ? Colors.orange.shade800
-                      : Colors.green.shade700,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatNutrition(String value) {
-    switch (value) {
-      case 'ON_TRACK':
-        return 'On Track';
-      case 'MOSTLY':
-        return 'Mostly';
-      case 'OFF_TRACK':
-        return 'Off Track';
-      default:
-        return value;
-    }
-  }
-}
-
-class _MeasurementDetail extends StatelessWidget {
-  final ClientMeasurement measurement;
-  final ThemeData theme;
-
-  const _MeasurementDetail({
-    required this.measurement,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (measurement.weightKg != null)
-                Expanded(
-                  child: _DetailStat(
-                    label: 'Weight',
-                    value: '${measurement.weightKg!.toStringAsFixed(1)} kg',
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              if (measurement.bodyFatPercentage != null) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _DetailStat(
-                    label: 'Body Fat',
-                    value:
-                        '${measurement.bodyFatPercentage!.toStringAsFixed(1)}%',
-                    color: theme.colorScheme.secondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-
-          // Notes
-          if (measurement.notes != null && measurement.notes!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                measurement.notes!,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-          ],
-
-          // Recorded date
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today,
-                size: 14,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                DateFormat('MMM dd, yyyy').format(measurement.measurementDate),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // =============================================================================
-// Reusable small widgets
+// Empty state
 // =============================================================================
 
-class _DetailStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onRefresh;
 
-  const _DetailStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WellnessChip extends StatelessWidget {
-  final String label;
-  final int? value;
-  final IconData icon;
-
-  const _WellnessChip({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final v = value;
-    final displayValue = v != null ? '$v/10' : '--';
-
-    Color? chipColor;
-    if (v != null) {
-      if (v <= 3) {
-        chipColor = Colors.red;
-      } else if (v <= 6) {
-        chipColor = Colors.orange;
-      } else {
-        chipColor = Colors.green;
-      }
-    }
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        decoration: BoxDecoration(
-          color: chipColor?.withValues(alpha: 0.1) ??
-              theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: chipColor ?? theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              displayValue,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: chipColor,
-                fontSize: 11,
-              ),
-            ),
-            Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 9,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Load more button
-// =============================================================================
-
-class _LoadMoreButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _LoadMoreButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 12),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: onTap,
-          icon: const Icon(Icons.expand_more, size: 18),
-          label: const Text('Load More'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 44),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Empty history
-// =============================================================================
-
-class _EmptyHistory extends StatelessWidget {
-  final Future<void> Function() onRefresh;
-
-  const _EmptyHistory({required this.onRefresh});
+  const _EmptyState({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: () async => onRefresh(),
       child: ListView(
         children: [
           SizedBox(
@@ -1302,14 +732,14 @@ class _EmptyHistory extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.history_toggle_off,
+                      Icons.fitness_center_outlined,
                       size: 64,
                       color: theme.colorScheme.onSurfaceVariant
                           .withValues(alpha: 0.4),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No history available yet',
+                      'No workout history yet',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -1317,7 +747,7 @@ class _EmptyHistory extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Workout sessions, check-ins, and measurements\nwill appear here once available.',
+                      'Workout sessions will appear here\nonce the client starts training.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -1335,59 +765,47 @@ class _EmptyHistory extends StatelessWidget {
 }
 
 // =============================================================================
-// Shimmer loading placeholder
+// Error state
 // =============================================================================
 
-class _ShimmerLoading extends StatelessWidget {
-  const _ShimmerLoading();
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+
+  const _ErrorState({
+    required this.error,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final baseColor = isDark
-        ? Colors.grey.shade800
-        : Colors.grey.shade300;
-    final highlightColor = isDark
-        ? Colors.grey.shade700
-        : Colors.grey.shade100;
 
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 8,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Timeline dot placeholder
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Card placeholder
-                Expanded(
-                  child: Container(
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: theme.colorScheme.error,
             ),
-          );
-        },
+            const SizedBox(height: 16),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+            ),
+          ],
+        ),
       ),
     );
   }

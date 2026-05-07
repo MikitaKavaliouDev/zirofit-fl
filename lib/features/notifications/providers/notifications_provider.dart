@@ -50,12 +50,20 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         super(const NotificationsState());
 
   /// GET /api/notifications
-  Future<void> fetchNotifications() async {
+  ///
+  /// Optionally filters by [notificationTypes] (comma-separated).
+  Future<void> fetchNotifications({List<String>? notificationTypes}) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
+      final queryParams = <String, dynamic>{};
+      if (notificationTypes != null && notificationTypes.isNotEmpty) {
+        queryParams['types'] = notificationTypes.join(',');
+      }
+
       final result = await _api.get<Map<String, dynamic>>(
         ApiConstants.notifications,
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 
       final rawList = result['data'] as List<dynamic>? ?? [];
@@ -101,6 +109,48 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+  }
+
+  /// POST /api/trainer/clients/{clientId}/accept
+  ///
+  /// Accepts a client link request and removes the notification from the list.
+  Future<void> acceptLinkRequest(String clientId) async {
+    try {
+      await _api.post<Map<String, dynamic>>(
+        ApiConstants.trainerClientAccept(clientId),
+      );
+      _removeNotificationsForClient(clientId);
+    } catch (e) {
+      state = state.copyWith(error: _extractErrorMessage(e));
+    }
+  }
+
+  /// POST /api/trainer/clients/{clientId}/decline
+  ///
+  /// Declines a client link request and removes the notification from the list.
+  Future<void> declineLinkRequest(String clientId) async {
+    try {
+      await _api.post<Map<String, dynamic>>(
+        ApiConstants.trainerClientDecline(clientId),
+      );
+      _removeNotificationsForClient(clientId);
+    } catch (e) {
+      state = state.copyWith(error: _extractErrorMessage(e));
+    }
+  }
+
+  /// Removes all notifications for a given client from the local list.
+  void _removeNotificationsForClient(String clientId) {
+    final updated = state.notifications.where((n) {
+      final meta = n.metadata;
+      if (meta == null) return true;
+      return meta['client_id'] != clientId;
+    }).toList();
+
+    state = state.copyWith(
+      notifications: updated,
+      unreadCount: updated.where((n) => !n.readStatus).length,
+    );
   }
 
   /// Clears any error message.

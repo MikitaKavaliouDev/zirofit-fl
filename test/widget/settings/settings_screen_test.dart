@@ -147,8 +147,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap on KG option
-    await tester.tap(find.text('Kilograms (KG)'));
+    // Ensure the weight unit card is visible and tap it
+    final kgText = find.text('Kilograms (KG)');
+    await tester.ensureVisible(kgText);
+    await tester.pump();
+    await tester.tap(kgText);
     await tester.pumpAndSettle();
 
     expect(toggledUnit, 'KG');
@@ -172,8 +175,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap on LB option
-    await tester.tap(find.text('Pounds (LB)'));
+    // Ensure the weight unit card is visible and tap it
+    final lbText = find.text('Pounds (LB)');
+    await tester.ensureVisible(lbText);
+    await tester.pump();
+    await tester.tap(lbText);
     await tester.pumpAndSettle();
 
     expect(toggledUnit, 'LB');

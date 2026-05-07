@@ -93,19 +93,19 @@ void main() {
         stressLevel: 3,
         hungerLevel: 5,
         digestionLevel: 7,
-        nutritionCompliance: 'good',
+        nutritionCompliance: '85',
         clientNotes: 'Feeling great',
       );
 
       expect(capturedBody, isNotNull);
-      expect(capturedBody!['waist_cm'], 80.0);
-      expect(capturedBody!['sleep_hours'], 7.5);
-      expect(capturedBody!['energy_level'], 8);
-      expect(capturedBody!['stress_level'], 3);
-      expect(capturedBody!['hunger_level'], 5);
-      expect(capturedBody!['digestion_level'], 7);
-      expect(capturedBody!['nutrition_compliance'], 'good');
-      expect(capturedBody!['client_notes'], 'Feeling great');
+      expect(capturedBody!['waistCm'], 80.0);
+      expect(capturedBody!['sleepHours'], 7.5);
+      expect(capturedBody!['energyLevel'], 8);
+      expect(capturedBody!['stressLevel'], 3);
+      expect(capturedBody!['hungerLevel'], 5);
+      expect(capturedBody!['digestionLevel'], 7);
+      expect(capturedBody!['nutritionCompliance'], 85);
+      expect(capturedBody!['clientNotes'], 'Feeling great');
       expect(notifier.state.isSuccess, true);
     });
 

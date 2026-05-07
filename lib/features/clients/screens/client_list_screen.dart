@@ -74,7 +74,7 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showInviteDialog(context),
+        onPressed: () => context.push('/trainer/clients/invite'),
         child: const Icon(Icons.person_add),
       ),
     );
@@ -158,135 +158,6 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Invite Client Dialog
-  // ---------------------------------------------------------------------------
-
-  void _showInviteDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    var isSubmitting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                24,
-                24,
-                24 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Invite Client',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Name',
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Email is required';
-                        }
-                        if (!v.contains('@')) {
-                          return 'Enter a valid email';
-                        }
-                        return null;
-                      },
-                      textInputAction: TextInputAction.done,
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: isSubmitting
-                          ? null
-                          : () async {
-                              if (!formKey.currentState!.validate()) return;
-
-                              setSheetState(() => isSubmitting = true);
-
-                              final error = await ref
-                                  .read(clientListProvider.notifier)
-                                  .inviteClient(
-                                    name: nameController.text.trim(),
-                                    email: emailController.text.trim(),
-                                  );
-
-                              if (!context.mounted) return;
-
-                              if (error != null) {
-                                setSheetState(() => isSubmitting = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(error),
-                                    backgroundColor:
-                                        Theme.of(context).colorScheme.error,
-                                  ),
-                                );
-                              } else {
-                                Navigator.of(context).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                        Text('Invitation sent successfully!'),
-                                  ),
-                                );
-                              }
-                            },
-                      child: isSubmitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Send Invitation'),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
