@@ -1,4 +1,5 @@
 import 'package:zirofit_fl/core/utils/json_helpers.dart';
+import 'client_model.dart';
 
 class CheckIn {
   final String id;
@@ -19,6 +20,7 @@ class CheckIn {
   final String? reviewedByUserId;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final Client? client;
 
   const CheckIn({
     required this.id,
@@ -39,34 +41,29 @@ class CheckIn {
     this.reviewedByUserId,
     required this.createdAt,
     required this.updatedAt,
+    this.client,
   });
 
-  factory CheckIn.fromJson(Map<String, dynamic> json) =>
-      CheckIn(
-        id: json['id'] as String,
-        clientId: json['client_id'] as String,
-        date: dateTimeFromJson(json['date'] as int),
-        status: (json['status'] as String?) ?? 'SUBMITTED',
+  factory CheckIn.fromJson(Map<String, dynamic> json) => CheckIn(
+        id: readString(json, 'id', 'id'),
+        clientId: readString(json, 'client_id', 'clientId'),
+        date: readDateTime(json, 'date', 'date'),
+        status: readString(json, 'status', 'status'),
         weight: (json['weight'] as num?)?.toDouble(),
-        waistCm: (json['waist_cm'] as num?)?.toDouble(),
-        sleepHours:
-            (json['sleep_hours'] as num?)?.toDouble(),
-        energyLevel: json['energy_level'] as int?,
-        stressLevel: json['stress_level'] as int?,
-        hungerLevel: json['hunger_level'] as int?,
-        digestionLevel: json['digestion_level'] as int?,
-        nutritionCompliance:
-            json['nutrition_compliance'] as String?,
-        clientNotes: json['client_notes'] as String?,
-        trainerResponse: json['trainer_response'] as String?,
-        reviewedAt: dateTimeFromJsonOrNull(
-            json['reviewed_at'] as int?),
-        reviewedByUserId:
-            json['reviewed_by_user_id'] as String?,
-        createdAt:
-            dateTimeFromJson(json['created_at'] as int),
-        updatedAt:
-            dateTimeFromJson(json['updated_at'] as int),
+        waistCm: (json['waist_cm'] ?? json['waistCm'] as num?)?.toDouble(),
+        sleepHours: (json['sleep_hours'] ?? json['sleepHours'] as num?)?.toDouble(),
+        energyLevel: (json['energy_level'] ?? json['energyLevel']) as int?,
+        stressLevel: (json['stress_level'] ?? json['stressLevel']) as int?,
+        hungerLevel: (json['hunger_level'] ?? json['hungerLevel']) as int?,
+        digestionLevel: (json['digestion_level'] ?? json['digestionLevel']) as int?,
+        nutritionCompliance: readStringOrNull(json, 'nutrition_compliance', 'nutritionCompliance'),
+        clientNotes: readStringOrNull(json, 'client_notes', 'clientNotes'),
+        trainerResponse: readStringOrNull(json, 'trainer_response', 'trainerResponse'),
+        reviewedAt: readDateTimeOrNull(json, 'reviewed_at', 'reviewedAt'),
+        reviewedByUserId: readStringOrNull(json, 'reviewed_by_user_id', 'reviewedByUserId'),
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        client: json['client'] != null ? Client.fromJson(json['client'] as Map<String, dynamic>) : null,
       );
 
   Map<String, dynamic> toJson() => {

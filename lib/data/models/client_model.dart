@@ -46,32 +46,30 @@ class Client {
   });
 
   factory Client.fromJson(Map<String, dynamic> json) => Client(
-        id: json['id'] as String,
-        trainerId: json['trainer_id'] as String?,
-        userId: json['user_id'] as String?,
-        name: json['name'] as String,
-        email: json['email'] as String?,
-        phone: json['phone'] as String?,
-        avatarPath: json['avatar_path'] as String?,
-        status: (json['status'] as String?) ?? 'active',
-        dateOfBirth:
-            dateTimeFromJsonOrNull(json['date_of_birth'] as int?),
-        goals: json['goals'] as String?,
-        healthNotes: json['health_notes'] as String?,
+        id: readString(json, 'id', 'id'),
+        trainerId: readStringOrNull(json, 'trainer_id', 'trainerId'),
+        userId: readStringOrNull(json, 'user_id', 'userId'),
+        name: readString(json, 'name', 'name'),
+        email: readStringOrNull(json, 'email', 'email'),
+        phone: readStringOrNull(json, 'phone', 'phone'),
+        avatarPath: readStringOrNull(json, 'avatar_path', 'avatarPath'),
+        status: readString(json, 'status', 'status'),
+        dateOfBirth: readDateTimeOrNull(json, 'date_of_birth', 'dateOfBirth'),
+        goals: readStringOrNull(json, 'goals', 'goals'),
+        healthNotes: readStringOrNull(json, 'health_notes', 'healthNotes'),
         emergencyContactName:
-            json['emergency_contact_name'] as String?,
+            readStringOrNull(json, 'emergency_contact_name', 'emergencyContactName'),
         emergencyContactPhone:
-            json['emergency_contact_phone'] as String?,
-        checkInDay: json['check_in_day'] as int?,
-        checkInHour: json['check_in_hour'] as int?,
-        dataSharingExpiresAt: dateTimeFromJsonOrNull(
-            json['data_sharing_expires_at'] as int?),
-        sharingSettings:
-            json['sharing_settings'] as Map<String, dynamic>?,
-        createdAt: dateTimeFromJson(json['created_at'] as int),
-        updatedAt: dateTimeFromJson(json['updated_at'] as int),
-        deletedAt:
-            dateTimeFromJsonOrNull(json['deleted_at'] as int?),
+            readStringOrNull(json, 'emergency_contact_phone', 'emergencyContactPhone'),
+        checkInDay: readIntOrNull(json, 'check_in_day', 'checkInDay'),
+        checkInHour: readIntOrNull(json, 'check_in_hour', 'checkInHour'),
+        dataSharingExpiresAt:
+            readDateTimeOrNull(json, 'data_sharing_expires_at', 'dataSharingExpiresAt'),
+        sharingSettings: (json['sharing_settings'] ?? json['sharingSettings'])
+            as Map<String, dynamic>?,
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
       );
 
   Map<String, dynamic> toJson() => {

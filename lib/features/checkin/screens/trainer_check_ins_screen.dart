@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:zirofit_fl/data/models/check_in.dart';
 import 'package:zirofit_fl/features/checkin/providers/trainer_check_ins_provider.dart';
+import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -53,11 +54,42 @@ class _TrainerCheckInsScreenState
     }
 
     if (state.error != null && state.checkIns.isEmpty) {
-      return _buildErrorState(theme, state.error!);
+      return ZiroErrorView(
+        error: state.error!,
+        onRetry: () =>
+            ref.read(trainerCheckInsProvider.notifier).fetchCheckIns(),
+      );
     }
 
     if (state.checkIns.isEmpty) {
-      return _buildEmptyState(theme);
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.task_alt,
+                size: 64,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No check-ins yet',
+                style: theme.textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Check-ins from your clients will appear here',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return RefreshIndicator(
@@ -71,14 +103,14 @@ class _TrainerCheckInsScreenState
             _buildSectionHeader(theme, 'Pending Review',
                 count: state.pendingCheckIns.length,
                 color: Colors.orange),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             ...state.pendingCheckIns.map(
               (ci) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: _CheckInCard(checkIn: ci),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
           ],
 
           // Reviewed check-ins
@@ -86,10 +118,10 @@ class _TrainerCheckInsScreenState
             _buildSectionHeader(theme, 'Reviewed',
                 count: state.reviewedCheckIns.length,
                 color: Colors.green),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             ...state.reviewedCheckIns.map(
               (ci) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: _CheckInCard(checkIn: ci),
               ),
             ),
@@ -144,66 +176,6 @@ class _TrainerCheckInsScreenState
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.task_alt,
-              size: 64,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No check-ins yet',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Check-ins from your clients will appear here',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState(ThemeData theme, String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text('Something went wrong',
-                style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(error,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () =>
-                  ref.read(trainerCheckInsProvider.notifier).fetchCheckIns(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,23 +224,17 @@ class _CheckInCardState extends ConsumerState<_CheckInCard> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Status indicator
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isPending
-                          ? Colors.orange.withValues(alpha: 0.15)
-                          : Colors.green.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      isPending
-                          ? Icons.pending_outlined
-                          : Icons.check_circle_outline,
-                      color: isPending ? Colors.orange : Colors.green,
-                      size: 22,
-                    ),
+                  // Client avatar
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    backgroundImage: ci.client?.avatarPath != null
+                        ? NetworkImage(ci.client!.avatarPath!)
+                        : null,
+                    child: ci.client?.avatarPath == null
+                        ? Icon(Icons.person,
+                            color: theme.colorScheme.onSurfaceVariant)
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   // Info
@@ -277,24 +243,21 @@ class _CheckInCardState extends ConsumerState<_CheckInCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Check-in ${dateFormat.format(ci.date)}',
+                          ci.client?.name ?? 'Client Check-In',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Row(
                           children: [
-                            if (ci.weight != null) ...[
-                              Text(
-                                '${ci.weight!.toStringAsFixed(1)} kg',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: theme.colorScheme.primary,
-                                ),
+                            Text(
+                              dateFormat.format(ci.date),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
-                              const SizedBox(width: 8),
-                            ],
+                            ),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
