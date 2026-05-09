@@ -24,8 +24,8 @@ class User {
   final bool stripeCancelAtPeriodEnd;
   final DateTime? stripeCurrentPeriodEnd;
   final DateTime? stripeCancelAt;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const User({
     required this.id,
@@ -49,8 +49,8 @@ class User {
     this.stripeCancelAtPeriodEnd = false,
     this.stripeCurrentPeriodEnd,
     this.stripeCancelAt,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -91,8 +91,8 @@ class User {
             json, 'stripe_current_period_end', 'stripeCurrentPeriodEnd'),
         stripeCancelAt:
             readDateTimeOrNull(json, 'stripe_cancel_at', 'stripeCancelAt'),
-        createdAt: readDateTime(json, 'created_at', 'createdAt'),
-        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        createdAt: readDateTimeOrNull(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTimeOrNull(json, 'updated_at', 'updatedAt'),
       );
 
   Map<String, dynamic> toJson() => {

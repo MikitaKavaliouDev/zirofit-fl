@@ -105,10 +105,10 @@ class TrainerMapScreen extends ConsumerWidget {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundImage: trainer.profilePhotoPath != null
+                            backgroundImage: trainer.profilePhotoPath != null && trainer.profilePhotoPath!.isNotEmpty
                                 ? NetworkImage(trainer.profilePhotoPath!)
                                 : null,
-                            child: trainer.profilePhotoPath == null
+                            child: trainer.profilePhotoPath == null || trainer.profilePhotoPath!.isEmpty
                                 ? const Icon(Icons.person)
                                 : null,
                           ),

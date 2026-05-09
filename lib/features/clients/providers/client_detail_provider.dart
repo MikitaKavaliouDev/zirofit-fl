@@ -105,7 +105,11 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
       );
 
       final rawData = response['data'];
-      if (rawData is Map<String, dynamic>) {
+      if (rawData is Map<String, dynamic> && rawData.containsKey('client')) {
+        final client = Client.fromJson(rawData['client'] as Map<String, dynamic>);
+        state = state.copyWith(client: client, isLoadingClient: false);
+      } else if (rawData is Map<String, dynamic> && rawData.containsKey('id')) {
+        // Fallback for flat response
         final client = Client.fromJson(rawData);
         state = state.copyWith(client: client, isLoadingClient: false);
       } else {
@@ -132,8 +136,11 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
         '${ApiConstants.clients}/$clientId/measurements',
       );
 
+      final data = response['data'];
+      final rawList = data is Map ? data['measurements'] : data;
+
       final measurements = _parseList<ClientMeasurement>(
-        response['data'],
+        rawList,
         ClientMeasurement.fromJson,
       );
 
@@ -185,8 +192,11 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
         '${ApiConstants.clients}/$clientId/photos',
       );
 
+      final data = response['data'];
+      final rawList = data is Map ? data['photos'] : data;
+
       final photos = _parseList<ClientProgressPhoto>(
-        response['data'],
+        rawList,
         ClientProgressPhoto.fromJson,
       );
 
@@ -235,8 +245,11 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
         '${ApiConstants.clients}/$clientId/sessions',
       );
 
+      final data = response['data'];
+      final rawList = data is Map ? data['sessions'] : data;
+
       final sessions = _parseList<WorkoutSession>(
-        response['data'],
+        rawList,
         WorkoutSession.fromJson,
       );
 

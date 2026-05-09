@@ -192,10 +192,10 @@ class _TrainerDiscoveryScreenState extends ConsumerState<TrainerDiscoveryScreen>
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundImage: profile.profilePhotoPath != null
+                backgroundImage: profile.profilePhotoPath != null && profile.profilePhotoPath!.isNotEmpty
                     ? NetworkImage(profile.profilePhotoPath!)
                     : null,
-                child: profile.profilePhotoPath == null
+                child: profile.profilePhotoPath == null || profile.profilePhotoPath!.isEmpty
                     ? const Icon(Icons.person)
                     : null,
               ),

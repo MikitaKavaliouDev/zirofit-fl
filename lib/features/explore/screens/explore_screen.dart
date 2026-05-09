@@ -243,10 +243,10 @@ class _NearbyTrainerCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundImage: trainer.profilePhotoPath != null
+              backgroundImage: trainer.profilePhotoPath != null && trainer.profilePhotoPath!.isNotEmpty
                   ? NetworkImage(trainer.profilePhotoPath!)
                   : null,
-              child: trainer.profilePhotoPath == null
+              child: trainer.profilePhotoPath == null || trainer.profilePhotoPath!.isEmpty
                   ? const Icon(Icons.person)
                   : null,
             ),

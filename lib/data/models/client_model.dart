@@ -18,8 +18,10 @@ class Client {
   final int? checkInHour;
   final DateTime? dataSharingExpiresAt;
   final Map<String, dynamic>? sharingSettings;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? lastWorkoutDate;
+  final String? engagementScore;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   final DateTime? deletedAt;
 
   const Client({
@@ -40,8 +42,10 @@ class Client {
     this.checkInHour,
     this.dataSharingExpiresAt,
     this.sharingSettings,
-    required this.createdAt,
-    required this.updatedAt,
+    this.lastWorkoutDate,
+    this.engagementScore,
+    this.createdAt,
+    this.updatedAt,
     this.deletedAt,
   });
 
@@ -52,23 +56,28 @@ class Client {
         name: readString(json, 'name', 'name'),
         email: readStringOrNull(json, 'email', 'email'),
         phone: readStringOrNull(json, 'phone', 'phone'),
-        avatarPath: readStringOrNull(json, 'avatar_path', 'avatarPath'),
+        avatarPath: readStringOrNull(json, 'avatar_path', 'avatarPath') ??
+            readStringOrNull(json, 'avatar_url', 'avatarUrl'),
         status: readString(json, 'status', 'status'),
         dateOfBirth: readDateTimeOrNull(json, 'date_of_birth', 'dateOfBirth'),
         goals: readStringOrNull(json, 'goals', 'goals'),
         healthNotes: readStringOrNull(json, 'health_notes', 'healthNotes'),
-        emergencyContactName:
-            readStringOrNull(json, 'emergency_contact_name', 'emergencyContactName'),
-        emergencyContactPhone:
-            readStringOrNull(json, 'emergency_contact_phone', 'emergencyContactPhone'),
+        emergencyContactName: readStringOrNull(
+            json, 'emergency_contact_name', 'emergencyContactName'),
+        emergencyContactPhone: readStringOrNull(
+            json, 'emergency_contact_phone', 'emergencyContactPhone'),
         checkInDay: readIntOrNull(json, 'check_in_day', 'checkInDay'),
         checkInHour: readIntOrNull(json, 'check_in_hour', 'checkInHour'),
-        dataSharingExpiresAt:
-            readDateTimeOrNull(json, 'data_sharing_expires_at', 'dataSharingExpiresAt'),
+        dataSharingExpiresAt: readDateTimeOrNull(
+            json, 'data_sharing_expires_at', 'dataSharingExpiresAt'),
         sharingSettings: (json['sharing_settings'] ?? json['sharingSettings'])
             as Map<String, dynamic>?,
-        createdAt: readDateTime(json, 'created_at', 'createdAt'),
-        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        lastWorkoutDate:
+            readDateTimeOrNull(json, 'last_workout_date', 'lastWorkoutDate'),
+        engagementScore:
+            readStringOrNull(json, 'engagement_score', 'engagementScore'),
+        createdAt: readDateTimeOrNull(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTimeOrNull(json, 'updated_at', 'updatedAt'),
         deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
       );
 
@@ -82,8 +91,7 @@ class Client {
         'avatar_path': avatarPath,
         'status': status,
         'date_of_birth': dateOfBirth != null
-            ? DateTime(dateOfBirth!.year, dateOfBirth!.month,
-                    dateOfBirth!.day)
+            ? DateTime(dateOfBirth!.year, dateOfBirth!.month, dateOfBirth!.day)
                 .millisecondsSinceEpoch
             : null,
         'goals': goals,
@@ -92,9 +100,10 @@ class Client {
         'emergency_contact_phone': emergencyContactPhone,
         'check_in_day': checkInDay,
         'check_in_hour': checkInHour,
-        'data_sharing_expires_at':
-            dateTimeToJson(dataSharingExpiresAt),
+        'data_sharing_expires_at': dateTimeToJson(dataSharingExpiresAt),
         'sharing_settings': sharingSettings,
+        'last_workout_date': dateTimeToJson(lastWorkoutDate),
+        'engagement_score': engagementScore,
         'created_at': dateTimeToJson(createdAt),
         'updated_at': dateTimeToJson(updatedAt),
         'deleted_at': dateTimeToJson(deletedAt),
@@ -112,6 +121,8 @@ class Client {
       'checkInDay: $checkInDay, checkInHour: $checkInHour, '
       'dataSharingExpiresAt: $dataSharingExpiresAt, '
       'sharingSettings: $sharingSettings, '
+      'lastWorkoutDate: $lastWorkoutDate, '
+      'engagementScore: $engagementScore, '
       'createdAt: $createdAt, updatedAt: $updatedAt, '
       'deletedAt: $deletedAt)';
 
@@ -136,12 +147,14 @@ class Client {
           checkInHour == other.checkInHour &&
           dataSharingExpiresAt == other.dataSharingExpiresAt &&
           sharingSettings == other.sharingSettings &&
+          lastWorkoutDate == other.lastWorkoutDate &&
+          engagementScore == other.engagementScore &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
           deletedAt == other.deletedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         trainerId,
         userId,
@@ -159,8 +172,10 @@ class Client {
         checkInHour,
         dataSharingExpiresAt,
         sharingSettings,
+        lastWorkoutDate,
+        engagementScore,
         createdAt,
         updatedAt,
         deletedAt,
-      );
+      ]);
 }

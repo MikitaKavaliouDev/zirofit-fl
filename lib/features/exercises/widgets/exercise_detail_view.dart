@@ -60,7 +60,7 @@ class ExerciseDetailView extends StatelessWidget {
                 const BorderRadius.vertical(top: Radius.circular(20)),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: thumbnailUrl != null
+              child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: thumbnailUrl,
                       fit: BoxFit.cover,

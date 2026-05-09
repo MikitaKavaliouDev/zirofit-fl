@@ -87,10 +87,10 @@ class _FeaturedTrainerCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 36,
-              backgroundImage: trainer.profilePhotoPath != null
+              backgroundImage: trainer.profilePhotoPath != null && trainer.profilePhotoPath!.isNotEmpty
                   ? NetworkImage(trainer.profilePhotoPath!)
                   : null,
-              child: trainer.profilePhotoPath == null
+              child: trainer.profilePhotoPath == null || trainer.profilePhotoPath!.isEmpty
                   ? const Icon(Icons.person, size: 32)
                   : null,
             ),

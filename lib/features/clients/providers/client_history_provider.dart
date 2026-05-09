@@ -233,8 +233,10 @@ class ClientHistoryNotifier extends StateNotifier<ClientHistoryState> {
 
   List<SessionHistoryData> _parseResponse(dynamic response) {
     final data = response['data'];
-    if (data is List) {
-      return data
+    final rawList = data is Map ? data['sessions'] : data;
+
+    if (rawList is List) {
+      return rawList
           .map((e) => SessionHistoryData.fromJson(e as Map<String, dynamic>))
           .toList();
     }

@@ -326,10 +326,10 @@ class _PublicTrainerProfileScreenState
         children: [
           CircleAvatar(
             radius: 60,
-            backgroundImage: trainer.profilePhotoPath != null
+            backgroundImage: trainer.profilePhotoPath != null && trainer.profilePhotoPath!.isNotEmpty
                 ? NetworkImage(trainer.profilePhotoPath!)
                 : null,
-            child: trainer.profilePhotoPath == null
+            child: trainer.profilePhotoPath == null || trainer.profilePhotoPath!.isEmpty
                 ? const Icon(Icons.person, size: 60)
                 : null,
           ),

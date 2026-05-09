@@ -33,10 +33,10 @@ class TrainerSearchCard extends StatelessWidget {
               // Avatar
               CircleAvatar(
                 radius: 32,
-                backgroundImage: trainer.avatarUrl != null
+                backgroundImage: trainer.avatarUrl != null && trainer.avatarUrl!.isNotEmpty
                     ? NetworkImage(trainer.avatarUrl!)
                     : null,
-                child: trainer.avatarUrl == null
+                child: trainer.avatarUrl == null || trainer.avatarUrl!.isEmpty
                     ? const Icon(Icons.person, size: 32)
                     : null,
               ),

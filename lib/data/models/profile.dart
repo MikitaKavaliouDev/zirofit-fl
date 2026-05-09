@@ -27,8 +27,8 @@ class Profile {
   final String? locationNormalized;
   final double? latitude;
   final double? longitude;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   final DateTime? deletedAt;
 
   const Profile({
@@ -57,8 +57,8 @@ class Profile {
     this.locationNormalized,
     this.latitude,
     this.longitude,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     this.deletedAt,
   });
 
@@ -104,8 +104,8 @@ class Profile {
             json, 'location_normalized', 'locationNormalized'),
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
-        createdAt: readDateTime(json, 'created_at', 'createdAt'),
-        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        createdAt: readDateTimeOrNull(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTimeOrNull(json, 'updated_at', 'updatedAt'),
         deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
       );
 

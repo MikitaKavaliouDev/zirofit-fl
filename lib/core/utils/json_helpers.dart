@@ -44,7 +44,7 @@ String? readStringOrNull(
   String camelKey,
 ) {
   final value = json[snakeKey] ?? json[camelKey];
-  if (value is String) return value;
+  if (value is String) return value.isEmpty ? null : value;
   return null;
 }
 

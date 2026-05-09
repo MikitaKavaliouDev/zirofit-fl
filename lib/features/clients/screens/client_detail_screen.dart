@@ -185,10 +185,10 @@ class _ClientHeader extends StatelessWidget {
           CircleAvatar(
             radius: 36,
             backgroundColor: theme.colorScheme.primaryContainer,
-            backgroundImage: client.avatarPath != null
+            backgroundImage: client.avatarPath != null && client.avatarPath!.isNotEmpty
                 ? NetworkImage(client.avatarPath!)
                 : null,
-            child: client.avatarPath == null
+            child: client.avatarPath == null || client.avatarPath!.isEmpty
                 ? Text(
                     _initials(client.name),
                     style: TextStyle(

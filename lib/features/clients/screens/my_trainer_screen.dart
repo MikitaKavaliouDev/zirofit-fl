@@ -201,9 +201,10 @@ class _MyTrainerScreenState extends ConsumerState<MyTrainerScreen> {
             CircleAvatar(
               radius: 48,
               backgroundColor: theme.colorScheme.primaryContainer,
-              backgroundImage:
-                  photoPath != null ? NetworkImage(photoPath) : null,
-              child: photoPath == null
+              backgroundImage: photoPath != null && photoPath.isNotEmpty
+                  ? NetworkImage(photoPath)
+                  : null,
+              child: photoPath == null || photoPath.isEmpty
                   ? Text(
                       _initials(name),
                       style: TextStyle(

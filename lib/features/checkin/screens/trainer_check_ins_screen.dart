@@ -228,10 +228,10 @@ class _CheckInCardState extends ConsumerState<_CheckInCard> {
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    backgroundImage: ci.client?.avatarPath != null
+                    backgroundImage: ci.client?.avatarPath != null && ci.client!.avatarPath!.isNotEmpty
                         ? NetworkImage(ci.client!.avatarPath!)
                         : null,
-                    child: ci.client?.avatarPath == null
+                    child: ci.client?.avatarPath == null || ci.client!.avatarPath!.isEmpty
                         ? Icon(Icons.person,
                             color: theme.colorScheme.onSurfaceVariant)
                         : null,

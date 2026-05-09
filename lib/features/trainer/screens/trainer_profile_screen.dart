@@ -320,7 +320,7 @@ class _BrandingHeader extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // Banner image or placeholder
-              if (bannerUrl != null)
+              if (bannerUrl != null && bannerUrl!.isNotEmpty)
                 Image.network(
                   bannerUrl!,
                   fit: BoxFit.cover,
@@ -391,10 +391,10 @@ class _BrandingHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 50,
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                backgroundImage: avatarUrl != null
+                backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
                     ? NetworkImage(avatarUrl!)
                     : null,
-                child: avatarUrl == null
+                child: avatarUrl == null || avatarUrl!.isEmpty
                     ? Icon(
                         Icons.person,
                         size: 50,

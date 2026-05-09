@@ -210,7 +210,7 @@ class _ThumbnailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (url == null) return _buildFallback(context);
+    if (url == null || url!.isEmpty) return _buildFallback(context);
 
     return CachedNetworkImage(
       imageUrl: url!,

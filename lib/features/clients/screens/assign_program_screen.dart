@@ -234,8 +234,8 @@ class _ClientInfoHeader extends StatelessWidget {
             radius: 24,
             backgroundColor: theme.colorScheme.primaryContainer,
             backgroundImage:
-                avatarPath != null ? NetworkImage(avatarPath!) : null,
-            child: avatarPath == null
+                avatarPath != null && avatarPath!.isNotEmpty ? NetworkImage(avatarPath!) : null,
+            child: avatarPath == null || avatarPath!.isEmpty
                 ? Text(
                     _initials(name),
                     style: TextStyle(

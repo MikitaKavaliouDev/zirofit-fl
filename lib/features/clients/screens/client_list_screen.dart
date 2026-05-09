@@ -183,10 +183,10 @@ class _ClientListTile extends StatelessWidget {
       leading: CircleAvatar(
         radius: 24,
         backgroundColor: theme.colorScheme.primaryContainer,
-        backgroundImage: client.avatarPath != null
+        backgroundImage: client.avatarPath != null && client.avatarPath!.isNotEmpty
             ? NetworkImage(client.avatarPath!)
             : null,
-        child: client.avatarPath == null
+        child: client.avatarPath == null || client.avatarPath!.isEmpty
             ? Text(
                 _initials(client.name),
                 style: TextStyle(
