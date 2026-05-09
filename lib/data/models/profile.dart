@@ -63,46 +63,50 @@ class Profile {
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
-        id: json['id'] as String,
-        userId: json['user_id'] as String,
-        certifications: json['certifications'] as String?,
-        phone: json['phone'] as String?,
-        aboutMe: json['about_me'] as String?,
-        philosophy: json['philosophy'] as String?,
-        methodology: json['methodology'] as String?,
-        branding: json['branding'] as String?,
-        bannerImagePath: json['banner_image_path'] as String?,
-        customDomain: json['custom_domain'] as String?,
-        domainVerified: (json['domain_verified'] as bool?) ?? false,
-        profilePhotoPath: json['profile_photo_path'] as String?,
-        specialties: (json['specialties'] as List<dynamic>?)
-                ?.cast<String>() ??
+        id: readString(json, 'id', 'id'),
+        userId: readString(json, 'user_id', 'userId'),
+        certifications: readStringOrNull(json, 'certifications', 'certifications'),
+        phone: readStringOrNull(json, 'phone', 'phone'),
+        aboutMe: readStringOrNull(json, 'about_me', 'aboutMe'),
+        philosophy: readStringOrNull(json, 'philosophy', 'philosophy'),
+        methodology: readStringOrNull(json, 'methodology', 'methodology'),
+        branding: readStringOrNull(json, 'branding', 'branding'),
+        bannerImagePath:
+            readStringOrNull(json, 'banner_image_path', 'bannerImagePath'),
+        customDomain: readStringOrNull(json, 'custom_domain', 'customDomain'),
+        domainVerified: readBool(json, 'domain_verified', 'domainVerified'),
+        profilePhotoPath:
+            readStringOrNull(json, 'profile_photo_path', 'profilePhotoPath'),
+        specialties: (json['specialties'] as List<dynamic>?)?.cast<String>() ??
             const [],
-        trainingTypes: (json['training_types'] as List<dynamic>?)
+        trainingTypes: (json['training_types'] ?? json['trainingTypes'] as List<dynamic>?)
                 ?.map((e) => TrainingType.fromJson(e as String))
                 .toList() ??
             const [],
         businessCurrency:
-            (json['business_currency'] as String?) ?? 'PLN',
-        averageRating:
-            (json['average_rating'] as num?)?.toDouble(),
+            readStringOrNull(json, 'business_currency', 'businessCurrency') ??
+                'PLN',
+        averageRating: (json['average_rating'] ?? json['averageRating'] as num?)
+            ?.toDouble(),
         completionPercentage:
-            (json['completion_percentage'] as int?) ?? 0,
-        missingFields:
-            json['missing_fields'] as List<dynamic>?,
-        isVerified: (json['is_verified'] as bool?) ?? false,
-        availability:
-            json['availability'] as Map<String, dynamic>?,
+            (json['completion_percentage'] ?? json['completionPercentage'] as int?) ??
+                0,
+        missingFields: json['missing_fields'] ?? json['missingFields']
+            as List<dynamic>?,
+        isVerified: readBool(json, 'is_verified', 'isVerified'),
+        availability: (json['availability'] ?? json['availability'])
+            as Map<String, dynamic>?,
         minServicePrice:
-            (json['min_service_price'] as num?)?.toDouble(),
-        location: json['location'] as String?,
-        locationNormalized: json['location_normalized'] as String?,
+            (json['min_service_price'] ?? json['minServicePrice'] as num?)
+                ?.toDouble(),
+        location: readStringOrNull(json, 'location', 'location'),
+        locationNormalized: readStringOrNull(
+            json, 'location_normalized', 'locationNormalized'),
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
-        createdAt: dateTimeFromJson(json['created_at'] as int),
-        updatedAt: dateTimeFromJson(json['updated_at'] as int),
-        deletedAt:
-            dateTimeFromJsonOrNull(json['deleted_at'] as int?),
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
       );
 
   Map<String, dynamic> toJson() => {

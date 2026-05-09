@@ -54,38 +54,45 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        email: json['email'] as String,
-        username: json['username'] as String?,
-        role: json['role'] as String,
+        id: readString(json, 'id', 'id'),
+        name: readString(json, 'name', 'name'),
+        email: readString(json, 'email', 'email'),
+        username: readStringOrNull(json, 'username', 'username'),
+        role: readString(json, 'role', 'role'),
         emailVerifiedAt:
-            dateTimeFromJsonOrNull(json['email_verified_at'] as int?),
-        defaultCheckInDay: (json['default_check_in_day'] as int?) ?? 0,
-        defaultCheckInHour: (json['default_check_in_hour'] as int?) ?? 9,
-        tier: UserTier.fromJson(json['tier'] as String? ?? 'STARTER'),
-        subscriptionStatus: json['subscription_status'] as String?,
-        trialEndsAt: dateTimeFromJsonOrNull(json['trial_ends_at'] as int?),
+            readDateTimeOrNull(json, 'email_verified_at', 'emailVerifiedAt'),
+        defaultCheckInDay: (json['default_check_in_day'] ??
+            json['defaultCheckInDay'] as int?) ?? 0,
+        defaultCheckInHour: (json['default_check_in_hour'] ??
+            json['defaultCheckInHour'] as int?) ?? 9,
+        tier: UserTier.fromJson(
+            readStringOrNull(json, 'tier', 'tier') ?? 'STARTER'),
+        subscriptionStatus:
+            readStringOrNull(json, 'subscription_status', 'subscriptionStatus'),
+        trialEndsAt: readDateTimeOrNull(json, 'trial_ends_at', 'trialEndsAt'),
         hasCompletedOnboarding:
-            (json['has_completed_onboarding'] as bool?) ?? false,
-        stripeCustomerId: json['stripe_customer_id'] as String?,
-        stripeSubscriptionId: json['stripe_subscription_id'] as String?,
-        stripeSubscriptionStatus:
-            json['stripe_subscription_status'] as String?,
-        stripeConnectAccountId: json['stripe_connect_account_id'] as String?,
-        weightUnit:
-            WeightUnit.fromJson(json['weight_unit'] as String? ?? 'KG'),
-        pushTokens: (json['push_tokens'] as List<dynamic>?)
+            readBool(json, 'has_completed_onboarding', 'hasCompletedOnboarding'),
+        stripeCustomerId:
+            readStringOrNull(json, 'stripe_customer_id', 'stripeCustomerId'),
+        stripeSubscriptionId: readStringOrNull(
+            json, 'stripe_subscription_id', 'stripeSubscriptionId'),
+        stripeSubscriptionStatus: readStringOrNull(
+            json, 'stripe_subscription_status', 'stripeSubscriptionStatus'),
+        stripeConnectAccountId: readStringOrNull(
+            json, 'stripe_connect_account_id', 'stripeConnectAccountId'),
+        weightUnit: WeightUnit.fromJson(
+            readStringOrNull(json, 'weight_unit', 'weightUnit') ?? 'KG'),
+        pushTokens: (json['push_tokens'] ?? json['pushTokens'] as List<dynamic>?)
                 ?.cast<String>() ??
             const [],
-        stripeCancelAtPeriodEnd:
-            (json['stripe_cancel_at_period_end'] as bool?) ?? false,
-        stripeCurrentPeriodEnd: dateTimeFromJsonOrNull(
-            json['stripe_current_period_end'] as int?),
+        stripeCancelAtPeriodEnd: readBool(
+            json, 'stripe_cancel_at_period_end', 'stripeCancelAtPeriodEnd'),
+        stripeCurrentPeriodEnd: readDateTimeOrNull(
+            json, 'stripe_current_period_end', 'stripeCurrentPeriodEnd'),
         stripeCancelAt:
-            dateTimeFromJsonOrNull(json['stripe_cancel_at'] as int?),
-        createdAt: dateTimeFromJson(json['created_at'] as int),
-        updatedAt: dateTimeFromJson(json['updated_at'] as int),
+            readDateTimeOrNull(json, 'stripe_cancel_at', 'stripeCancelAt'),
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
       );
 
   Map<String, dynamic> toJson() => {

@@ -81,10 +81,24 @@ class TrainerProfileNotifier extends StateNotifier<TrainerProfileState> {
 
     try {
       // Fetch profile
-      final profileResponse = await _apiClient.get(
+      final profileResult = await _apiClient.get<Map<String, dynamic>>(
         ApiConstants.profileMe,
-        fromJson: (json) => Profile.fromJson(json),
       );
+
+      final profileData = profileResult['data'] as Map<String, dynamic>?;
+      User? user;
+      Profile? profile;
+
+      if (profileData != null) {
+        final userJson = profileData['profile'] as Map<String, dynamic>?;
+        if (userJson != null) {
+          user = User.fromJson(userJson);
+          final trainerProfileJson = userJson['profile'] as Map<String, dynamic>?;
+          if (trainerProfileJson != null) {
+            profile = Profile.fromJson(trainerProfileJson);
+          }
+        }
+      }
 
       // Fetch services
       final servicesResponse = await _apiClient.get(
@@ -123,7 +137,8 @@ class TrainerProfileNotifier extends StateNotifier<TrainerProfileState> {
       );
 
       state = state.copyWith(
-        profile: profileResponse,
+        profile: profile,
+        user: user,
         services: servicesResponse,
         packages: packagesResponse,
         testimonials: testimonialsResponse,
