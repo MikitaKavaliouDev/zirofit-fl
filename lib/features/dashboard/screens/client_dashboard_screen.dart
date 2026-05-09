@@ -14,6 +14,7 @@ import 'package:zirofit_fl/features/workout/providers/workout_history_provider.d
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
+import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
 
 /// SharedPreferences key for the educational overlay.
 const _kEducationOverlayKey = 'dashboard_education_seen';
@@ -37,7 +38,8 @@ class _ClientDashboardScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(clientDashboardProvider.notifier).fetchDashboard();
+      // Note: clientDashboardProvider auto-fetches via AsyncNotifier
+      // Only need to fetch other providers that don't use AsyncValue pattern yet
       ref.read(clientProgramsProvider.notifier).fetchPrograms();
       ref.read(dailyTargetProvider.notifier).loadTargets(DateTime.now());
       ref.read(workoutHistoryProvider.notifier).fetchHistory();
@@ -78,8 +80,9 @@ class _ClientDashboardScreenState
         children: [
           RefreshIndicator(
             onRefresh: () async {
+              // Invalidate triggers refetch for AsyncNotifier providers
+              ref.invalidate(clientDashboardProvider);
               await Future.wait([
-                ref.read(clientDashboardProvider.notifier).refresh(),
                 ref.read(clientProgramsProvider.notifier).fetchPrograms(),
                 ref.read(workoutHistoryProvider.notifier).refresh(),
               ]);
@@ -106,24 +109,33 @@ class _ClientDashboardScreenState
   Widget _buildBody(
     ThemeData theme,
     AuthState authState,
-    ClientDashboardState dashboardState,
+    AsyncValue<ClientDashboardData> dashboardState,
     ClientProgramsState programsState,
     DailyTargetState dailyTargetState,
     WorkoutHistoryState historyState,
   ) {
-    if (dashboardState.isLoading && dashboardState.data == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return ZiroDataView<ClientDashboardData>(
+      state: dashboardState,
+      onRetry: () => ref.invalidate(clientDashboardProvider),
+      dataBuilder: (data) => _buildDashboardContent(
+        theme,
+        authState,
+        data,
+        programsState,
+        dailyTargetState,
+        historyState,
+      ),
+    );
+  }
 
-    if (dashboardState.hasError && dashboardState.data == null) {
-      return _buildErrorState(theme, dashboardState.error!);
-    }
-
-    final data = dashboardState.data;
-    if (data == null) {
-      return const Center(child: Text('No data available'));
-    }
-
+  Widget _buildDashboardContent(
+    ThemeData theme,
+    AuthState authState,
+    ClientDashboardData data,
+    ClientProgramsState programsState,
+    DailyTargetState dailyTargetState,
+    WorkoutHistoryState historyState,
+  ) {
     return CustomScrollView(
       slivers: [
         // App Bar
@@ -1083,45 +1095,6 @@ class _ClientDashboardScreenState
   // ---------------------------------------------------------------------------
   // Shared helpers
   // ---------------------------------------------------------------------------
-
-  Widget _buildErrorState(ThemeData theme, String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Something went wrong',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () {
-                ref.read(clientDashboardProvider.notifier).refresh();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSectionHeader(ThemeData theme, String title) {
     return Text(

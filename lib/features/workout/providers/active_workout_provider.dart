@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
@@ -102,7 +103,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         restSeconds: 90, // default rest timer
         exerciseNames: const {},
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('WORKOUT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -129,7 +132,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         exerciseNames: const {},
         clientName: clientName,
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('WORKOUT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -143,6 +148,13 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
 
     try {
       final result = await _remoteSource.getActiveSession();
+
+      // No active session - stay idle
+      if (result == null) {
+        state = const ActiveWorkoutState();
+        return;
+      }
+
       state = ActiveWorkoutState(
         session: result.session,
         logs: result.logs,
@@ -156,8 +168,11 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       if (result.session.restStartedAt != null) {
         _startRestTimer();
       }
-    } catch (e) {
+    } catch (e, st) {
       // If there's no active session, that's fine — just stay idle.
+      // But we still want to log the error if it's NOT a 404/Empty session.
+      debugPrint('LOAD_ACTIVE_SESSION_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = const ActiveWorkoutState();
     }
   }
@@ -182,7 +197,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         isLoading: false,
         logs: [...state.logs, log],
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('WORKOUT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -235,7 +252,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       final finishedSession = await _remoteSource.finishWorkout(sessionId);
       state = const ActiveWorkoutState();
       return finishedSession;
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('WORKOUT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -259,7 +278,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       _restTimer?.cancel();
       await _remoteSource.cancelWorkout(sessionId);
       state = const ActiveWorkoutState();
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('WORKOUT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -284,7 +305,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         isRestRunning: true,
       );
       _startRestTimer();
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('REST_TIMER_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(error: e.toString());
     }
   }
@@ -302,7 +325,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         restSeconds: 0,
         isRestRunning: false,
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('REST_TIMER_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(error: e.toString());
     }
   }

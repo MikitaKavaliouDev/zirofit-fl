@@ -50,18 +50,19 @@ class ApiConstants {
       '/workout-sessions/$id/rest/start';
   static String workoutRestEnd(String id) => '/workout-sessions/$id/rest/end';
   static String workoutCancel(String id) => '/workout-sessions/$id/cancel';
+  // TODO: endpoint not yet implemented in backend (zirofit-next)
   static String workoutBulkLog(String id) => '/workout-sessions/$id/bulk-log';
   static String workoutExercises(String id) => '/workout-sessions/$id/exercises';
   static String workoutExerciseLog(String sessionId, String logId) =>
       '/workout-sessions/$sessionId/exercises/$logId';
   static String workoutSummary(String id) => '/workout-sessions/$id/summary';
   static String workoutSessionDetail(String id) => '/workout-sessions/$id';
-  static String workoutMedia(String id) => '/workout-sessions/$id/media';
   static String workoutSaveAsTemplate(String id) =>
       '/workout-sessions/$id/save-as-template';
 
   // Custom Exercises
   static const String customExercises = '/exercises/custom';
+  // TODO: endpoint not yet implemented in backend (zirofit-next)
   static const String trainerCustomExercises = '/trainer/exercises/custom';
 
   // Calendar

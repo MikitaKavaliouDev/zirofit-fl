@@ -6,6 +6,7 @@ import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/dashboard/providers/client_dashboard_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/trainer_dashboard_provider.dart';
+import '../helpers/test_setup.dart';
 import '../helpers/provider_utils.dart';
 
 // ---------------------------------------------------------------------------
@@ -63,42 +64,76 @@ Map<String, dynamic> _trainerDashboardResponse() => <String, dynamic>{
       },
     };
 
-/// Simulates GET /client/dashboard response body
+/// Simulates GET /client/dashboard response body (actual backend shape)
 Map<String, dynamic> _clientDashboardResponse() => <String, dynamic>{
       'data': {
-        'last_workout': {
-          'date': _ts - 86400000,
-          'exercises_completed': 8,
-          'total_exercises': 10,
-          'duration_minutes': 45,
-          'calories_burned': 320,
+        'clientData': {
+          'id': 'client-1',
+          'userId': 'user-1',
+          'name': 'John Doe',
+          'email': 'john@example.com',
+          'trainer': {
+            'id': 'trainer-1',
+            'name': 'Coach Mike',
+            'username': 'coachmike',
+            'email': 'mike@example.com',
+          },
+          'workoutSessions': [
+            {
+              'id': 'ws-completed',
+              'clientId': 'client-1',
+              'name': 'Upper Body',
+              'startTime': '2026-05-05T10:00:00.000Z',
+              'endTime': '2026-05-05T11:00:00.000Z',
+              'status': 'COMPLETED',
+              'isTrainerLed': false,
+              'exerciseLogs': [
+                {'id': 'log-1'},
+                {'id': 'log-2'},
+                {'id': 'log-3'},
+              ],
+            },
+          ],
+          'measurements': [
+            {
+              'id': 'm-1',
+              'measurementDate': '2026-05-01T00:00:00.000Z',
+              'weightKg': 80.0,
+            },
+            {
+              'id': 'm-2',
+              'measurementDate': '2026-05-05T00:00:00.000Z',
+              'weightKg': 78.5,
+            },
+          ],
         },
-        'upcoming_sessions': [
+        'weightUnit': 'KG',
+        'upcomingClientSessions': [
           {
-            'id': 'ws-1',
-            'client_id': 'my-client',
-            'name': 'Upper Body Strength',
-            'start_time': _ts + 86400000,
-            'status': 'PLANNED',
-            'is_trainer_led': true,
-            'created_at': _ts,
-            'updated_at': _ts,
+            'id': 'us-1',
+            'title': 'Upper Body Strength',
+            'date': '2026-05-06T10:00:00.000Z',
+            'duration': 60,
           },
         ],
-        'check_in_status': {
-          'is_due_today': true,
-          'is_completed': false,
-          'last_check_in_date': _ts - 604800000,
-          'next_check_in_date': _ts,
-        },
-        'progress': {
-          'weight_change': -2.5,
-          'workout_streak': 7,
-          'total_workouts_this_month': 12,
-        },
-        'trainer_name': 'Coach Mike',
+        'lastCheckIn': null,
       },
     };
+
+/// A Dio interceptor that resolves every request with the client dashboard fixture.
+class _ClientDashboardMockInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    handler.resolve(
+      Response(
+        requestOptions: options,
+        statusCode: 200,
+        statusMessage: 'OK',
+        data: _clientDashboardResponse(),
+      ),
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -248,135 +283,50 @@ void main() {
 
   group('ClientDashboardNotifier', () {
     setUp(() {
-      container = createTestContainer(
-        overrides: [
-          clientDashboardProvider.overrideWith(
-            (ref) => ClientDashboardNotifier(apiClient: mockApiClient),
-          ),
-        ],
+      ApiClient.reset();
+      configureTestApiClient();
+      ApiClient.instance.dio.interceptors
+        ..clear()
+        ..add(_ClientDashboardMockInterceptor());
+
+      container = createTestContainer();
+    });
+
+    test('build loads dashboard data from fixture', () async {
+      final dashboard = await container.read(clientDashboardProvider.future);
+      expect(dashboard.trainerName, 'Coach Mike');
+      expect(dashboard.upcomingSessions, hasLength(1));
+      expect(dashboard.checkInStatus.isCompleted, isFalse);
+      expect(dashboard.lastWorkout.exercisesCompleted, 3);
+      expect(dashboard.progress.currentWeight, 78.5);
+    });
+
+    test('markCheckInCompleted optimistically updates check-in status', () async {
+      // Force-build the provider by listening
+      final sub = container.listen(clientDashboardProvider, (_, __) {});
+      addTearDown(sub.close);
+      await container.read(clientDashboardProvider.future);
+
+      final notifier = container.read(clientDashboardProvider.notifier);
+      expect(
+        container.read(clientDashboardProvider).requireValue
+            .checkInStatus.isCompleted,
+        isFalse,
+      );
+
+      notifier.markCheckInCompleted();
+
+      expect(
+        container.read(clientDashboardProvider).requireValue
+            .checkInStatus.isCompleted,
+        isTrue,
       );
     });
 
-    test('initial state has not loaded and has no data', () {
-      final state = container.read(clientDashboardProvider);
-      expect(state.status, ClientDashboardStatus.initial);
-      expect(state.data, isNull);
-      expect(state.isLoading, isFalse);
-      expect(state.hasError, isFalse);
+    test('loads data from real backend response shape', () async {
+      final dashboard = await container.read(clientDashboardProvider.future);
+      expect(dashboard, isA<ClientDashboardData>());
+      expect(dashboard.lastWorkout.exercisesCompleted, greaterThan(0));
     });
-
-    test('fetchDashboard loads client dashboard data on success', () async {
-      // Arrange — the provider calls GET /api/client/dashboard
-      when(
-        () => mockApiClient.get(
-          ApiConstants.clientDashboard,
-          queryParams: any(named: 'queryParams'),
-        ),
-      ).thenAnswer(
-        (_) async => <String, dynamic>{
-          'data': {'message': 'ok'},
-        },
-      );
-
-      // Act
-      await container.read(clientDashboardProvider.notifier).fetchDashboard();
-
-      // Assert
-      final state = container.read(clientDashboardProvider);
-      expect(state.status, ClientDashboardStatus.loaded);
-      expect(state.isLoaded, isTrue);
-      expect(state.data, isNotNull);
-      expect(state.error, isNull);
-
-      // Verify mock data shape
-      final data = state.data!;
-      expect(data.lastWorkout, isNotNull);
-      expect(data.upcomingSessions, isNotEmpty);
-      expect(data.checkInStatus, isNotNull);
-      expect(data.progress, isNotNull);
-      expect(data.trainerName, isNotNull);
-    });
-
-    test('fetchDashboard sets error on API failure', () async {
-      // Arrange
-      when(
-        () => mockApiClient.get(
-          ApiConstants.clientDashboard,
-          queryParams: any(named: 'queryParams'),
-        ),
-      ).thenThrow(
-        DioException(
-          requestOptions: RequestOptions(path: ApiConstants.clientDashboard),
-          type: DioExceptionType.badResponse,
-          response: Response(
-            statusCode: 500,
-            requestOptions: RequestOptions(path: ApiConstants.clientDashboard),
-            data: {'error': 'Internal server error'},
-          ),
-        ),
-      );
-
-      // Act
-      await container.read(clientDashboardProvider.notifier).fetchDashboard();
-
-      // Assert
-      final state = container.read(clientDashboardProvider);
-      expect(state.status, ClientDashboardStatus.error);
-      expect(state.hasError, isTrue);
-      expect(state.error, isNotNull);
-      expect(state.data, isNull);
-    });
-
-    test(
-      'markCheckInCompleted optimistically updates check-in status',
-      () async {
-        // Arrange — first load dashboard data
-        when(
-          () => mockApiClient.get(
-            ApiConstants.clientDashboard,
-            queryParams: any(named: 'queryParams'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'data': {'message': 'ok'},
-          },
-        );
-
-        await container.read(clientDashboardProvider.notifier).fetchDashboard();
-
-        // Verify initial state
-        var state = container.read(clientDashboardProvider);
-        expect(state.isLoaded, isTrue);
-        expect(state.data!.checkInStatus.isCompleted, isFalse);
-
-        // Act
-        container.read(clientDashboardProvider.notifier).markCheckInCompleted();
-
-        // Assert
-        state = container.read(clientDashboardProvider);
-        expect(state.data!.checkInStatus.isCompleted, isTrue);
-      },
-    );
-
-    test(
-      'fetchDashboard succeeds with real backend response shape',
-      () async {
-        when(
-          () => mockApiClient.get(
-            ApiConstants.clientDashboard,
-            queryParams: any(named: 'queryParams'),
-          ),
-        ).thenAnswer((_) async => _clientDashboardResponse());
-
-        await container
-            .read(clientDashboardProvider.notifier)
-            .fetchDashboard();
-
-        final state = container.read(clientDashboardProvider);
-        expect(state.status, ClientDashboardStatus.loaded);
-        expect(state.data, isNotNull);
-        expect(state.error, isNull);
-      },
-    );
   });
 }

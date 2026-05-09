@@ -70,10 +70,13 @@ class ClientListNotifier extends StateNotifier<ClientListState> {
         queryParams: queryParams,
       );
 
+      // API returns {"data": {"clients": [...]}}, extract correctly
       final List<Client> clients;
-      final rawData = response['data'];
-      if (rawData is List) {
-        clients = rawData
+      final dataMap = response['data'] as Map<String, dynamic>?;
+      final rawList = dataMap?['clients'] as List<dynamic>?;
+      
+      if (rawList != null) {
+        clients = rawList
             .map((e) => Client.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {

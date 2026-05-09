@@ -38,6 +38,24 @@ class CalendarEvent {
     this.session,
   });
 
+  /// Parses an event from the unified /api/trainer/calendar response.
+  /// The API returns `data.events[]` with fields:
+  ///   id, title, start, end, type, clientId, clientName, clientAvatarUrl, notes
+  factory CalendarEvent.fromJson(Map<String, dynamic> json) {
+    final apiType = json['type'] as String? ?? '';
+    return CalendarEvent(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? 'Event',
+      startTime: DateTime.parse(json['start'] as String),
+      endTime: DateTime.parse(json['end'] as String),
+      type: _mapEventType(apiType),
+      clientId: json['clientId'] as String?,
+      clientName: json['clientName'] as String?,
+      status: _deriveStatus(apiType),
+      notes: json['notes'] as String?,
+    );
+  }
+
   factory CalendarEvent.fromBooking(Booking booking) {
     return CalendarEvent(
       id: booking.id,
@@ -65,6 +83,19 @@ class CalendarEvent {
       notes: session.notes,
       session: session,
     );
+  }
+
+  /// Maps the API event type (e.g. "session_completed") to the display type.
+  static String _mapEventType(String apiType) {
+    if (apiType.startsWith('booking')) return 'booking';
+    return 'session'; // includes "session_completed", "session_scheduled", etc.
+  }
+
+  /// Derives a status string from the API event type (e.g. "session_completed" -> "completed").
+  static String _deriveStatus(String apiType) {
+    final parts = apiType.split('_');
+    if (parts.length > 1) return parts.last;
+    return 'scheduled';
   }
 
   @override
@@ -149,20 +180,11 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       );
 
       final data = response['data'] as Map<String, dynamic>;
-      final bookingsData = data['bookings'] as List<dynamic>? ?? [];
-      final sessionsData = data['sessions'] as List<dynamic>? ?? [];
+      final eventsData = data['events'] as List<dynamic>? ?? [];
 
-      final bookings = bookingsData
-          .map((json) => Booking.fromJson(json as Map<String, dynamic>))
-          .map(CalendarEvent.fromBooking)
-          .toList();
-
-      final sessions = sessionsData
-          .map((json) => WorkoutSession.fromJson(json as Map<String, dynamic>))
-          .map(CalendarEvent.fromSession)
-          .toList();
-
-      final allEvents = [...bookings, ...sessions]
+      final allEvents = eventsData
+          .map((json) => CalendarEvent.fromJson(json as Map<String, dynamic>))
+          .toList()
         ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
       state = state.copyWith(

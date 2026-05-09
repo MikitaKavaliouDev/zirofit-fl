@@ -208,7 +208,14 @@ class ApiClient {
     }
 
     if (fromJson != null) {
-      return fromJson(data);
+      try {
+        return fromJson(data);
+      } catch (e, st) {
+        debugPrint('❌ JSON PARSING ERROR in ${T.toString()}:');
+        debugPrint('Error: $e');
+        debugPrint('Stack Trace: $st');
+        rethrow;
+      }
     }
 
     // When no parser is provided the caller expects the raw map.

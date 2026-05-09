@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 
@@ -153,8 +154,21 @@ class _AddClientSheetState extends ConsumerState<AddClientSheet> {
     );
 
     if (shouldRequest == true && mounted) {
-      // TODO: Implement connection request
-      Navigator.of(context).pop(true);
+      // TODO: Implement connection request - call API to request connection
+      // For now, we'll just return true since client is already created above
+      // The actual connection request API would be: POST /trainer/clients/{id}/request-connect
+      try {
+        debugPrint('ℹ️ add_client_sheet: Connection request would be sent for new client');
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
+      } catch (e, st) {
+        debugPrint('❌ add_client_sheet ERROR: $e');
+        debugPrint('Stack: $st');
+        if (mounted) {
+          Navigator.of(context).pop(true); // Still return true, client was created
+        }
+      }
     } else {
       setState(() {
         _isLoading = false;

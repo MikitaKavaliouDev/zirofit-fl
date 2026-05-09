@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
@@ -9,26 +10,36 @@ import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 // Dashboard Data Models
 // ---------------------------------------------------------------------------
 
-/// Quick stats for the trainer dashboard
+/// Quick stats for the trainer dashboard.
+///
+/// Backend response shape from GET /api/mobile/home:
+/// ```json
+/// {"stats": {"pendingBookings": int, "pendingCheckIns": int, "activeClients": int, "revenue": float}}
+/// ```
 class TrainerDashboardStats {
   final double revenue;
   final int activeClients;
   final int todaySessions;
   final int pendingCheckIns;
+  final int pendingBookings;
 
   const TrainerDashboardStats({
     required this.revenue,
     required this.activeClients,
     required this.todaySessions,
     required this.pendingCheckIns,
+    this.pendingBookings = 0,
   });
 
-  factory TrainerDashboardStats.mock() {
-    return const TrainerDashboardStats(
-      revenue: 4250.00,
-      activeClients: 24,
-      todaySessions: 6,
-      pendingCheckIns: 3,
+  factory TrainerDashboardStats.fromJson(Map<String, dynamic> json) {
+    final stats = json is Map ? json : <String, dynamic>{};
+    return TrainerDashboardStats(
+      revenue: (stats['revenue'] as num?)?.toDouble() ?? 0.0,
+      activeClients: stats['activeClients'] as int? ?? 0,
+      // TODO: backend does not yet return todaySessions; remove when endpoint provides it
+      todaySessions: 0,
+      pendingCheckIns: stats['pendingCheckIns'] as int? ?? 0,
+      pendingBookings: stats['pendingBookings'] as int? ?? 0,
     );
   }
 }
@@ -49,21 +60,6 @@ class ActivityItem {
     required this.type,
   });
 
-  factory ActivityItem.mock({
-    required String id,
-    required String title,
-    required String description,
-    required DateTime timestamp,
-    required ActivityType type,
-  }) {
-    return ActivityItem(
-      id: id,
-      title: title,
-      description: description,
-      timestamp: timestamp,
-      type: type,
-    );
-  }
 }
 
 enum ActivityType { checkIn, session, client, payment, other }
@@ -82,129 +78,45 @@ class TrainerDashboardData {
     required this.activeClients,
   });
 
-  factory TrainerDashboardData.mock() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+  factory TrainerDashboardData.fromJson(Map<String, dynamic> json) {
+    final data = json is Map ? json : <String, dynamic>{};
+    final statsJson = data['stats'] is Map ? data['stats'] as Map<String, dynamic> : <String, dynamic>{};
+    
+    // Parse upcoming sessions
+    final upcomingList = data['upcoming'] is List ? data['upcoming'] as List : [];
+    final upcomingSessions = upcomingList.map((e) {
+      if (e is Map<String, dynamic>) {
+        return WorkoutSession(
+          id: e['id'] as String? ?? '',
+          clientId: e['clientId'] as String? ?? '',
+          name: e['title'] as String? ?? 'Workout',
+          startTime: e['startTime'] != null 
+              ? DateTime.tryParse(e['startTime'] as String) ?? DateTime.now()
+              : DateTime.now(),
+          status: WorkoutSessionStatus.planned,
+          isTrainerLed: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+      return WorkoutSession(
+        id: '',
+        clientId: '',
+        name: 'Workout',
+        startTime: DateTime.now(),
+        status: WorkoutSessionStatus.planned,
+        isTrainerLed: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }).toList();
 
     return TrainerDashboardData(
-      stats: TrainerDashboardStats.mock(),
-      upcomingSessions: [
-        WorkoutSession(
-          id: '1',
-          clientId: 'client-1',
-          name: 'Strength Training - John',
-          startTime: today.add(const Duration(hours: 9)),
-          status: WorkoutSessionStatus.planned,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        WorkoutSession(
-          id: '2',
-          clientId: 'client-2',
-          name: 'HIIT Session - Sarah',
-          startTime: today.add(const Duration(hours: 11)),
-          status: WorkoutSessionStatus.planned,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        WorkoutSession(
-          id: '3',
-          clientId: 'client-3',
-          name: 'Yoga - Mike',
-          startTime: today.add(const Duration(hours: 14)),
-          status: WorkoutSessionStatus.planned,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        WorkoutSession(
-          id: '4',
-          clientId: 'client-4',
-          name: 'Cardio - Emma',
-          startTime: today.add(const Duration(hours: 16)),
-          status: WorkoutSessionStatus.planned,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ],
-      recentActivity: [
-        ActivityItem.mock(
-          id: '1',
-          title: 'Check-in Received',
-          description: 'John completed his weekly check-in',
-          timestamp: now.subtract(const Duration(minutes: 15)),
-          type: ActivityType.checkIn,
-        ),
-        ActivityItem.mock(
-          id: '2',
-          title: 'Session Completed',
-          description: 'Sarah finished HIIT workout',
-          timestamp: now.subtract(const Duration(hours: 1)),
-          type: ActivityType.session,
-        ),
-        ActivityItem.mock(
-          id: '3',
-          title: 'New Client',
-          description: 'Mike joined your training program',
-          timestamp: now.subtract(const Duration(hours: 3)),
-          type: ActivityType.client,
-        ),
-        ActivityItem.mock(
-          id: '4',
-          title: 'Payment Received',
-          description: 'Emma paid for monthly package',
-          timestamp: now.subtract(const Duration(hours: 5)),
-          type: ActivityType.payment,
-        ),
-        ActivityItem.mock(
-          id: '5',
-          title: 'Check-in Received',
-          description: 'Alex submitted progress photos',
-          timestamp: now.subtract(const Duration(hours: 8)),
-          type: ActivityType.checkIn,
-        ),
-      ],
-      activeClients: [
-        Client(
-          id: 'client-1',
-          name: 'John Smith',
-          email: 'john@example.com',
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        ),
-        Client(
-          id: 'client-2',
-          name: 'Sarah Johnson',
-          email: 'sarah@example.com',
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        ),
-        Client(
-          id: 'client-3',
-          name: 'Mike Williams',
-          email: 'mike@example.com',
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        ),
-        Client(
-          id: 'client-4',
-          name: 'Emma Davis',
-          email: 'emma@example.com',
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        ),
-        Client(
-          id: 'client-5',
-          name: 'Alex Brown',
-          email: 'alex@example.com',
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ],
+      stats: TrainerDashboardStats.fromJson(statsJson),
+      upcomingSessions: upcomingSessions,
+      // TODO: backend response does not yet include recentActivity or activeClients lists
+      recentActivity: const <ActivityItem>[],
+      activeClients: const <Client>[],
     );
   }
 }
@@ -255,7 +167,7 @@ class TrainerDashboardNotifier extends StateNotifier<TrainerDashboardState> {
     : _apiClient = apiClient,
       super(const TrainerDashboardState());
 
-  /// Fetch dashboard data - uses mock data for now
+  /// Fetch dashboard data from /api/mobile/home
   Future<void> fetchDashboard() async {
     state = state.copyWith(
       status: TrainerDashboardStatus.loading,
@@ -263,16 +175,26 @@ class TrainerDashboardNotifier extends StateNotifier<TrainerDashboardState> {
     );
 
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      // Call API (mocked in tests; returns mock data until backend is ready)
-      await _apiClient.get(ApiConstants.mobileHome);
-
-      final data = TrainerDashboardData.mock();
+      // Call API and parse real response
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        ApiConstants.mobileHome,
+      );
+      
+      // API returns {"data": {...}}, extract the data object
+      final dataMap = response['data'] as Map<String, dynamic>?;
+      
+      if (dataMap == null) {
+        throw Exception('No data received from /mobile/home API');
+      }
+      
+      final data = TrainerDashboardData.fromJson(dataMap);
 
       state = state.copyWith(status: TrainerDashboardStatus.loaded, data: data);
-    } catch (e) {
+    } catch (e, st) {
+      // Log error to terminal
+      debugPrint('❌ trainer_dashboard_provider ERROR: $e');
+      debugPrint('Stack: $st');
+      
       state = state.copyWith(
         status: TrainerDashboardStatus.error,
         error: e.toString(),

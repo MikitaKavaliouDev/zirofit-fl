@@ -499,7 +499,7 @@ void main() {
         (_) async => {
           'data': {
             'sessions': [workoutSessionJson(id: 'h-1')],
-            'has_more': false,
+            'hasMore': false,
           },
         },
       );
@@ -521,7 +521,7 @@ void main() {
         (_) async => {
           'data': {
             'sessions': [workoutSessionJson()],
-            'has_more': false,
+            'hasMore': false,
           },
         },
       );
@@ -544,7 +544,7 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => {
-          'data': {'sessions': <Map<String, dynamic>>[], 'has_more': false},
+          'data': {'sessions': <Map<String, dynamic>>[], 'hasMore': false},
         },
       );
 
@@ -554,7 +554,7 @@ void main() {
       expect(hasMore, false);
     });
 
-    test('hasMore is true when response has_more is true', () async {
+    test('hasMore is true when response hasMore is true', () async {
       when(
         () => mockApiClient.get<Map<String, dynamic>>(
           ApiConstants.workoutHistory,
@@ -564,7 +564,7 @@ void main() {
         (_) async => {
           'data': {
             'sessions': [workoutSessionJson()],
-            'has_more': true,
+            'hasMore': true,
           },
         },
       );
@@ -575,7 +575,7 @@ void main() {
       expect(hasMore, true);
     });
 
-    test('hasMore is false when response has_more is null', () async {
+    test('hasMore is false when response hasMore is null', () async {
       when(
         () => mockApiClient.get<Map<String, dynamic>>(
           ApiConstants.workoutHistory,
@@ -603,7 +603,7 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => {
-          'data': {'sessions': <Map<String, dynamic>>[], 'has_more': false},
+          'data': {'sessions': <Map<String, dynamic>>[], 'hasMore': false},
         },
       );
 

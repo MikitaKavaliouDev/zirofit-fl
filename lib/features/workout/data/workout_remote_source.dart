@@ -59,14 +59,20 @@ class WorkoutRemoteSource {
 
   /// GET /api/workout-sessions/live
   /// Returns the currently active workout session and its exercise logs.
-  Future<({WorkoutSession session, List<ClientExerciseLog> logs})>
-  getActiveSession() async {
+  /// Returns null if no active session exists.
+  Future<({WorkoutSession session, List<ClientExerciseLog> logs})?> getActiveSession() async {
     final response = await _apiClient.get<Map<String, dynamic>>(
       ApiConstants.workoutLive,
     );
 
     final data = response['data'] as Map<String, dynamic>? ?? response;
-    final sessionMap = data['session'] as Map<String, dynamic>;
+    final sessionMap = data['session'] as Map<String, dynamic>?;
+
+    // No active session - return null to indicate no workout in progress
+    if (sessionMap == null) {
+      return null;
+    }
+
     final session = WorkoutSession.fromJson(sessionMap);
 
     // Logs are nested inside session as 'exerciseLogs' (camelCase)
@@ -158,7 +164,7 @@ class WorkoutRemoteSource {
             ?.map((e) => WorkoutSession.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
-    final hasMore = (data['has_more'] as bool?) ?? false;
+    final hasMore = (data['hasMore'] as bool?) ?? false;
 
     return (sessions: sessions, hasMore: hasMore);
   }

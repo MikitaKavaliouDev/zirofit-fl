@@ -26,9 +26,24 @@ void main() {
       expect(state.hasError, false);
     });
 
-    test('fetchDashboard sets data on success', () async {
-      when(() => mockApiClient.get(ApiConstants.mobileHome)).thenAnswer(
-        (_) async => <String, dynamic>{},
+test('fetchDashboard sets data on success', () async {
+      // Real API response shape: {"data": {"user":..., "upcoming":[], "stats":{...}}}
+      // Stub with proper type matching
+      when(() => mockApiClient.get<String>(any())).thenAnswer(
+        (_) async => <String, dynamic>{
+          'data': {
+            'user': {'name': 'Ada Lovelace', 'avatarUrl': 'https://example.com/avatar.jpg', 'username': 'ada-lovelace'},
+            'upcoming': [
+              {'id': 'sess1', 'clientId': 'client1', 'title': 'Morning Workout', 'startTime': '2026-05-10T09:00:00.000Z'}
+            ],
+            'stats': {
+              'revenue': 1000.0,
+              'activeClients': 10,
+              'todaySessions': 3,
+              'pendingCheckIns': 2
+            }
+          }
+        } as String,
       );
 
       await notifier.fetchDashboard();
@@ -55,46 +70,47 @@ void main() {
       expect(state.error, isNotNull);
     });
 
-    test('fetchDashboard properly parses mock API response into TrainerDashboardData', () async {
-      when(() => mockApiClient.get(ApiConstants.mobileHome)).thenAnswer(
-        (_) async => <String, dynamic>{},
+    test('fetchDashboard properly parses real API response into TrainerDashboardData', () async {
+      // Real API response shape
+      when(() => mockApiClient.get(any())).thenAnswer(
+        (_) async => {
+          'data': {
+            'user': {'name': 'Ada Lovelace', 'avatarUrl': 'https://example.com/avatar.jpg', 'username': 'ada-lovelace'},
+            'upcoming': [
+              {'id': 'sess1', 'clientId': 'client1', 'title': 'Morning Workout', 'startTime': '2026-05-10T09:00:00.000Z'},
+              {'id': 'sess2', 'clientId': 'client2', 'title': 'Evening Yoga', 'startTime': '2026-05-11T18:00:00.000Z'}
+            ],
+            'stats': {
+              'revenue': 5000.0,
+              'activeClients': 25,
+              'todaySessions': 5,
+              'pendingCheckIns': 3
+            }
+          }
+        },
       );
 
       await notifier.fetchDashboard();
 
       final data = notifier.state.data!;
 
-      // --- Stats ---
-      expect(data.stats.revenue, 4250.00);
-      expect(data.stats.activeClients, 24);
-      expect(data.stats.todaySessions, 6);
+      // --- Stats (parsed from JSON) ---
+      expect(data.stats.revenue, 5000.0);
+      expect(data.stats.activeClients, 25);
+      expect(data.stats.todaySessions, 5);
       expect(data.stats.pendingCheckIns, 3);
 
-      // --- Upcoming sessions ---
-      expect(data.upcomingSessions.length, 4);
-      expect(data.upcomingSessions[0].name, 'Strength Training - John');
+      // --- Upcoming sessions (parsed from JSON) ---
+      expect(data.upcomingSessions.length, 2);
+      expect(data.upcomingSessions[0].name, 'Morning Workout');
       expect(data.upcomingSessions[0].status, WorkoutSessionStatus.planned);
-      expect(data.upcomingSessions[1].name, 'HIIT Session - Sarah');
-      expect(data.upcomingSessions[2].name, 'Yoga - Mike');
-      expect(data.upcomingSessions[3].name, 'Cardio - Emma');
+      expect(data.upcomingSessions[1].name, 'Evening Yoga');
 
-      // --- Recent activity ---
-      expect(data.recentActivity.length, 5);
-      expect(data.recentActivity[0].type, ActivityType.checkIn);
-      expect(data.recentActivity[0].title, 'Check-in Received');
-      expect(data.recentActivity[1].type, ActivityType.session);
-      expect(data.recentActivity[2].type, ActivityType.client);
-      expect(data.recentActivity[3].type, ActivityType.payment);
-      expect(data.recentActivity[4].type, ActivityType.checkIn);
+      // --- Recent activity (not in API yet) ---
+      expect(data.recentActivity.length, 0);
 
-      // --- Active clients ---
-      expect(data.activeClients.length, 5);
-      expect(data.activeClients[0].name, 'John Smith');
-      expect(data.activeClients[0].email, 'john@example.com');
-      expect(data.activeClients[1].name, 'Sarah Johnson');
-      expect(data.activeClients[2].name, 'Mike Williams');
-      expect(data.activeClients[3].name, 'Emma Davis');
-      expect(data.activeClients[4].name, 'Alex Brown');
+      // --- Active clients (not in API yet) ---
+      expect(data.activeClients.length, 0);
     });
   });
 }

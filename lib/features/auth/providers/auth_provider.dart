@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
@@ -25,8 +26,8 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
-      email: json['email'] as String,
+      id: (json['id'] ?? '') as String,
+      email: (json['email'] ?? '') as String,
       name: json['name'] as String?,
       emailConfirmedAt: json['emailConfirmedAt'] as String?,
     );
@@ -147,7 +148,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // Attempt to refresh the session with the stored refresh token
       await refreshSession();
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('AUTH_INIT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       await _secureStorage.clearTokens();
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
@@ -277,7 +280,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       await _secureStorage.clearTokens();
       state = const AuthState(status: AuthStatus.unauthenticated);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('AUTH_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         status: AuthStatus.authenticated,
         error: _extractErrorMessage(e),
@@ -317,8 +322,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: meData['id'] != null
             ? User(
-                id: meData['id'] as String,
-                email: meData['email'] as String,
+                id: (meData['id'] ?? '') as String,
+                email: (meData['email'] ?? '') as String,
                 name: meData['name'] as String?,
               )
             : null,
@@ -328,7 +333,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
         tier: meData['tier'] as String?,
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('AUTH_REFRESH_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       await _secureStorage.clearTokens();
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
@@ -368,7 +375,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         body: {'password': password},
       );
       state = state.copyWith(status: AuthStatus.authenticated);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('AUTH_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
       state = state.copyWith(
         status: AuthStatus.authenticated,
         error: _extractErrorMessage(e),

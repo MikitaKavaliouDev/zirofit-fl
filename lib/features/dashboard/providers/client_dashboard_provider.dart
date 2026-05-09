@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/core/utils/json_helpers.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 
@@ -8,7 +10,7 @@ import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 // Dashboard Data Models
 // ---------------------------------------------------------------------------
 
-/// Last workout summary
+/// Last workout summary.
 class LastWorkoutSummary {
   final DateTime date;
   final int exercisesCompleted;
@@ -24,19 +26,29 @@ class LastWorkoutSummary {
     required this.caloriesBurned,
   });
 
-  factory LastWorkoutSummary.mock() {
-    final now = DateTime.now();
+  /// Creates a summary from a raw backend workout-session map.
+  ///
+  /// Backend shape: `{id, startTime, endTime, status, name, exerciseLogs: [{id}], ...}`
+  factory LastWorkoutSummary.fromSession(Map<String, dynamic> session) {
+    final logs = (session['exerciseLogs'] as List<dynamic>?) ?? [];
+    final startTime = readDateTimeOrNull(session, 'start_time', 'startTime');
+    final endTime = readDateTimeOrNull(session, 'end_time', 'endTime');
     return LastWorkoutSummary(
-      date: now.subtract(const Duration(days: 1)),
-      exercisesCompleted: 8,
-      totalExercises: 10,
-      duration: const Duration(minutes: 45),
-      caloriesBurned: 320,
+      date: endTime ?? startTime ?? DateTime.now(),
+      exercisesCompleted: logs.length,
+      totalExercises: logs.length,
+      duration: (endTime != null && startTime != null)
+          ? endTime.difference(startTime)
+          : Duration.zero,
+      caloriesBurned: 0,
     );
   }
 }
 
-/// Progress summary for the client
+/// Progress summary for the client.
+///
+/// Computed from the backend `clientData.workoutSessions` and
+/// `clientData.measurements` arrays.
 class ProgressSummary {
   final double weightChange;
   final int workoutStreak;
@@ -52,18 +64,50 @@ class ProgressSummary {
     this.startingWeight,
   });
 
-  factory ProgressSummary.mock() {
-    return const ProgressSummary(
-      weightChange: -2.5,
-      workoutStreak: 7,
-      totalWorkoutsThisMonth: 12,
-      currentWeight: 75.0,
-      startingWeight: 77.5,
+  /// Computes a progress summary from backend data.
+  ///
+  /// [workoutSessions] — the client's recent workout sessions.
+  /// [measurements] — the client's body measurements.
+  factory ProgressSummary.compute({
+    required List<Map<String, dynamic>> workoutSessions,
+    required List<Map<String, dynamic>> measurements,
+  }) {
+    // Compute totalWorkoutsThisMonth
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthWorkouts = workoutSessions.where((s) {
+      final st = readDateTimeOrNull(s, 'end_time', 'endTime');
+      return st != null && st.isAfter(monthStart);
+    }).length;
+
+    // Compute weight change from measurements
+    // Backend: [{id, weightKg, bodyFatPercentage, measurementDate, ...}]
+    final sortedMeasurements = List<Map<String, dynamic>>.from(measurements)
+      ..sort((a, b) => (a['measurementDate'] as String? ?? '')
+          .compareTo(b['measurementDate'] as String? ?? ''));
+
+    final firstWeight =
+        sortedMeasurements.isNotEmpty
+            ? (sortedMeasurements.first['weightKg'] as num?)?.toDouble()
+            : null;
+    final lastWeight =
+        sortedMeasurements.isNotEmpty
+            ? (sortedMeasurements.last['weightKg'] as num?)?.toDouble()
+            : null;
+
+    return ProgressSummary(
+      weightChange: (firstWeight != null && lastWeight != null)
+          ? lastWeight - firstWeight
+          : 0.0,
+      workoutStreak: 0,
+      totalWorkoutsThisMonth: monthWorkouts,
+      currentWeight: lastWeight,
+      startingWeight: firstWeight,
     );
   }
 }
 
-/// Check-in status
+/// Check-in status for the client dashboard.
 class CheckInStatus {
   final bool isDueToday;
   final bool isCompleted;
@@ -77,18 +121,25 @@ class CheckInStatus {
     this.nextCheckInDate,
   });
 
-  factory CheckInStatus.mock() {
-    final now = DateTime.now();
+  /// Creates status from the backend `lastCheckIn` field.
+  ///
+  /// [lastCheckIn] — ISO date string or null.
+  factory CheckInStatus.fromLastCheckIn(String? lastCheckIn) {
+    final checkInDate = lastCheckIn != null
+        ? DateTime.tryParse(lastCheckIn)
+        : null;
     return CheckInStatus(
-      isDueToday: true,
-      isCompleted: false,
-      lastCheckInDate: now.subtract(const Duration(days: 7)),
-      nextCheckInDate: now,
+      isDueToday: checkInDate == null,
+      isCompleted: checkInDate != null,
+      lastCheckInDate: checkInDate,
+      nextCheckInDate: null,
     );
   }
 }
 
-/// Complete client dashboard data
+/// Complete client dashboard data.
+///
+/// Parsed from `GET /api/client/dashboard` response.
 class ClientDashboardData {
   final LastWorkoutSummary lastWorkout;
   final List<WorkoutSession> upcomingSessions;
@@ -104,153 +155,160 @@ class ClientDashboardData {
     this.trainerName,
   });
 
-  factory ClientDashboardData.mock() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+  /// Parses from the backend response shape:
+  ///
+  /// ```json
+  /// {
+  ///   "clientData": {
+  ///     "workoutSessions": [{id, startTime, endTime, status, name, exerciseLogs}],
+  ///     "measurements": [{id, measurementDate, weightKg, bodyFatPercentage}],
+  ///     "trainer": {name, ...} | null
+  ///   },
+  ///   "upcomingClientSessions": [{id, title, date, duration}],
+  ///   "lastCheckIn": "ISO-date" | null
+  /// }
+  /// ```
+  factory ClientDashboardData.fromJson(Map<String, dynamic> json) {
+    final data = json is Map ? json : <String, dynamic>{};
+
+    // clientData nested object
+    final clientData = data['clientData'] is Map
+        ? data['clientData'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    // Workout sessions array
+    final rawSessions = (clientData['workoutSessions'] as List<dynamic>?)
+            ?.cast<Map<String, dynamic>>() ??
+        <Map<String, dynamic>>[];
+
+    // Last workout = most recent completed/in-progress session
+    final sortedSessions = List<Map<String, dynamic>>.of(rawSessions)
+      ..sort((a, b) => ((b['endTime'] as String?) ?? (b['startTime'] as String?) ?? '')
+          .compareTo((a['endTime'] as String?) ?? (a['startTime'] as String?) ?? ''));
+    final lastSession =
+        sortedSessions.isNotEmpty ? sortedSessions.first : <String, dynamic>{};
+
+    // Measurements
+    final rawMeasurements = (clientData['measurements'] as List<dynamic>?)
+            ?.cast<Map<String, dynamic>>() ??
+        <Map<String, dynamic>>[];
+
+    // Upcoming sessions — mapped from upcomingClientSessions
+    final upcomingList = data['upcomingClientSessions'] is List
+        ? data['upcomingClientSessions'] as List
+        : <dynamic>[];
+    final upcomingSessions = upcomingList.map((e) {
+      final m = e is Map<String, dynamic> ? e : <String, dynamic>{};
+      final startDate = DateTime.tryParse(m['date'] as String? ?? '');
+      final endDate = startDate?.add(Duration(minutes: m['duration'] as int? ?? 60));
+      return WorkoutSession(
+        id: m['id'] as String? ?? '',
+        clientId: clientData['id'] as String? ?? '',
+        name: m['title'] as String? ?? 'Workout',
+        startTime: startDate ?? DateTime.now(),
+        endTime: endDate,
+        status: WorkoutSessionStatus.planned,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }).toList();
+
+    // Trainer name
+    final trainer = clientData['trainer'] as Map<String, dynamic>?;
+    final trainerName = trainer?['name'] as String?;
+
+    // Last check-in
+    final lastCheckIn = data['lastCheckIn'] as String?;
 
     return ClientDashboardData(
-      lastWorkout: LastWorkoutSummary.mock(),
-      upcomingSessions: [
-        WorkoutSession(
-          id: '1',
-          clientId: 'my-client-id',
-          name: 'Upper Body Strength',
-          startTime: today.add(const Duration(days: 1, hours: 10)),
-          status: WorkoutSessionStatus.planned,
-          isTrainerLed: true,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        WorkoutSession(
-          id: '2',
-          clientId: 'my-client-id',
-          name: 'Cardio & Core',
-          startTime: today.add(const Duration(days: 2, hours: 14)),
-          status: WorkoutSessionStatus.planned,
-          isTrainerLed: false,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        WorkoutSession(
-          id: '3',
-          clientId: 'my-client-id',
-          name: 'Full Body HIIT',
-          startTime: today.add(const Duration(days: 4, hours: 9)),
-          status: WorkoutSessionStatus.planned,
-          isTrainerLed: true,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ],
-      checkInStatus: CheckInStatus.mock(),
-      progress: ProgressSummary.mock(),
-      trainerName: 'Coach Mike',
+      lastWorkout: LastWorkoutSummary.fromSession(lastSession),
+      upcomingSessions: upcomingSessions,
+      checkInStatus: CheckInStatus.fromLastCheckIn(lastCheckIn),
+      progress: ProgressSummary.compute(
+        workoutSessions: sortedSessions,
+        measurements: rawMeasurements,
+      ),
+      trainerName: trainerName,
     );
   }
-}
 
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-
-enum ClientDashboardStatus { initial, loading, loaded, error }
-
-class ClientDashboardState {
-  final ClientDashboardStatus status;
-  final ClientDashboardData? data;
-  final String? error;
-
-  const ClientDashboardState({
-    this.status = ClientDashboardStatus.initial,
-    this.data,
-    this.error,
-  });
-
-  ClientDashboardState copyWith({
-    ClientDashboardStatus? status,
-    ClientDashboardData? data,
-    String? error,
-    bool clearError = false,
+  /// Creates a copy with updated check-in status (optimistic update).
+  ClientDashboardData copyWithCheckIn({
+    required bool isCompleted,
+    DateTime? lastCheckInDate,
   }) {
-    return ClientDashboardState(
-      status: status ?? this.status,
-      data: data ?? this.data,
-      error: clearError ? null : (error ?? this.error),
+    return ClientDashboardData(
+      lastWorkout: lastWorkout,
+      upcomingSessions: upcomingSessions,
+      checkInStatus: CheckInStatus(
+        isDueToday: checkInStatus.isDueToday,
+        isCompleted: isCompleted,
+        lastCheckInDate: lastCheckInDate ?? checkInStatus.lastCheckInDate,
+        nextCheckInDate: checkInStatus.nextCheckInDate,
+      ),
+      progress: progress,
+      trainerName: trainerName,
     );
   }
-
-  bool get isLoading => status == ClientDashboardStatus.loading;
-  bool get isLoaded => status == ClientDashboardStatus.loaded;
-  bool get hasError => status == ClientDashboardStatus.error;
 }
 
 // ---------------------------------------------------------------------------
-// Notifier
+// Notifier - Uses AsyncValue for automatic loading/error handling
 // ---------------------------------------------------------------------------
 
-class ClientDashboardNotifier extends StateNotifier<ClientDashboardState> {
-  final ApiClient _apiClient;
+/// Provider that returns AsyncValue<ClientDashboardData> - works with ZiroDataView
+final clientDashboardProvider =
+    AutoDisposeAsyncNotifierProvider<ClientDashboardNotifier, ClientDashboardData>(
+  ClientDashboardNotifier.new,
+);
 
-  ClientDashboardNotifier({required ApiClient apiClient})
-    : _apiClient = apiClient,
-      super(const ClientDashboardState());
+class ClientDashboardNotifier extends AutoDisposeAsyncNotifier<ClientDashboardData> {
+  @override
+  Future<ClientDashboardData> build() async {
+    return _fetchDashboard();
+  }
 
-  /// Fetch dashboard data - uses mock data for now
-  Future<void> fetchDashboard() async {
-    state = state.copyWith(
-      status: ClientDashboardStatus.loading,
-      clearError: true,
-    );
+  Future<ClientDashboardData> _fetchDashboard() async {
+    final apiClient = ApiClient.instance;
 
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 600));
-
-      // Call API (mocked in tests; returns mock data until backend is ready)
-      await _apiClient.get(ApiConstants.clientDashboard);
-
-      final data = ClientDashboardData.mock();
-
-      state = state.copyWith(status: ClientDashboardStatus.loaded, data: data);
-    } catch (e) {
-      state = state.copyWith(
-        status: ClientDashboardStatus.error,
-        error: e.toString(),
+      // Call API
+      final response = await apiClient.get<Map<String, dynamic>>(
+        ApiConstants.clientDashboard,
       );
+
+      // Extract data from response {"data": {...}}
+      final dataMap = response['data'] as Map<String, dynamic>?;
+      
+      if (dataMap == null) {
+        throw Exception('Client dashboard API returned no data');
+      }
+
+      return ClientDashboardData.fromJson(dataMap);
+    } catch (e, st) {
+      // Log error to terminal for debugging
+      debugPrint('❌ client_dashboard_provider ERROR: $e');
+      debugPrint('Stack: $st');
+      rethrow;
     }
   }
 
-  /// Refresh dashboard data
+  /// Refresh dashboard data - triggers reload
   Future<void> refresh() async {
-    await fetchDashboard();
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _fetchDashboard());
   }
 
   /// Mark check-in as completed (optimistic update)
   void markCheckInCompleted() {
-    if (state.data != null) {
-      final updatedData = ClientDashboardData(
-        lastWorkout: state.data!.lastWorkout,
-        upcomingSessions: state.data!.upcomingSessions,
-        checkInStatus: CheckInStatus(
-          isDueToday: state.data!.checkInStatus.isDueToday,
+    final currentData = state.valueOrNull;
+    if (currentData != null) {
+      state = AsyncData(
+        currentData.copyWithCheckIn(
           isCompleted: true,
           lastCheckInDate: DateTime.now(),
-          nextCheckInDate: state.data!.checkInStatus.nextCheckInDate,
         ),
-        progress: state.data!.progress,
-        trainerName: state.data!.trainerName,
       );
-      state = state.copyWith(data: updatedData);
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
-
-final clientDashboardProvider =
-    StateNotifierProvider<ClientDashboardNotifier, ClientDashboardState>((ref) {
-      final apiClient = ApiClient.instance;
-      return ClientDashboardNotifier(apiClient: apiClient);
-    });

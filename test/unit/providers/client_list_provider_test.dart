@@ -27,10 +27,11 @@ void main() {
     });
 
     test('fetchClients sets loading true before completion', () async {
+      // Real API response: {"data": {"clients": [...]}}
       when(() => mockApiClient.get(
             ApiConstants.clients,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{'data': []});
+          )).thenAnswer((_) async => <String, dynamic>{'data': {'clients': []}});
 
       final future = notifier.fetchClients();
       // isLoading is set synchronously before the async gap
@@ -40,25 +41,29 @@ void main() {
     });
 
     test('fetchClients populates list on success', () async {
+      // Real API response shape: {"data": {"clients": [...]}}
+      // Note: Client model expects created_at/updated_at as int (Unix timestamps)
       final mockData = <String, dynamic>{
-        'data': [
-          {
-            'id': 'client-1',
-            'name': 'Alice Johnson',
-            'email': 'alice@test.com',
-            'trainer_id': 'trainer-1',
-            'created_at': 1700000000000,
-            'updated_at': 1700000000000,
-          },
-          {
-            'id': 'client-2',
-            'name': 'Bob Smith',
-            'email': 'bob@test.com',
-            'trainer_id': 'trainer-1',
-            'created_at': 1700000000000,
-            'updated_at': 1700000000000,
-          },
-        ],
+        'data': {
+          'clients': [
+            {
+              'id': 'client-1',
+              'name': 'Alice Johnson',
+              'email': 'alice@test.com',
+              'status': 'active',
+              'created_at': 1704067200,  // Unix timestamp
+              'updated_at': 1704067200,
+            },
+            {
+              'id': 'client-2',
+              'name': 'Bob Smith',
+              'email': 'bob@test.com',
+              'status': 'active',
+              'created_at': 1704067200,
+              'updated_at': 1704067200,
+            },
+          ],
+        },
       };
       when(() => mockApiClient.get(
             ApiConstants.clients,
@@ -78,10 +83,11 @@ void main() {
     });
 
     test('fetchClients passes search parameter in query', () async {
+      // Real API response: {"data": {"clients": [...]}}
       when(() => mockApiClient.get(
             ApiConstants.clients,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{'data': []});
+          )).thenAnswer((_) async => <String, dynamic>{'data': {'clients': []}});
 
       await notifier.fetchClients(search: 'Alice');
 
@@ -163,34 +169,37 @@ void main() {
 
     group('setSearch', () {
       setUp(() async {
-        // Populate clients via fetchClients
+        // Real API response shape: {"data": {"clients": [...]}}
+        // Note: Client model expects created_at/updated_at as int (Unix timestamps)
         final mockData = <String, dynamic>{
-          'data': [
-            {
-              'id': '1',
-              'name': 'Alice Johnson',
-              'email': 'alice@test.com',
-              'trainer_id': 't1',
-              'created_at': 1700000000000,
-              'updated_at': 1700000000000,
-            },
-            {
-              'id': '2',
-              'name': 'Bob Smith',
-              'email': 'bob@test.com',
-              'trainer_id': 't1',
-              'created_at': 1700000000000,
-              'updated_at': 1700000000000,
-            },
-            {
-              'id': '3',
-              'name': 'Charlie Brown',
-              'email': 'charlie@test.com',
-              'trainer_id': 't1',
-              'created_at': 1700000000000,
-              'updated_at': 1700000000000,
-            },
-          ],
+          'data': {
+            'clients': [
+              {
+                'id': '1',
+                'name': 'Alice Johnson',
+                'email': 'alice@test.com',
+                'status': 'active',
+                'created_at': 1704067200,
+                'updated_at': 1704067200,
+              },
+              {
+                'id': '2',
+                'name': 'Bob Smith',
+                'email': 'bob@test.com',
+                'status': 'active',
+                'created_at': 1704067200,
+                'updated_at': 1704067200,
+              },
+              {
+                'id': '3',
+                'name': 'Charlie Brown',
+                'email': 'charlie@test.com',
+                'status': 'active',
+                'created_at': 1704067200,
+                'updated_at': 1704067200,
+              },
+            ],
+          },
         };
         when(() => mockApiClient.get(
               ApiConstants.clients,

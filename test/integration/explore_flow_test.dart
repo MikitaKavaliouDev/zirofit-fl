@@ -106,10 +106,12 @@ void main() {
     });
 
     test('fetchFeatured handles empty response', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
+when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => <String, dynamic>{
-            'data': <dynamic>[],
+            'data': <String, dynamic>{
+              'featuredTrainers': <dynamic>[],
+            },
           });
 
       await container.read(exploreProvider.notifier).fetchFeatured();
@@ -124,7 +126,9 @@ void main() {
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.exploreFeatured,
           )).thenAnswer((_) async => <String, dynamic>{
-            'data': null,
+            'data': <String, dynamic>{
+              'featuredTrainers': null,
+            },
           });
 
       await container.read(exploreProvider.notifier).fetchFeatured();

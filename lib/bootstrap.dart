@@ -1,14 +1,17 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/network/api_client.dart';
 import 'core/network/secure_storage.dart';
+import 'core/providers/fcm_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/deep_link_service.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/notification_routing.dart';
+import 'core/utils/provider_state_logger.dart';
 import 'data/models/profile.dart';
 import 'data/sync/sync_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -31,6 +34,11 @@ class AppBootstrap {
     // 1. Initialize auth — check stored tokens, attempt auto-login
     final authNotifier = container.read(authProvider.notifier);
     await authNotifier.initialize();
+
+    // Log initial provider states after auth initialization
+    if (kDebugMode) {
+      ProviderStateLogger.logAllProviders(container);
+    }
 
     // 2. Trigger initial sync (runs in background; failures are non-fatal)
     try {

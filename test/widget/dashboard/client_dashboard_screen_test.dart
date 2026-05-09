@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/client_measurement.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
+import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
@@ -22,17 +24,42 @@ import '../../helpers/test_setup.dart';
 // Fake notifiers
 // ---------------------------------------------------------------------------
 
-class FakeCD extends ClientDashboardNotifier {
-  final ClientDashboardState _s;
-  FakeCD(this._s) : super(apiClient: ApiClient.instance) {
-    super.state = _s;
-  }
+/// A fake [ClientDashboardNotifier] whose `build()` never completes,
+/// keeping the provider in [AsyncLoading] permanently.
+class LoadingClientDashboardNotifier extends ClientDashboardNotifier {
   @override
-  ClientDashboardState get state => _s;
-  @override
-  Future<void> fetchDashboard() async {}
+  Future<ClientDashboardData> build() async =>
+      // ignore: literal_only_expression
+      Completer<ClientDashboardData>().future;
+
   @override
   Future<void> refresh() async {}
+
+  @override
+  void markCheckInCompleted() {}
+}
+
+/// Holds the desired test state for [DataClientDashboardNotifier].
+/// Set before each test via [buildTestWidget].
+AsyncValue<ClientDashboardData>? _testDashboardState;
+
+/// A fake [ClientDashboardNotifier] that completes `build()` with the
+/// value stored in [_testDashboardState].
+class DataClientDashboardNotifier extends ClientDashboardNotifier {
+  @override
+  Future<ClientDashboardData> build() async {
+    final s = _testDashboardState!;
+    return s.maybeWhen(
+      data: (d) => d,
+      orElse: () => throw (s is AsyncError
+          ? (s as AsyncError).error
+          : Exception('Unknown state')),
+    );
+  }
+
+  @override
+  Future<void> refresh() async {}
+
   @override
   void markCheckInCompleted() {}
 }
@@ -160,31 +187,75 @@ ClientProgramsState get activeProgramState {
   );
 }
 
-ClientDashboardState get loadedState => ClientDashboardState(
-  status: ClientDashboardStatus.loaded,
-  data: ClientDashboardData.mock(),
-);
+/// Constructs a [ClientDashboardData] with realistic test values.
+ClientDashboardData createTestDashboardData({
+  bool checkInCompleted = false,
+}) {
+  final now = DateTime(2026, 5, 5);
+  final today = DateTime(now.year, now.month, now.day);
 
-ClientDashboardState get completedCheckInState {
-  final mock = ClientDashboardData.mock();
-  final completedStatus = CheckInStatus(
-    isDueToday: false,
-    isCompleted: true,
-    lastCheckInDate: DateTime(2026, 5, 1),
-    nextCheckInDate: DateTime(2026, 5, 8),
-  );
-  final data = ClientDashboardData(
-    lastWorkout: mock.lastWorkout,
-    upcomingSessions: mock.upcomingSessions,
-    checkInStatus: completedStatus,
-    progress: mock.progress,
-    trainerName: mock.trainerName,
-  );
-  return ClientDashboardState(
-    status: ClientDashboardStatus.loaded,
-    data: data,
+  return ClientDashboardData(
+    lastWorkout: LastWorkoutSummary(
+      date: now.subtract(const Duration(days: 1)),
+      exercisesCompleted: 8,
+      totalExercises: 10,
+      duration: const Duration(minutes: 45),
+      caloriesBurned: 0,
+    ),
+    upcomingSessions: [
+      WorkoutSession(
+        id: '1',
+        clientId: 'my-client-id',
+        name: 'Upper Body Strength',
+        startTime: today.add(const Duration(days: 1, hours: 10)),
+        status: WorkoutSessionStatus.planned,
+        isTrainerLed: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      WorkoutSession(
+        id: '2',
+        clientId: 'my-client-id',
+        name: 'Cardio & Core',
+        startTime: today.add(const Duration(days: 2, hours: 14)),
+        status: WorkoutSessionStatus.planned,
+        isTrainerLed: false,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      WorkoutSession(
+        id: '3',
+        clientId: 'my-client-id',
+        name: 'Full Body HIIT',
+        startTime: today.add(const Duration(days: 4, hours: 9)),
+        status: WorkoutSessionStatus.planned,
+        isTrainerLed: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ],
+    checkInStatus: CheckInStatus(
+      isDueToday: !checkInCompleted,
+      isCompleted: checkInCompleted,
+      lastCheckInDate: checkInCompleted ? DateTime(2026, 5, 1) : null,
+      nextCheckInDate: null,
+    ),
+    progress: const ProgressSummary(
+      weightChange: -2.5,
+      workoutStreak: 7,
+      totalWorkoutsThisMonth: 12,
+      currentWeight: 75.0,
+      startingWeight: 77.5,
+    ),
+    trainerName: 'Coach Sarah',
   );
 }
+
+AsyncValue<ClientDashboardData> get loadedState =>
+    AsyncData(createTestDashboardData());
+
+AsyncValue<ClientDashboardData> get completedCheckInState =>
+    AsyncData(createTestDashboardData(checkInCompleted: true));
 
 WorkoutSession get historySession {
   final now = DateTime.now();
@@ -248,17 +319,20 @@ GoRouter _createTestRouter(Widget dashboardScreen) {
 }
 
 Widget buildTestWidget({
-  required ClientDashboardState dashboardState,
+  required AsyncValue<ClientDashboardData> dashboardState,
   ClientProgramsState? programsState,
   DailyTargetState? dailyTargetState,
   WorkoutHistoryState? historyState,
   AuthState? authState,
 }) {
+  _testDashboardState = dashboardState;
   final router = _createTestRouter(const ClientDashboardScreen());
 
   return ProviderScope(
     overrides: [
-      clientDashboardProvider.overrideWith((ref) => FakeCD(dashboardState)),
+      clientDashboardProvider.overrideWith(
+        () => DataClientDashboardNotifier(),
+      ),
       authProvider.overrideWith((ref) => FakeAuth(authState ?? defaultAuth)),
       dailyTargetProvider.overrideWith(
         (ref) => FakeDailyTarget(dailyTargetState ?? const DailyTargetState()),
@@ -305,10 +379,28 @@ void main() {
   // -----------------------------------------------------------------------
 
   testWidgets('loading state shows spinner', (t) async {
-    await _pumpApp(t, buildTestWidget(
-      dashboardState: const ClientDashboardState(
-        status: ClientDashboardStatus.loading,
-      ),
+    _testDashboardState = null; // ensure no stale state
+    final router = _createTestRouter(const ClientDashboardScreen());
+    await _pumpApp(t, ProviderScope(
+      overrides: [
+        clientDashboardProvider.overrideWith(
+          () => LoadingClientDashboardNotifier(),
+        ),
+        authProvider.overrideWith((ref) => FakeAuth(defaultAuth)),
+        dailyTargetProvider.overrideWith(
+          (ref) => FakeDailyTarget(const DailyTargetState()),
+        ),
+        clientProgramsProvider.overrideWith(
+          (ref) => FakePrograms(const ClientProgramsState()),
+        ),
+        workoutHistoryProvider.overrideWith(
+          (ref) => FakeHistory(const WorkoutHistoryState()),
+        ),
+        clientMeasurementProvider.overrideWith(
+          (ref) => FakeMeasurement(const ClientMeasurementState()),
+        ),
+      ],
+      child: MaterialApp.router(routerConfig: router),
     ));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
@@ -332,10 +424,10 @@ void main() {
   });
 
   testWidgets('error state shows retry button', (t) async {
-    await t.pumpWidget(buildTestWidget(
-      dashboardState: const ClientDashboardState(
-        status: ClientDashboardStatus.error,
-        error: 'Something went wrong',
+    await _pumpApp(t, buildTestWidget(
+      dashboardState: AsyncError<ClientDashboardData>(
+        Exception('Something went wrong'),
+        StackTrace.current,
       ),
     ));
     await t.pump(const Duration(milliseconds: 300));
@@ -361,7 +453,7 @@ void main() {
   });
 
   // -----------------------------------------------------------------------
-  // 3. Templates → template picker (Navigator.push)
+  // 3. Templates → Navigator.push
   // -----------------------------------------------------------------------
 
   testWidgets('Templates navigates to template picker', (t) async {
@@ -427,7 +519,7 @@ void main() {
   });
 
   // -----------------------------------------------------------------------
-  // 6. Session tap → detail screen (Navigator.push)
+  // 6. Session tap → detail screen
   // -----------------------------------------------------------------------
 
   testWidgets('Upcoming session tap navigates to session detail', (t) async {

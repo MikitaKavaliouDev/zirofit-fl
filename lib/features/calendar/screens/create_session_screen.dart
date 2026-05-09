@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
+import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/calendar/providers/calendar_provider.dart';
+import 'package:zirofit_fl/data/models/client_model.dart';
+import 'package:zirofit_fl/data/models/workout_template.dart';
 
 /// Screen for creating a new workout session.
 class CreateSessionScreen extends ConsumerStatefulWidget {
@@ -31,19 +36,11 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
   String _recurrencePattern = 'weekly';
   bool _isLoading = false;
 
-  // Mock data for clients and templates
-  final List<Map<String, String>> _mockClients = [
-    {'id': 'client-1', 'name': 'John Doe'},
-    {'id': 'client-2', 'name': 'Jane Smith'},
-    {'id': 'client-3', 'name': 'Mike Johnson'},
-  ];
-
-  final List<Map<String, String>> _mockTemplates = [
-    {'id': 'template-1', 'name': 'Full Body Workout'},
-    {'id': 'template-2', 'name': 'Upper Body Focus'},
-    {'id': 'template-3', 'name': 'Lower Body Focus'},
-    {'id': 'template-4', 'name': 'Cardio Session'},
-  ];
+  // Real data from API
+  List<Client> _clients = [];
+  List<WorkoutTemplate> _templates = [];
+  bool _isLoadingData = true;
+  String? _dataError;
 
   @override
   void initState() {
@@ -51,6 +48,53 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
     _selectedDate = widget.initialDate;
     _startTime = const TimeOfDay(hour: 9, minute: 0);
     _endTime = const TimeOfDay(hour: 10, minute: 0);
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() {
+      _isLoadingData = true;
+      _dataError = null;
+    });
+
+    try {
+      final apiClient = ApiClient.instance;
+      
+      // Fetch clients and templates in parallel
+      final responses = await Future.wait([
+        apiClient.get<Map<String, dynamic>>(ApiConstants.clients),
+        apiClient.get<Map<String, dynamic>>(ApiConstants.trainerWorkoutTemplates),
+      ]);
+
+      // Parse clients
+      final clientsData = responses[0]['data'] as Map<String, dynamic>?;
+      final clientsList = clientsData?['clients'] as List<dynamic>? ?? [];
+      _clients = clientsList
+          .map((e) => Client.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      // Parse templates  
+      final templatesData = responses[1]['data'] as Map<String, dynamic>?;
+      final templatesList = templatesData?['templates'] as List<dynamic>? ?? [];
+      _templates = templatesList
+          .map((e) => WorkoutTemplate.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+        });
+      }
+    } catch (e, st) {
+      debugPrint('❌ create_session_screen ERROR fetching data: $e');
+      debugPrint('Stack: $st');
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+          _dataError = e.toString();
+        });
+      }
+    }
   }
 
   @override
@@ -207,13 +251,15 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
                 labelText: 'Select Client',
                 prefixIcon: Icon(Icons.person),
               ),
-              items: _mockClients.map((client) {
-                return DropdownMenuItem(
-                  value: client['id'],
-                  child: Text(client['name']!),
-                );
-              }).toList(),
-              onChanged: (value) {
+              items: _isLoadingData
+                  ? []
+                  : _clients.map((client) {
+                      return DropdownMenuItem(
+                        value: client.id,
+                        child: Text(client.name),
+                      );
+                    }).toList(),
+              onChanged: _isLoadingData ? null : (value) {
                 setState(() {
                   _selectedClientId = value;
                 });
@@ -234,12 +280,14 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
                 labelText: 'Workout Template (Optional)',
                 prefixIcon: Icon(Icons.fitness_center),
               ),
-              items: _mockTemplates.map((template) {
-                return DropdownMenuItem(
-                  value: template['id'],
-                  child: Text(template['name']!),
-                );
-              }).toList(),
+              items: _isLoadingData
+                  ? []
+                  : _templates.map((template) {
+                      return DropdownMenuItem(
+                        value: template.id,
+                        child: Text(template.name),
+                      );
+                    }).toList(),
               onChanged: (value) {
                 setState(() {
                   _selectedTemplateId = value;

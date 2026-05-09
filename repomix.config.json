@@ -1,0 +1,42 @@
+{
+  "ignore": {
+    "customPatterns": [
+      "prisma/data/exercises.json",
+      "a.md",
+      "TASKS.md",
+      "public/openapi.json",
+      "API_DOCUMENTATION.md",
+      "apps/mobile",
+      "src/messages/en.json",
+      "src/messages/pl.json",
+      "src/lib/sync/service.ts",
+      "prisma/**",
+      "test/**",
+      "**test**",
+      "**/route.schema**",
+      "**/route.schema.ts",
+      "**/route.schema.js",
+      "**/route.schema.ts",
+      "**/route.schema.ts",
+      "**route.schema.ts",
+      "scripts/**",
+      "public/**",
+      ".roo/**",
+      ".windsurf/**",
+      "docs/**",
+      "**test.ts",
+      "tests/**",
+    
+
+      "public/**",
+      "public/openapi.json",
+      "lib/core/database/app_database.g.dart",
+      "flutter-test-output.txt",
+      "test_coverage.txt",
+      "FEATURE_COVERAGE.md",
+      "**.md",
+      "pubspec.lock",
+      "**test.dart"
+    ]
+  }
+}
