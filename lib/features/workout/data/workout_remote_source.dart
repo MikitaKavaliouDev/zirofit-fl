@@ -76,9 +76,20 @@ class WorkoutRemoteSource {
     final session = WorkoutSession.fromJson(sessionMap);
 
     // Logs are nested inside session as 'exerciseLogs' (camelCase)
+    // Backend omits clientId from individual log entries — inject it from
+    // the session-level client object so parsing doesn't throw.
+    final sessionClientId =
+        (sessionMap['client'] as Map<String, dynamic>?)?['id'] as String?;
+
     final logsList =
         (sessionMap['exerciseLogs'] as List<dynamic>?)
-            ?.map((e) => ClientExerciseLog.fromJson(e as Map<String, dynamic>))
+            ?.map((e) {
+              final logJson = e as Map<String, dynamic>;
+              return ClientExerciseLog.fromJson(
+                logJson,
+                sessionClientId: sessionClientId,
+              );
+            })
             .toList() ??
         [];
 

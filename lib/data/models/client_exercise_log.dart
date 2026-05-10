@@ -44,8 +44,12 @@ class ClientExerciseLog {
   });
 
   factory ClientExerciseLog.fromJson(
-    Map<String, dynamic> json,
-  ) => ClientExerciseLog(
+    Map<String, dynamic> json, {
+    /// When parsing exercise logs from a workout-sessions/live response the
+    /// backend nests client info at the session level, not per log entry.
+    /// Pass the session-level client id here so it can be used as a fallback.
+    String? sessionClientId,
+  }) => ClientExerciseLog(
     id: json['id'] as String,
     clientId: () {
       // Try flat keys first (snake_case, camelCase)
@@ -55,6 +59,8 @@ class ClientExerciseLog {
       final clientMap = json['client'] as Map<String, dynamic>?;
       final nestedId = clientMap?['id'] as String?;
       if (nestedId != null) return nestedId;
+      // Fallback: session-level client id (for live session logs)
+      if (sessionClientId != null) return sessionClientId;
       throw const FormatException('Missing client_id/clientId/client.id');
     }(),
     exerciseId: readString(json, 'exercise_id', 'exerciseId'),

@@ -206,6 +206,7 @@ class AuthInterceptor extends Interceptor {
     return path == ApiConstants.login ||
         path == ApiConstants.register ||
         path == ApiConstants.refresh ||
+        path == ApiConstants.signout ||
         path == ApiConstants.forgotPassword ||
         path == '/auth/mobile-signin' ||
         path == '/system/config' ||

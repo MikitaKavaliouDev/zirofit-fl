@@ -157,6 +157,9 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   String _extractErrorMessage(dynamic error) {
+    if (error is ArgumentError) {
+      return 'Failed to load check-in data.';
+    }
     if (error is DioException) {
       if (error.response?.data is Map) {
         final errorData = error.response!.data as Map;

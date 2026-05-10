@@ -28,9 +28,9 @@ class ActivityHeatMapWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Month labels
-        SizedBox(
-          height: 16,
+        // Month labels (scrollable, syncs with grid scroll)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
           child: Row(
             children: _buildMonthLabels(allDays),
           ),

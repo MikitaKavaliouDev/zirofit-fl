@@ -306,6 +306,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         body: {'refreshToken': refreshToken},
       );
 
+      // Backend returns { data: { accessToken, refreshToken, expiresAt, user } }
       final data = response['data'] as Map<String, dynamic>;
       final newAccessToken = data['accessToken'] as String;
       final newRefreshToken = data['refreshToken'] as String;

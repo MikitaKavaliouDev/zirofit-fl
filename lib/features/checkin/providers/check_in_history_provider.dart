@@ -124,6 +124,9 @@ class CheckInHistoryNotifier extends StateNotifier<CheckInHistoryState> {
   // ---------------------------------------------------------------------------
 
   String _extractErrorMessage(dynamic error) {
+    if (error is ArgumentError) {
+      return 'Failed to load check-in history. Please pull to refresh.';
+    }
     if (error is DioException) {
       if (error.response?.data is Map) {
         final errorData = error.response!.data as Map;

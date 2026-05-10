@@ -8,7 +8,6 @@ import 'package:zirofit_fl/features/admin/screens/admin_tickets_screen.dart';
 import 'package:zirofit_fl/features/admin/widgets/admin_shell.dart';
 import 'package:zirofit_fl/features/ai_coach/screens/ai_coach_screen.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
-import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
 import 'package:zirofit_fl/features/auth/screens/delete_account_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/forgot_password_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/auth_callback_screen.dart';
@@ -63,7 +62,6 @@ import 'package:zirofit_fl/data/models/profile.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
-  final mode = ref.watch(modeSwitchProvider);
 
   return GoRouter(
     initialLocation: '/auth/login',
@@ -78,7 +76,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Logged in but on an auth route → dashboard (except update-password)
       if (isLoggedIn && isAuthRoute && !isUpdatePassword) {
-        return _getDefaultRoute(authState.role, mode: mode);
+        return _getDefaultRoute(authState.role);
       }
 
       // Pending role → onboarding (unless already there)
@@ -86,12 +84,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/onboarding';
       }
 
-      // Role/mode-based guard: ensure user stays in the correct route prefix
+      // Role-based guard: ensure user stays in the correct route prefix.
+      // Mode (trainer/personal) is a DISPLAY preference only — it does NOT
+      // change which role's routes are accessible. A trainer always stays in
+      // /trainer/*, a client always stays in /client/*.
       if (isLoggedIn && !isOnboarding) {
         final location = state.matchedLocation;
-        final expectedPrefix = mode == ModeState.personal
-            ? '/client'
-            : _getRolePrefix(authState.role);
+        final expectedPrefix = _getRolePrefix(authState.role);
 
         // Allow shared routes and sub-routes of the expected prefix
         if (!location.startsWith(expectedPrefix) &&
@@ -103,7 +102,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             !location.startsWith('/workout/') &&
             !location.startsWith('/public-trainer/') &&
             !location.startsWith('/settings/')) {
-          return _getDefaultRoute(authState.role, mode: mode);
+          return _getDefaultRoute(authState.role);
         }
       }
 
@@ -445,11 +444,7 @@ class _TrainerProfileUnavailable extends StatelessWidget {
   }
 }
 
-String _getDefaultRoute(String? role, {ModeState? mode}) {
-  // Mode-based routing takes priority
-  if (mode == ModeState.personal) return '/client/dashboard';
-  if (mode == ModeState.trainer) return '/trainer/dashboard';
-
+String _getDefaultRoute(String? role) {
   switch (role) {
     case 'trainer':
       return '/trainer/dashboard';

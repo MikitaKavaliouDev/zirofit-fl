@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
@@ -33,6 +34,33 @@ class ClientDetailState {
     this.isLoadingSessions = false,
     this.error,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClientDetailState &&
+          client == other.client &&
+          listEquals(measurements, other.measurements) &&
+          listEquals(photos, other.photos) &&
+          listEquals(sessions, other.sessions) &&
+          isLoadingClient == other.isLoadingClient &&
+          isLoadingMeasurements == other.isLoadingMeasurements &&
+          isLoadingPhotos == other.isLoadingPhotos &&
+          isLoadingSessions == other.isLoadingSessions &&
+          error == other.error;
+
+  @override
+  int get hashCode => Object.hash(
+        client,
+        Object.hashAll(measurements),
+        Object.hashAll(photos),
+        Object.hashAll(sessions),
+        isLoadingClient,
+        isLoadingMeasurements,
+        isLoadingPhotos,
+        isLoadingSessions,
+        error,
+      );
 
   ClientDetailState copyWith({
     Client? client,

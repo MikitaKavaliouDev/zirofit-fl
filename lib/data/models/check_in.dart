@@ -5,7 +5,7 @@ class CheckIn {
   final String id;
   final String clientId;
   final DateTime date;
-  final String status;
+  final String? status;
   final double? weight;
   final double? waistCm;
   final double? sleepHours;
@@ -26,7 +26,7 @@ class CheckIn {
     required this.id,
     required this.clientId,
     required this.date,
-    this.status = 'SUBMITTED',
+    this.status,
     this.weight,
     this.waistCm,
     this.sleepHours,
@@ -48,7 +48,7 @@ class CheckIn {
         id: readString(json, 'id', 'id'),
         clientId: readString(json, 'client_id', 'clientId'),
         date: readDateTime(json, 'date', 'date'),
-        status: readString(json, 'status', 'status'),
+        status: readStringOrNull(json, 'status', 'status'),
         weight: (json['weight'] as num?)?.toDouble(),
         waistCm: (json['waist_cm'] ?? json['waistCm'] as num?)?.toDouble(),
         sleepHours: (json['sleep_hours'] ?? json['sleepHours'] as num?)?.toDouble(),

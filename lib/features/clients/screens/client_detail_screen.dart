@@ -43,14 +43,22 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(clientDetailProvider(widget.id));
+    final client = ref.watch(
+      clientDetailProvider(widget.id).select((s) => s.client),
+    );
+    final isLoadingClient = ref.watch(
+      clientDetailProvider(widget.id).select((s) => s.isLoadingClient),
+    );
+    final error = ref.watch(
+      clientDetailProvider(widget.id).select((s) => s.error),
+    );
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(state.client?.name ?? 'Client'),
+        title: Text(client?.name ?? 'Client'),
         actions: [
-          if (state.client != null)
+          if (client != null)
             PopupMenuButton<String>(
               onSelected: (value) async {
                 if (value == 'assign') {
@@ -58,8 +66,8 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
                     MaterialPageRoute(
                       builder: (_) => AssignProgramScreen(
                         clientId: widget.id,
-                        clientName: state.client!.name,
-                        clientAvatarPath: state.client!.avatarPath,
+                        clientName: client.name,
+                        clientAvatarPath: client.avatarPath,
                       ),
                     ),
                   );
@@ -88,16 +96,16 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
             ),
         ],
       ),
-      body: _buildBody(state, theme),
+      body: _buildBody(client, isLoadingClient, error, theme),
     );
   }
 
-  Widget _buildBody(ClientDetailState state, ThemeData theme) {
-    if (state.isLoadingClient && state.client == null) {
+  Widget _buildBody(Client? client, bool isLoadingClient, String? error, ThemeData theme) {
+    if (isLoadingClient && client == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state.hasError && state.client == null) {
+    if (error != null && client == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -108,7 +116,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
                   size: 48, color: theme.colorScheme.error),
               const SizedBox(height: 16),
               Text(
-                state.error!,
+                error,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge,
               ),
@@ -125,7 +133,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
       );
     }
 
-    final client = state.client!;
+    final c = client!;
 
     return RefreshIndicator(
       onRefresh: () =>
@@ -134,7 +142,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverToBoxAdapter(
-              child: _ClientHeader(client: client, theme: theme),
+              child: _ClientHeader(client: c, theme: theme),
             ),
             SliverPersistentHeader(
               pinned: true,
@@ -153,7 +161,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _OverviewTab(client: client),
+            _OverviewTab(client: c),
             _MeasurementsTab(clientId: widget.id),
             _PhotosTab(clientId: widget.id),
             _SessionsTab(clientId: widget.id),
@@ -492,14 +500,17 @@ class _MeasurementsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(clientDetailProvider(clientId));
+    final measurements = ref.watch(
+      clientDetailProvider(clientId).select((s) => s.measurements),
+    );
+    final isLoadingMeasurements = ref.watch(
+      clientDetailProvider(clientId).select((s) => s.isLoadingMeasurements),
+    );
     final theme = Theme.of(context);
 
-    if (state.isLoadingMeasurements && state.measurements.isEmpty) {
+    if (isLoadingMeasurements && measurements.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final measurements = state.measurements;
 
     return Column(
       children: [
@@ -806,14 +817,17 @@ class _PhotosTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(clientDetailProvider(clientId));
+    final photos = ref.watch(
+      clientDetailProvider(clientId).select((s) => s.photos),
+    );
+    final isLoadingPhotos = ref.watch(
+      clientDetailProvider(clientId).select((s) => s.isLoadingPhotos),
+    );
     final theme = Theme.of(context);
 
-    if (state.isLoadingPhotos && state.photos.isEmpty) {
+    if (isLoadingPhotos && photos.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final photos = state.photos;
 
     return Column(
       children: [
@@ -1058,14 +1072,17 @@ class _SessionsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(clientDetailProvider(clientId));
+    final sessions = ref.watch(
+      clientDetailProvider(clientId).select((s) => s.sessions),
+    );
+    final isLoadingSessions = ref.watch(
+      clientDetailProvider(clientId).select((s) => s.isLoadingSessions),
+    );
     final theme = Theme.of(context);
 
-    if (state.isLoadingSessions && state.sessions.isEmpty) {
+    if (isLoadingSessions && sessions.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final sessions = state.sessions;
 
     return Column(
       children: [

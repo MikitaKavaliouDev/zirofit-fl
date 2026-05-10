@@ -4,6 +4,7 @@ import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/clients/providers/client_list_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
@@ -168,11 +169,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 label: const Text('Start Workout'),
               ),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _showClientSelector(context),
-                icon: const Icon(Icons.group_add),
-                label: const Text('Start Trainer-Led Session'),
-              ),
+              if (ref.watch(authProvider).isTrainer)
+                OutlinedButton.icon(
+                  onPressed: () => _showClientSelector(context),
+                  icon: const Icon(Icons.group_add),
+                  label: const Text('Start Trainer-Led Session'),
+                ),
             ],
           ),
         ),

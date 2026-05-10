@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
@@ -289,6 +290,10 @@ class ClientDashboardNotifier extends AutoDisposeAsyncNotifier<ClientDashboardDa
       // Log error to terminal for debugging
       debugPrint('❌ client_dashboard_provider ERROR: $e');
       debugPrint('Stack: $st');
+      if (e is DioException && e.response != null) {
+        debugPrint('Response status: ${e.response?.statusCode}');
+        debugPrint('Response body: ${e.response?.data}');
+      }
       rethrow;
     }
   }

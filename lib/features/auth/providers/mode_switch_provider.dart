@@ -95,6 +95,28 @@ class ModeSwitchNotifier extends StateNotifier<ModeState> {
 
     // -- 4.  Re-initialise auth with the new token set --
     await _ref.read(authProvider.notifier).initialize();
+
+    // -- 5.  Sync refreshed tokens back to SharedPreferences --
+    final authState = _ref.read(authProvider);
+    if (authState.isAuthenticated) {
+      final refreshedAccess = await secureStorage.getAccessToken();
+      final refreshedRefresh = await secureStorage.getRefreshToken();
+      if (refreshedAccess != null) {
+        await prefs.setString(
+          '${_modePrefix(state)}_access_token',
+          refreshedAccess,
+        );
+        await prefs.setString(
+          '${_modePrefix(state)}_refresh_token',
+          refreshedRefresh ?? '',
+        );
+      }
+    } else if (newAccess != null) {
+      // Tokens were restored but refresh failed (stale/consumed).
+      // Clean up the backup so we don't retry invalid tokens next time.
+      await prefs.remove('${_modePrefix(state)}_access_token');
+      await prefs.remove('${_modePrefix(state)}_refresh_token');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -104,4 +126,16 @@ class ModeSwitchNotifier extends StateNotifier<ModeState> {
   /// SharedPreferences key prefix for the given [mode].
   String _modePrefix(ModeState mode) =>
       mode == ModeState.trainer ? 'trainer' : 'personal';
+
+  /// Force-set the display mode to match [role].
+  ///
+  /// Called from [bootstrap.dart] after auth initialization so the mode always
+  /// reflects the current token identity (trainer vs client) rather than a
+  /// stale stored preference.
+  Future<void> setMode(ModeState mode) async {
+    if (state == mode) return;
+    final prefs = await SharedPreferences.getInstance();
+    state = mode;
+    await prefs.setString('app_mode', _modePrefix(mode));
+  }
 }

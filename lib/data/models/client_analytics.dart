@@ -14,7 +14,7 @@ class VolumePoint {
   });
 
   factory VolumePoint.fromJson(Map<String, dynamic> json) => VolumePoint(
-        date: json['date'] as String,
+        date: json['date'] as String? ?? '',
         volume: (json['volume'] as num? ?? 0.0).toDouble(),
       );
 
@@ -49,7 +49,7 @@ class MusclePoint {
   });
 
   factory MusclePoint.fromJson(Map<String, dynamic> json) => MusclePoint(
-        muscle: json['muscle'] as String,
+        muscle: json['muscle'] as String? ?? 'Unknown',
         count: json['count'] as int? ?? 0,
       );
 
@@ -93,10 +93,10 @@ class AnalyticsPersonalRecord {
 
   factory AnalyticsPersonalRecord.fromJson(Map<String, dynamic> json) {
     return AnalyticsPersonalRecord(
-      exercise: json['exercise'] as String,
+      exercise: json['exercise'] as String? ?? '',
       value: (json['value'] as num? ?? 0.0).toDouble(),
-      type: json['type'] as String,
-      date: readDateTime(json, 'date', 'date'),
+      type: json['type'] as String? ?? '',
+      date: readDateTimeOrNull(json, 'date', 'date') ?? DateTime.now(),
     );
   }
 
@@ -183,7 +183,7 @@ class ExercisePerformance {
 
   factory ExercisePerformance.fromJson(Map<String, dynamic> json) =>
       ExercisePerformance(
-        exercise: json['exercise'] as String,
+        exercise: json['exercise'] as String? ?? 'Unknown Exercise',
         averageWeight: (json['average_weight'] as num?)?.toDouble(),
         averageReps: (json['average_reps'] as num?)?.toDouble(),
         maxWeight: (json['max_weight'] as num?)?.toDouble(),
@@ -243,8 +243,8 @@ class FavoriteExercise {
 
   factory FavoriteExercise.fromJson(Map<String, dynamic> json) =>
       FavoriteExercise(
-        exercise: json['exercise'] as String,
-        count: json['count'] as int,
+        exercise: json['exercise'] as String? ?? 'Unknown Exercise',
+        count: json['count'] as int? ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -282,7 +282,7 @@ class WorstExercise {
   });
 
   factory WorstExercise.fromJson(Map<String, dynamic> json) => WorstExercise(
-        exercise: json['exercise'] as String,
+        exercise: json['exercise'] as String? ?? 'Unknown Exercise',
         averageWeight: (json['average_weight'] as num?)?.toDouble(),
         averageReps: (json['average_reps'] as num?)?.toDouble(),
       );

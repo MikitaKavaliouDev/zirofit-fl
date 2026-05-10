@@ -58,7 +58,7 @@ class Client {
         phone: readStringOrNull(json, 'phone', 'phone'),
         avatarPath: readStringOrNull(json, 'avatar_path', 'avatarPath') ??
             readStringOrNull(json, 'avatar_url', 'avatarUrl'),
-        status: readString(json, 'status', 'status'),
+        status: readStringOrNull(json, 'status', 'status') ?? 'active',
         dateOfBirth: readDateTimeOrNull(json, 'date_of_birth', 'dateOfBirth'),
         goals: readStringOrNull(json, 'goals', 'goals'),
         healthNotes: readStringOrNull(json, 'health_notes', 'healthNotes'),

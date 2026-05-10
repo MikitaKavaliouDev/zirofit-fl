@@ -192,6 +192,13 @@ class TrainerCheckInsNotifier extends StateNotifier<TrainerCheckInsState> {
   }
 
   String _extractErrorMessage(dynamic error) {
+    if (error is ArgumentError) {
+      final msg = error.message?.toString() ?? '';
+      if (msg.contains('status')) {
+        return 'Some check-ins are missing data. Pull to refresh.';
+      }
+      return 'Failed to parse check-in data. Please pull to refresh.';
+    }
     if (error is DioException) {
       if (error.response?.data is Map) {
         final errorData = error.response!.data as Map;

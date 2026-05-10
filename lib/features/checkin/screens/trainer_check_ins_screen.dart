@@ -270,7 +270,7 @@ class _CheckInCardState extends ConsumerState<_CheckInCard> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                ci.status,
+                                ci.status ?? 'Unknown',
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: isPending

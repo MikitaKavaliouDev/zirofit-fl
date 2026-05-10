@@ -15,6 +15,7 @@ import 'core/utils/provider_state_logger.dart';
 import 'data/models/profile.dart';
 import 'data/sync/sync_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/providers/mode_switch_provider.dart';
 
 /// Application initialization orchestration.
 ///
@@ -27,13 +28,32 @@ class AppBootstrap {
     ApiClient.configure(
       secureStorage: SecureStorage(),
       onLogout: () {
-        // AuthNotifier handles state reset; router redirects to login
+        // Called by AuthInterceptor when auto-refresh fails (401).
+        // Triggers auth state reset so the router redirects to login.
+        try {
+          container.read(authProvider.notifier).signOut();
+        } catch (_) {
+          // Container may not be fully ready if called early.
+        }
       },
     );
 
     // 1. Initialize auth — check stored tokens, attempt auto-login
     final authNotifier = container.read(authProvider.notifier);
     await authNotifier.initialize();
+
+    // 2. Sync display mode to match the authenticated role.
+    //    A trainer always lands on /trainer/*, a client on /client/* — regardless
+    //    of any stored mode preference.  The user can still toggle via the
+    //    bottom-nav button (switchMode()).
+    final authState = container.read(authProvider);
+    if (authState.role == 'client') {
+      final modeNotifier = container.read(modeSwitchProvider.notifier);
+      await modeNotifier.setMode(ModeState.personal);
+    } else if (authState.role == 'trainer') {
+      final modeNotifier = container.read(modeSwitchProvider.notifier);
+      await modeNotifier.setMode(ModeState.trainer);
+    }
 
     // Log initial provider states after auth initialization
     if (kDebugMode) {
