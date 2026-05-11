@@ -15,6 +15,39 @@ final workoutRemoteSourceProvider = Provider<WorkoutRemoteSource>((ref) {
   return WorkoutRemoteSource(apiClient: ApiClient.instance);
 });
 
+/// Result of logging an exercise, including any new personal records.
+class LogExerciseResult {
+  final ClientExerciseLog log;
+  final List<NewRecord> newRecords;
+
+  const LogExerciseResult({
+    required this.log,
+    this.newRecords = const [],
+  });
+}
+
+/// Represents a new personal record achieved during a workout.
+class NewRecord {
+  final String exerciseId;
+  final String recordType; // 'weight', 'reps', 'e1rm'
+  final double oldRecord;
+  final double newRecord;
+
+  const NewRecord({
+    required this.exerciseId,
+    required this.recordType,
+    required this.oldRecord,
+    required this.newRecord,
+  });
+
+  factory NewRecord.fromJson(Map<String, dynamic> json) => NewRecord(
+        exerciseId: json['exerciseId'] as String,
+        recordType: json['recordType'] as String,
+        oldRecord: (json['oldRecord'] as num).toDouble(),
+        newRecord: (json['newRecord'] as num).toDouble(),
+      );
+}
+
 /// Remote data source for all workout-related API calls.
 ///
 /// All methods throw [ApiException] on failure.
@@ -94,40 +127,62 @@ class WorkoutRemoteSource {
             .toList() ??
         [];
 
-    return (session: session, logs: logsList);
+return (session: session, logs: logsList);
   }
 
   /// POST /api/workout-sessions/live
   /// Logs an exercise set in the current workout session.
+  /// Optionally marks the exercise as completed.
+  /// If logId is provided, updates an existing log (upsert behavior).
   Future<ClientExerciseLog> logExercise({
-    required String exerciseId,
-    required String workoutSessionId,
-    int? reps,
-    double? weight,
-    String? side,
-    int? order,
-  }) async {
-    final body = <String, dynamic>{
-      'exerciseId': exerciseId,
-      'workoutSessionId': workoutSessionId,
-    };
-    if (reps != null) body['reps'] = reps;
-    if (weight != null) body['weight'] = weight;
-    if (side != null) body['side'] = side;
-    if (order != null) body['order'] = order;
+  required String exerciseId,
+  required String workoutSessionId,
+  int? reps,
+  double? weight,
+  String? side,
+  int? order,
+  bool? isCompleted,
+  String? logId,
+}) async {
+  final body = <String, dynamic>{
+    'exerciseId': exerciseId,
+    'workoutSessionId': workoutSessionId,
+  };
+  if (reps != null) body['reps'] = reps;
+  if (weight != null) body['weight'] = weight;
+  if (side != null) body['side'] = side;
+  if (order != null) body['order'] = order;
+  if (isCompleted != null) body['isCompleted'] = isCompleted;
+  if (logId != null) body['logId'] = logId;
 
-    final response = await _apiClient.post<ApiResponse<ClientExerciseLog>>(
-      ApiConstants.workoutLive,
-      body: body,
-      fromJson: (json) =>
-          ApiResponse.fromJson(json, ClientExerciseLog.fromJson),
-    );
+  final response = await _apiClient.post<Map<String, dynamic>>(
+    ApiConstants.workoutLive,
+    body: body,
+  );
 
-    if (response.data == null) {
-      throw response.toException();
-    }
-    return response.data!;
+  final data = response['data'] as Map<String, dynamic>?;
+  if (data == null) {
+    throw const FormatException('Missing data in response');
   }
+
+  // Backend returns {data: {log: {...}, newRecords: [...]}}, unwrap the log key.
+  final logJson = data['log'] as Map<String, dynamic>?;
+  if (logJson == null) {
+    throw const FormatException('Missing log in response');
+  }
+
+  // Extract exerciseName from nested exercise object if present
+  final exerciseMap = logJson['exercise'] as Map<String, dynamic>?;
+  final exerciseName = exerciseMap?['name'] as String?;
+
+  final log = ClientExerciseLog.fromJson(
+    exerciseName != null
+        ? {...logJson, 'exerciseName': exerciseName}
+        : logJson,
+  );
+
+  return log;
+}
 
   /// POST /api/workout-sessions/finish
   /// Marks the workout session as completed.

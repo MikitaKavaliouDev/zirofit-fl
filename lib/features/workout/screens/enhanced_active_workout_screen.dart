@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,24 +12,18 @@ import 'package:zirofit_fl/features/workout/providers/active_workout_provider.da
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
 import 'package:zirofit_fl/features/workout/services/voice_log_service.dart';
+import 'package:zirofit_fl/features/workout/services/workout_toast_service.dart';
 import 'package:zirofit_fl/features/workout/models/workout_focus_state.dart';
 import 'package:zirofit_fl/features/workout/widgets/exercise_selection_view.dart';
 import 'package:zirofit_fl/features/workout/widgets/enhanced_exercise_list_builder.dart';
 import 'package:zirofit_fl/features/workout/widgets/voice_input_overlay.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_numeric_keyboard.dart';
 import 'package:zirofit_fl/features/workout/widgets/rpe_picker_overlay.dart';
+import 'package:zirofit_fl/features/workout/widgets/rest_timer_sheet.dart';
 import 'package:zirofit_fl/features/workout/widgets/interactive_plate_calculator.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_session_header.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_session_controls.dart';
 
-/// Enhanced ActiveWorkoutScreen with advanced input system
-/// matching iOS WorkoutSessionView.swift
-///
-/// Features:
-/// - Advanced input system (keyboard/plate/RPE overlay)
-/// - Focus-based field navigation
-/// - Inline set editing with EnhancedExerciseListBuilder
-/// - Rest timer card matching iOS header
-/// - Trainer-led session header
-/// - Voice input integration
 class EnhancedActiveWorkoutScreen extends ConsumerStatefulWidget {
   final String? templateId;
 
@@ -40,16 +35,24 @@ class EnhancedActiveWorkoutScreen extends ConsumerStatefulWidget {
 }
 
 class _EnhancedActiveWorkoutScreenState
-    extends ConsumerState<EnhancedActiveWorkoutScreen> {
+    extends ConsumerState<EnhancedActiveWorkoutScreen> with SingleTickerProviderStateMixin {
   final VoiceFeedbackService _voiceService = VoiceFeedbackService();
   final VoiceLogService _voiceLogService = VoiceLogService();
 
   // Advanced input system state
   WorkoutInputState _inputState = const WorkoutInputState();
 
+  // Drag to dismiss state
+  final ValueNotifier<double> _dragOffset = ValueNotifier<double>(0.0);
+  late AnimationController _minimizeController;
+
   @override
   void initState() {
     super.initState();
+    _minimizeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     Future.microtask(() => _initWorkout());
     Future.microtask(() => _voiceService.initialize());
   }
@@ -58,6 +61,8 @@ class _EnhancedActiveWorkoutScreenState
   void dispose() {
     _voiceService.stop();
     _voiceLogService.stopListening();
+    _minimizeController.dispose();
+    _dragOffset.dispose();
     super.dispose();
   }
 
@@ -88,7 +93,6 @@ class _EnhancedActiveWorkoutScreenState
 
   String _getCurrentValue(SessionFocusField field) {
     final state = ref.read(activeWorkoutProvider);
-    // Find the set value
     for (final log in state.logs) {
       if (log.id == field.setId) {
         if (field.isWeight) {
@@ -112,7 +116,6 @@ class _EnhancedActiveWorkoutScreenState
             _inputState.activeSetId!,
             numericValue,
           );
-      // Update weight in the log
       _updateLogField(_inputState.activeSetId!, weight: numericValue);
     } else if (_inputState.focusedField?.isReps == true) {
       _updateLogField(_inputState.activeSetId!, reps: numericValue.toInt());
@@ -120,33 +123,8 @@ class _EnhancedActiveWorkoutScreenState
   }
 
   void _updateLogField(String logId, {double? weight, int? reps}) {
-    final state = ref.read(activeWorkoutProvider);
-    final updatedLogs = state.logs.map((log) {
-      if (log.id == logId) {
-        return ClientExerciseLog(
-          id: log.id,
-          clientId: log.clientId,
-          exerciseId: log.exerciseId,
-          reps: reps ?? log.reps,
-          weight: weight ?? log.weight,
-          isCompleted: log.isCompleted,
-          order: log.order,
-          side: log.side,
-          workoutSessionId: log.workoutSessionId,
-          supersetKey: log.supersetKey,
-          orderInSuperset: log.orderInSuperset,
-          sets: log.sets,
-          rpe: log.rpe,
-          rir: log.rir,
-          exerciseName: log.exerciseName,
-          createdAt: log.createdAt,
-          updatedAt: DateTime.now(),
-          deletedAt: log.deletedAt,
-        );
-      }
-      return log;
-    }).toList();
-    // Note: This is a local update only. In production, use proper provider methods.
+    // Note: In production, use proper provider methods.
+    // This is a placeholder for local updates if needed.
   }
 
   void _handleInputNext() {
@@ -155,7 +133,6 @@ class _EnhancedActiveWorkoutScreenState
     final current = _inputState.focusedField;
     if (current != null) {
       if (current.isWeight) {
-        // Move to reps
         setState(() {
           _inputState = _inputState.copyWith(
             focusedField: SessionFocusField.reps(current.setId),
@@ -163,7 +140,6 @@ class _EnhancedActiveWorkoutScreenState
           );
         });
       } else if (current.isReps) {
-        // Find next set or close
         final nextSetId = _findNextSetId(current.setId);
         if (nextSetId != null) {
           setState(() {
@@ -239,82 +215,121 @@ class _EnhancedActiveWorkoutScreenState
     final state = ref.watch(activeWorkoutProvider);
     final theme = Theme.of(context);
 
+    // Listen for new record changes to show toast
+    ref.listen<String?>(activeWorkoutProvider.select((s) => s.lastNewRecord), (previous, next) {
+      if (next != null && next.isNotEmpty) {
+        WorkoutToastService.showNewRecordToast(context, next);
+      }
+    });
+
+    // Listen for rest timer start to auto-show rest timer sheet
+    ref.listen<bool>(activeWorkoutProvider.select((s) => s.isRestRunning), (previous, next) {
+      if (next && !(previous ?? false)) {
+        _showRestTimer(context);
+      }
+    });
+
     return Scaffold(
-      appBar: _buildAppBar(theme, state),
-      body: Stack(
-        children: [
-          // Main content
-          Column(
-            children: [
-              // Error banner
-              if (state.error != null)
-                _buildErrorBanner(theme, state.error!),
-
-              // Rest timer card
-              if (state.isRestRunning || state.restSeconds > 0)
-                _RestTimerCard(
-                  restSeconds: state.restSeconds,
-                  isRunning: state.isRestRunning,
-                  onStartRest: () =>
-                      ref.read(activeWorkoutProvider.notifier).startRest(),
-                  onEndRest: () =>
-                      ref.read(activeWorkoutProvider.notifier).endRest(),
-                ),
-
-              // Trainer-led header
-              if (state.isTrainerLed)
-                _TrainerLedHeader(clientName: state.clientName ?? 'Client'),
-
-              // Main exercise list
-              Expanded(
-                child: _buildMainContent(state, theme),
+      body: ValueListenableBuilder<double>(
+        valueListenable: _dragOffset,
+        builder: (context, offset, child) {
+          return Transform.translate(
+            offset: Offset(0, offset),
+            child: child,
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
               ),
-
-              // Bottom action bar
-              if (state.hasActiveSession) _buildBottomBar(theme),
             ],
           ),
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  const SizedBox(height: 12),
+                  // Header with Drag Gesture
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragUpdate: (details) {
+                      if (details.delta.dy > 0 || _dragOffset.value > 0) {
+                        _dragOffset.value += details.delta.dy;
+                      }
+                    },
+                    onVerticalDragEnd: (details) {
+                      if (_dragOffset.value > 120 || details.primaryVelocity! > 500) {
+                        _minimize();
+                      } else {
+                        _resetDrag();
+                      }
+                    },
+                    child: WorkoutSessionHeader(
+                      onShowRestTimer: () => _showRestTimer(context),
+                    ),
+                  ),
 
-          // Input overlay (keyboard/plate/RPE)
-          if (_inputState.isActive) _buildInputOverlay(theme),
+                  // Main content
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        _buildMainContent(state, theme),
+                        
+                        // Error banner overlay
+                        if (state.error != null)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: _buildErrorBanner(theme, state.error!),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
 
-          // Rest timer toast
-        ],
+              // Bottom Controls
+              if (state.hasActiveSession)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _inputState.isActive ? 0 : 1,
+                    child: WorkoutSessionControls(
+                      isRecording: _voiceLogService.isListening,
+                      onVoicePressed: () => _onVoiceInput(context),
+                      onFinishPressed: () => _onFinishWorkout(context),
+                      onCancelPressed: () => _onCancelWorkout(context),
+                    ),
+                  ),
+                ),
+
+              // Input overlay (keyboard/plate/RPE)
+              if (_inputState.isActive) _buildInputOverlay(theme),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(ThemeData theme, ActiveWorkoutState state) {
-    return AppBar(
-      title: Text(
-        state.session?.name ?? 'Active Workout',
-        style: theme.textTheme.titleMedium,
-      ),
-      actions: [
-        if (state.hasActiveSession)
-          IconButton(
-            icon: Icon(
-              _voiceService.isEnabled
-                  ? Icons.volume_up
-                  : Icons.volume_off,
-            ),
-            tooltip: _voiceService.isEnabled
-                ? 'Mute voice feedback'
-                : 'Enable voice feedback',
-            onPressed: () {
-              setState(() {
-                _voiceService.setEnabled(!_voiceService.isEnabled);
-              });
-            },
-          ),
-        if (state.hasActiveSession)
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: 'Cancel workout',
-            onPressed: () => _onCancelWorkout(context),
-          ),
-      ],
-    );
+  void _minimize() {
+    HapticFeedback.mediumImpact();
+    _minimizeController.forward(from: _dragOffset.value / MediaQuery.of(context).size.height);
+    Navigator.of(context).pop(); // Minimal implementation for now
+  }
+
+  void _resetDrag() {
+    _dragOffset.value = 0.0;
   }
 
   Widget _buildErrorBanner(ThemeData theme, String error) {
@@ -368,12 +383,18 @@ class _EnhancedActiveWorkoutScreenState
       onFocus: _triggerInput,
       onWeightChanged: (weight) {
         if (_inputState.activeSetId != null) {
-          _updateLogField(_inputState.activeSetId!, weight: weight);
+          ref.read(activeWorkoutProvider.notifier).logExercise(
+                exerciseId: _inputState.focusedField!.setId,
+                weight: weight,
+              );
         }
       },
       onRepsChanged: (reps) {
         if (_inputState.activeSetId != null) {
-          _updateLogField(_inputState.activeSetId!, reps: reps);
+          ref.read(activeWorkoutProvider.notifier).logExercise(
+                exerciseId: _inputState.focusedField!.setId,
+                reps: reps,
+              );
         }
       },
       onRpeChanged: (rpe) {
@@ -428,7 +449,6 @@ class _EnhancedActiveWorkoutScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Dismiss area
           GestureDetector(
             onTap: _closeInput,
             behavior: HitTestBehavior.opaque,
@@ -437,7 +457,6 @@ class _EnhancedActiveWorkoutScreenState
               color: Colors.transparent,
             ),
           ),
-          // Input view
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: _buildCurrentInputView(theme),
@@ -475,8 +494,7 @@ class _EnhancedActiveWorkoutScreenState
           onDismiss: _switchToKeyboard,
         );
       case WorkoutInputOverlay.rpePicker:
-        return _RpePickerWrapper(
-          key: const ValueKey('rpe'),
+        return RPEPickerOverlay(
           onSelected: (rpe) {
             if (_inputState.activeSetId != null) {
               ref.read(activeWorkoutProvider.notifier).updateSetRpe(_inputState.activeSetId!, rpe);
@@ -490,73 +508,35 @@ class _EnhancedActiveWorkoutScreenState
     }
   }
 
-  Widget _buildBottomBar(ThemeData theme) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(
-            top: BorderSide(color: theme.colorScheme.outlineVariant),
-          ),
-        ),
-        child: Row(
-          children: [
-            // Mic button
-            SizedBox(
-              width: 56,
-              height: 56,
-              child: FilledButton.tonal(
-                onPressed: () => _onVoiceInput(context),
-                style: FilledButton.styleFrom(padding: EdgeInsets.zero),
-                child: const Icon(Icons.mic),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Add set button
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: FilledButton.icon(
-                  onPressed: () => _showExerciseSelection(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Set'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Dialogs & Sheets
+  // ---------------------------------------------------------------------------
 
-  // ---------------------------------------------------------------------------
-  // Dialogs
-  // ---------------------------------------------------------------------------
+  void _showRestTimer(BuildContext context) {
+    RestTimerSheet.show(context);
+  }
 
   void _showExerciseSelection(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => ExerciseSelectionView(
-        onDone: (selectedExercises) {
-          _handleSelectedExercises(selectedExercises, context);
+        onExerciseSelected: (exercise, isSelected) {
+          if (isSelected) {
+            // Live background populate
+            final notifier = ref.read(activeWorkoutProvider.notifier);
+            notifier.setExerciseName(exercise.id, exercise.name);
+            notifier.logExercise(exerciseId: exercise.id, reps: 0, weight: 0);
+            HapticFeedback.lightImpact();
+          }
+        },
+        onDone: (_) {
+          Navigator.of(context).pop();
         },
       ),
     );
-  }
-
-  void _handleSelectedExercises(List<Exercise> exercises, BuildContext context) {
-    if (exercises.isEmpty) return;
-    final notifier = ref.read(activeWorkoutProvider.notifier);
-    for (final exercise in exercises) {
-      notifier.setExerciseName(exercise.id, exercise.name);
-      notifier.logExercise(exerciseId: exercise.id);
-    }
   }
 
   Future<void> _onFinishWorkout(BuildContext context) async {
@@ -692,256 +672,6 @@ class _EnhancedActiveWorkoutScreenState
         ),
       ),
     );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Supporting widgets
-// ---------------------------------------------------------------------------
-
-class _TrainerLedHeader extends StatelessWidget {
-  final String clientName;
-
-  const _TrainerLedHeader({required this.clientName});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      color: theme.colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.person, color: theme.colorScheme.onPrimaryContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trainer-Led Session',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Training: $clientName',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'LIVE',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RestTimerCard extends StatelessWidget {
-  final int restSeconds;
-  final bool isRunning;
-  final VoidCallback onStartRest;
-  final VoidCallback onEndRest;
-
-  const _RestTimerCard({
-    required this.restSeconds,
-    required this.isRunning,
-    required this.onStartRest,
-    required this.onEndRest,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final minutes = restSeconds ~/ 60;
-    final seconds = restSeconds % 60;
-    const totalRest = 90;
-    final progress = restSeconds / totalRest;
-
-    return Card(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.timer_outlined, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text('Rest Timer', style: theme.textTheme.titleSmall),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 4,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  progress > 0.5
-                      ? theme.colorScheme.primary
-                      : progress > 0.25
-                          ? Colors.orange
-                          : theme.colorScheme.error,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (!isRunning)
-                  FilledButton.tonalIcon(
-                    onPressed: onStartRest,
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('Start'),
-                  )
-                else
-                  FilledButton.tonalIcon(
-                    onPressed: onEndRest,
-                    icon: const Icon(Icons.stop, size: 18),
-                    label: const Text('End'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RpePickerWrapper extends StatelessWidget {
-  final void Function(double rpe) onSelected;
-  final VoidCallback onDismiss;
-  final Key? key;
-
-  const _RpePickerWrapper({
-    this.key,
-    required this.onSelected,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              TextButton(
-                onPressed: onDismiss,
-                child: const Text('Cancel'),
-              ),
-              const Spacer(),
-              Text(
-                'Select RPE',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const Spacer(),
-              const SizedBox(width: 60),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 100,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: 11,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final rpe = 10.0 - (index * 0.5);
-                return GestureDetector(
-                  onTap: () => onSelected(rpe),
-                  child: Container(
-                    width: 70,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          rpe.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _rpeDescription(rpe),
-                          style: Theme.of(context).textTheme.labelSmall,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _rpeDescription(double rpe) {
-    if (rpe >= 10) return 'Max';
-    if (rpe >= 9) return '1 rep left';
-    if (rpe >= 8) return '2 reps left';
-    if (rpe >= 7) return '3 reps left';
-    if (rpe >= 6) return '4+ reps left';
-    return 'Warm up';
   }
 }
 

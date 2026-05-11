@@ -54,6 +54,7 @@ void main() {
     String exerciseId = 'ex-1',
     int? reps = 10,
     double? weight = 50,
+    bool? isCompleted,
   }) {
     return ClientExerciseLog(
       id: id,
@@ -62,6 +63,7 @@ void main() {
       workoutSessionId: 'ws-1',
       reps: reps,
       weight: weight,
+      isCompleted: isCompleted,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -132,6 +134,8 @@ void main() {
               workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
+              isCompleted: any(named: 'isCompleted'),
+              logId: any(named: 'logId'),
             )).thenAnswer((_) async => log);
 
         await notifier.logExercise(exerciseId: 'ex-1', reps: 10, weight: 50);
@@ -151,6 +155,8 @@ void main() {
               workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
+              isCompleted: any(named: 'isCompleted'),
+              logId: any(named: 'logId'),
             )).thenThrow(Exception('Failed to log exercise'));
 
         await notifier.logExercise(exerciseId: 'ex-1', reps: 10, weight: 50);
@@ -166,15 +172,29 @@ void main() {
       test('toggles isCompleted on matching log', () async {
         await setupSession();
         final log = createLog();
+        // Mock for initial logExercise call (without isCompleted/logId)
         when(() => mockRemoteSource.logExercise(
               exerciseId: any(named: 'exerciseId'),
               workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
+              isCompleted: any(named: 'isCompleted'),
+              logId: any(named: 'logId'),
             )).thenAnswer((_) async => log);
 
         await notifier.logExercise(exerciseId: 'ex-1', reps: 10, weight: 50);
         expect(notifier.state.logs.first.isCompleted, isNull);
+
+        // Mock for completeSet call (with isCompleted: true and logId)
+        final completedLog = createLog(isCompleted: true);
+        when(() => mockRemoteSource.logExercise(
+              exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
+              reps: any(named: 'reps'),
+              weight: any(named: 'weight'),
+              isCompleted: true,
+              logId: any(named: 'logId'),
+            )).thenAnswer((_) async => completedLog);
 
         await notifier.completeSet('log-1');
 
@@ -194,6 +214,8 @@ void main() {
               workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
+              isCompleted: any(named: 'isCompleted'),
+              logId: any(named: 'logId'),
             )).thenAnswer((_) async => log1);
 
         await notifier.logExercise(exerciseId: 'ex-1', reps: 10, weight: 50);
@@ -203,9 +225,22 @@ void main() {
               workoutSessionId: any(named: 'workoutSessionId'),
               reps: any(named: 'reps'),
               weight: any(named: 'weight'),
+              isCompleted: any(named: 'isCompleted'),
+              logId: any(named: 'logId'),
             )).thenAnswer((_) async => log2);
 
         await notifier.logExercise(exerciseId: 'ex-1', reps: 20, weight: 60);
+
+        // Mock for completeSet call
+        final completedLog1 = createLog(id: 'log-1', isCompleted: true);
+        when(() => mockRemoteSource.logExercise(
+              exerciseId: any(named: 'exerciseId'),
+              workoutSessionId: any(named: 'workoutSessionId'),
+              reps: any(named: 'reps'),
+              weight: any(named: 'weight'),
+              isCompleted: true,
+              logId: any(named: 'logId'),
+            )).thenAnswer((_) async => completedLog1);
 
         await notifier.completeSet('log-1');
 

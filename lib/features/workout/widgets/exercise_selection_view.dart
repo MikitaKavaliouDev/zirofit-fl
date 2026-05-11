@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/features/exercises/providers/exercise_provider.dart';
 import 'package:zirofit_fl/features/exercises/widgets/exercise_row.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Sort mode
@@ -16,19 +17,19 @@ enum _SortMode { aToZ, mostUsed, recentlyUsed }
 // ExerciseSelectionView
 // ---------------------------------------------------------------------------
 
-/// A full-screen exercise browser / selector.
-///
-/// Presents a searchable, filterable, multi-selectable list of exercises built
-/// on top of [exerciseListProvider]. Returns selected exercises via [onDone].
 class ExerciseSelectionView extends ConsumerStatefulWidget {
   const ExerciseSelectionView({
     super.key,
     this.onDone,
+    this.onExerciseSelected,
   });
 
   /// Called with the selected [Exercise] list when the user taps Done or the
   /// bottom "Add N Exercises" button.
   final void Function(List<Exercise> selected)? onDone;
+
+  /// Called immediately when an exercise is tapped, for "Live" background adding.
+  final void Function(Exercise exercise, bool isSelected)? onExerciseSelected;
 
   @override
   ConsumerState<ExerciseSelectionView> createState() =>
@@ -60,7 +61,13 @@ class _ExerciseSelectionViewState
   @override
   void initState() {
     super.initState();
-    // Fetch exercises on initial load, matching ExerciseListScreen pattern.
+    // Pre-populate selection from existing logs in active workout
+    final activeWorkout = ref.read(activeWorkoutProvider);
+    for (final log in activeWorkout.logs) {
+      _selectedIds.add(log.exerciseId);
+    }
+
+    // Fetch exercises on initial load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(exerciseListProvider.notifier).fetchExercises();
     });
@@ -127,11 +134,15 @@ class _ExerciseSelectionViewState
 
   void _onExerciseTap(Exercise exercise) {
     setState(() {
-      if (_selectedIds.contains(exercise.id)) {
+      final isSelected = _selectedIds.contains(exercise.id);
+      if (isSelected) {
         _selectedIds.remove(exercise.id);
       } else {
         _selectedIds.add(exercise.id);
       }
+      
+      // Trigger background populate if callback provided
+      widget.onExerciseSelected?.call(exercise, !isSelected);
     });
   }
 
@@ -721,21 +732,6 @@ class _ExerciseSelectionViewState
   }
 
   // ---------------------------------------------------------------------------
-  // Exercise Detail View
-  // ---------------------------------------------------------------------------
-
-  void _showExerciseDetail(BuildContext context, Exercise exercise) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _ExerciseDetailSheet(exercise: exercise),
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Bottom bar ("Add N Exercises")
   // ---------------------------------------------------------------------------

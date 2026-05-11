@@ -235,8 +235,12 @@ class ExerciseListBuilder extends ConsumerWidget {
                     color: theme.colorScheme.primary,
                   ),
                   tooltip: 'Complete set',
-                  onPressed: () =>
-                      ref.read(activeWorkoutProvider.notifier).completeSet(exercise.id),
+                  onPressed: () {
+                    ref.read(activeWorkoutProvider.notifier).completeSet(
+                      exercise.id,
+                      exerciseName: exercise.exerciseName,
+                    );
+                  },
                 ),
         ),
       ),

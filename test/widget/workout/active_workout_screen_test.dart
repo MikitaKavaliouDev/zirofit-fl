@@ -33,9 +33,11 @@ class Fake extends ActiveWorkoutNotifier {
     required String exerciseId,
     int? reps,
     double? weight,
+    bool? isCompleted,
+    String? logId,
   }) async {}
   @override
-  Future<void> completeSet(String logId) async {}
+  Future<void> completeSet(String logId, {String? exerciseName}) async {}
   @override
   Future<WorkoutSession?> finishWorkout() async => null;
   @override
@@ -102,9 +104,15 @@ class FakeMutable extends ActiveWorkoutNotifier {
   @override
   Future<void> loadActiveSession() async {}
   @override
-  Future<void> logExercise({required String exerciseId, int? reps, double? weight}) async {}
+  Future<void> logExercise({
+    required String exerciseId,
+    int? reps,
+    double? weight,
+    bool? isCompleted,
+    String? logId,
+  }) async {}
   @override
-  Future<void> completeSet(String logId) async {}
+  Future<void> completeSet(String logId, {String? exerciseName}) async {}
   @override
   Future<WorkoutSession?> finishWorkout() async => null;
   @override

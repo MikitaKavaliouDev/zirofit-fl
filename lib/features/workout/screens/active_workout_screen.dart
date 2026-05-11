@@ -10,6 +10,7 @@ import 'package:zirofit_fl/features/workout/providers/active_workout_provider.da
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
 import 'package:zirofit_fl/features/workout/services/voice_log_service.dart';
+import 'package:zirofit_fl/features/workout/services/workout_toast_service.dart';
 import 'package:zirofit_fl/features/workout/widgets/exercise_selection_view.dart';
 import 'package:zirofit_fl/features/workout/widgets/exercise_list_builder.dart';
 import 'package:zirofit_fl/features/workout/widgets/set_input_sheet.dart';
@@ -69,6 +70,13 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     // Listen to state transitions for voice announcements
     ref.listen<ActiveWorkoutState>(activeWorkoutProvider, _onWorkoutStateChanged);
+
+    // Listen for new record changes to show toast
+    ref.listen<String?>(activeWorkoutProvider.select((s) => s.lastNewRecord), (previous, next) {
+      if (next != null && next.isNotEmpty) {
+        WorkoutToastService.showNewRecordToast(context, next);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(

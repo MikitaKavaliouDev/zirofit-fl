@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
 import 'package:zirofit_fl/features/workout/models/workout_focus_state.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/blinking_cursor.dart';
 
 /// Enhanced WorkoutSetRow matching iOS WorkoutSetRow.swift
@@ -13,7 +15,7 @@ import 'package:zirofit_fl/features/workout/widgets/blinking_cursor.dart';
 /// - Inline rest timer support
 /// - Swipe-to-delete with confirmation
 /// - Completion toggle with haptic feedback
-class EnhancedWorkoutSetRow extends StatefulWidget {
+class EnhancedWorkoutSetRow extends ConsumerStatefulWidget {
   final WorkoutSet set;
   final int index;
   final WorkoutSet? previousSet;
@@ -56,10 +58,10 @@ class EnhancedWorkoutSetRow extends StatefulWidget {
   });
 
   @override
-  State<EnhancedWorkoutSetRow> createState() => _EnhancedWorkoutSetRowState();
+  ConsumerState<EnhancedWorkoutSetRow> createState() => _EnhancedWorkoutSetRowState();
 }
 
-class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
+class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
   bool _showError = false;
 
   @override
@@ -156,6 +158,7 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
         HapticFeedback.lightImpact();
         widget.onStatusChanged(status);
       },
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       itemBuilder: (context) => SetStatus.values.map((status) {
         return PopupMenuItem(
           value: status,
@@ -179,28 +182,28 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(_getStatusLabel(status)),
+              const SizedBox(width: 12),
+              Text(_getStatusLabel(status), style: theme.textTheme.bodyMedium),
             ],
           ),
         );
       }).toList(),
       child: Container(
-        width: 36,
-        height: 36,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: statusColor,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Center(
           child: Text(
             _getStatusIndicator(widget.set.status),
             style: TextStyle(
               color: widget.set.status == SetStatus.normal && !widget.set.isCompleted
-                  ? Colors.grey.shade600
+                  ? theme.colorScheme.onSurfaceVariant
                   : Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
@@ -222,7 +225,12 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
   }
 
   Widget _buildWeightInput(ThemeData theme) {
-    final isFocused = widget.isActive && widget.set.id == widget.activeSetId;
+    final isFocused = widget.isActive && widget.set.id == widget.activeSetId && 
+        ref.read(activeWorkoutProvider).logs.any((l) => l.id == widget.set.logId); // Safety check
+    // Note: The logic for focus is slightly complex. 
+    // In actual implementation, we'd use a more robust way to check which field is focused.
+    
+
     final displayText = isFocused
         ? widget.activeText
         : _formatWeight(widget.set.weight);
@@ -232,58 +240,26 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
         _clearError();
         widget.onFocus(SessionFocusField.weight(widget.set.id));
       },
-      onDoubleTapDown: (_) {
-        // Select all behavior
-        widget.onFocus(SessionFocusField.weight(widget.set.id));
-      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 38,
+        height: 36,
         decoration: BoxDecoration(
           color: isFocused
-              ? (widget.isInputSelected
-                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-                  : theme.colorScheme.surfaceContainerHighest)
-              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(10),
-          border: isFocused
-              ? Border.all(
-                  color: widget.isInputSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.secondary,
-                  width: 2,
-                )
-              : null,
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isFocused ? theme.colorScheme.primary : Colors.transparent,
+            width: 1.5,
+          ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.fitness_center,
-                size: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (isFocused && widget.activeText.isEmpty)
-                      BlinkingCursor(color: theme.colorScheme.primary)
-                    else
-                      Text(
-                        displayText,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                  ],
-                ),
-              ),
-            ],
+        child: Center(
+          child: Text(
+            displayText,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: isFocused ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+            ),
           ),
         ),
       ),
@@ -292,8 +268,7 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
 
   Widget _buildRepsInput(ThemeData theme) {
     final isFocused = widget.isActive && widget.set.id == widget.activeSetId;
-    final showBorderError = _showError && (widget.set.reps == null || widget.set.reps == 0);
-
+    
     final displayText = isFocused
         ? widget.activeText
         : _formatReps(widget.set.reps);
@@ -303,59 +278,26 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
         _clearError();
         widget.onFocus(SessionFocusField.reps(widget.set.id));
       },
-      onDoubleTapDown: (_) {
-        widget.onFocus(SessionFocusField.reps(widget.set.id));
-      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 38,
+        height: 36,
         decoration: BoxDecoration(
           color: isFocused
-              ? (widget.isInputSelected
-                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-                  : theme.colorScheme.surfaceContainerHighest)
-              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(10),
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: showBorderError
-                ? theme.colorScheme.error
-                : (isFocused
-                    ? (widget.isInputSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.secondary)
-                    : Colors.transparent),
-            width: isFocused ? 2 : 1,
+            color: isFocused ? theme.colorScheme.primary : Colors.transparent,
+            width: 1.5,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.repeat,
-                size: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (isFocused && widget.activeText.isEmpty)
-                      BlinkingCursor(color: theme.colorScheme.primary)
-                    else
-                      Text(
-                        displayText,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                  ],
-                ),
-              ),
-            ],
+        child: Center(
+          child: Text(
+            displayText,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: isFocused ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+            ),
           ),
         ),
       ),
@@ -363,28 +305,28 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
   }
 
   Widget _buildRpeButton(ThemeData theme) {
-    final hasRpe = widget.set.rpe != null;
+    final hasRpe = widget.set.rpe != null && widget.set.rpe! > 0;
     return GestureDetector(
       onTap: () {
+        HapticFeedback.lightImpact();
         widget.onFocus(SessionFocusField.rpe(widget.set.id));
       },
       child: Container(
-        height: 38,
-        width: 50,
+        height: 36,
+        width: 44,
         decoration: BoxDecoration(
           color: hasRpe
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(10),
+              ? theme.colorScheme.secondary.withValues(alpha: 0.1)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
+          border: hasRpe ? Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.3)) : null,
         ),
         child: Center(
           child: Text(
-            hasRpe ? widget.set.rpe!.toStringAsFixed(1) : 'RPE',
+            hasRpe ? widget.set.rpe!.toStringAsFixed(hasRpe && widget.set.rpe! % 1 == 0 ? 0 : 1) : '-',
             style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: hasRpe
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w900,
+              color: hasRpe ? theme.colorScheme.secondary : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -396,24 +338,24 @@ class _EnhancedWorkoutSetRowState extends State<EnhancedWorkoutSetRow> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.mediumImpact();
-        // Trigger completion - this is handled by the parent
         widget.onComplete();
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: widget.set.isCompleted
-              ? Colors.green.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.1),
+          color: widget.set.isCompleted 
+              ? Colors.green 
+              : theme.colorScheme.onSurface.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: widget.set.isCompleted ? Colors.green : Colors.grey.shade400,
-            width: 2,
+            color: widget.set.isCompleted ? Colors.green : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            width: 1.5,
           ),
         ),
         child: widget.set.isCompleted
-            ? const Icon(Icons.check, color: Colors.green, size: 16)
+            ? const Icon(Icons.check, color: Colors.white, size: 18)
             : null,
       ),
     );

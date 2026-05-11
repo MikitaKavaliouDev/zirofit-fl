@@ -45,7 +45,7 @@ import 'package:zirofit_fl/features/settings/screens/data_sharing_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/settings_screen.dart';
 import 'package:zirofit_fl/features/events/screens/client_event_detail_screen.dart';
 import 'package:zirofit_fl/features/exercises/screens/exercise_list_screen.dart';
-import 'package:zirofit_fl/features/workout/screens/active_workout_screen.dart';
+import 'package:zirofit_fl/features/workout/screens/enhanced_active_workout_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_history_screen.dart';
 import 'package:zirofit_fl/features/chat/screens/conversations_list_screen.dart';
 import 'package:zirofit_fl/features/chat/screens/chat_screen.dart';
@@ -331,7 +331,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/client/workout',
-            builder: (_, _) => const ActiveWorkoutScreen(),
+            builder: (_, _) => const EnhancedActiveWorkoutScreen(),
             routes: [
               GoRoute(
                 path: 'history',
@@ -405,7 +405,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/workout/:id',
-        builder: (_, state) => ActiveWorkoutScreen(
+        builder: (_, state) => EnhancedActiveWorkoutScreen(
           templateId: state.pathParameters['id'],
         ),
       ),

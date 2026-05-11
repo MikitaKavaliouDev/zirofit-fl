@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 
@@ -63,6 +64,7 @@ class _WorkoutHeaderWidgetState extends ConsumerState<WorkoutHeaderWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final enhancementState = ref.watch(workoutEnhancementProvider);
+    final workoutState = ref.watch(activeWorkoutProvider);
 
     final isTrainerLed = widget.clientName != null;
     final clientName = widget.clientName;
@@ -167,7 +169,7 @@ class _WorkoutHeaderWidgetState extends ConsumerState<WorkoutHeaderWidget> {
               const SizedBox(height: 12),
 
               // Bottom section: Rest timer bar
-              if (enhancementState.restTimerSettings.defaultSeconds > 0) ...[
+              if (workoutState.isRestRunning && workoutState.restSeconds > 0) ...[
                 Container(
                   height: 32,
                   decoration: BoxDecoration(
@@ -188,8 +190,9 @@ class _WorkoutHeaderWidgetState extends ConsumerState<WorkoutHeaderWidget> {
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            final restSeconds = enhancementState.restTimerSettings.defaultSeconds;
-                            final progress = restSeconds > 0 ? 1.0 : 0.0;
+                            final restSeconds = workoutState.restSeconds;
+                            final initialRest = 90;
+                            final progress = initialRest > 0 ? (restSeconds / initialRest).clamp(0.0, 1.0) : 0.0;
 
                             return Stack(
                               children: [
@@ -225,7 +228,7 @@ class _WorkoutHeaderWidgetState extends ConsumerState<WorkoutHeaderWidget> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'REST ${_formatRestTime(enhancementState.restTimerSettings.defaultSeconds)}',
+                        'REST ${_formatRestTime(workoutState.restSeconds)}',
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: theme.colorScheme.primary,

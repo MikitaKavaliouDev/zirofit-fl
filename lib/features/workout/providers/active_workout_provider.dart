@@ -35,6 +35,7 @@ class ActiveWorkoutState {
   final Map<String, String> exerciseNames; // exerciseId → exerciseName
   final String? clientName; // target client name for trainer-led sessions
   final StreamController<bool>? newRecordDetected; // Stream for new PR detection
+  final String? lastNewRecord; // Last exercise that achieved a new record (for toast)
 
   const ActiveWorkoutState({
     this.session,
@@ -46,6 +47,7 @@ class ActiveWorkoutState {
     this.exerciseNames = const {},
     this.clientName,
     this.newRecordDetected,
+    this.lastNewRecord,
   });
 
   ActiveWorkoutState copyWith({
@@ -58,6 +60,7 @@ class ActiveWorkoutState {
     Map<String, String>? exerciseNames,
     String? clientName,
     StreamController<bool>? newRecordDetected,
+    String? lastNewRecord,
     bool clearError = false,
   }) {
     return ActiveWorkoutState(
@@ -70,6 +73,7 @@ class ActiveWorkoutState {
       exerciseNames: exerciseNames ?? this.exerciseNames,
       clientName: clientName ?? this.clientName,
       newRecordDetected: newRecordDetected ?? this.newRecordDetected,
+      lastNewRecord: lastNewRecord,
     );
   }
 
@@ -111,8 +115,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         templateId: templateId,
       );
       
-      // Start workout timer
-      _ref.read(workoutTimerProvider.notifier).start(DateTime.now());
+      // Start workout timer with actual session start time for accurate elapsed calculation
+      _ref.read(workoutTimerProvider.notifier).start(session.startTime);
       
       // Template exercise prepopulation
       if (templateId != null) {
@@ -148,8 +152,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         clientId: clientId,
       );
       
-      // Start workout timer
-      _ref.read(workoutTimerProvider.notifier).start(DateTime.now());
+      // Start workout timer with actual session start time for accurate elapsed calculation
+      _ref.read(workoutTimerProvider.notifier).start(session.startTime);
       
       state = ActiveWorkoutState(
         session: session,
@@ -191,6 +195,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         exerciseNames: const {},
       );
 
+      // Start session elapsed timer with actual session start time
+      _ref.read(workoutTimerProvider.notifier).reset(result.session.startTime);
+
       if (result.session.restStartedAt != null) {
         _startRestTimer();
       }
@@ -205,10 +212,13 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
 
   /// POST /api/workout-sessions/live
   /// Logs a new exercise set.
+  /// Optionally marks the exercise as completed.
   Future<void> logExercise({
     required String exerciseId,
     int? reps,
     double? weight,
+    bool? isCompleted,
+    String? logId,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -218,11 +228,24 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         workoutSessionId: state.session!.id,
         reps: reps,
         weight: weight,
+        isCompleted: isCompleted,
+        logId: logId,
       );
-      state = state.copyWith(
-        isLoading: false,
-        logs: [...state.logs, log],
-      );
+      // If updating existing log (logId provided), replace it; otherwise add new
+      if (logId != null) {
+        final updatedLogs = state.logs.map((l) {
+          return l.id == logId ? log : l;
+        }).toList();
+        state = state.copyWith(
+          isLoading: false,
+          logs: updatedLogs,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          logs: [...state.logs, log],
+        );
+      }
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -233,9 +256,26 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     }
   }
 
-  /// Marks an existing log entry as completed (optimistic update).
-  Future<void> completeSet(String logId) async {
-    final updatedLogs = state.logs.map((log) {
+  /// Marks an existing log entry as completed with optimistic UI update.
+  /// 
+  /// Flow:
+  /// 1. Immediately update local state (optimistic)
+  /// 2. Call backend API
+  /// 3. On success: sync with server response, show PR toast if new records
+  /// 4. On failure: rollback local state
+  Future<void> completeSet(String logId, {String? exerciseName}) async {
+    // Find the existing log to get its data
+    final existingLog = state.logs.where((log) => log.id == logId).firstOrNull;
+    if (existingLog == null) {
+      state = state.copyWith(error: 'Log not found');
+      return;
+    }
+
+    // Store pre-update state for potential rollback
+    final previousLogs = List<ClientExerciseLog>.from(state.logs);
+
+    // OPTIMISTIC UPDATE: Immediately mark as completed in UI
+    final optimisticLogs = state.logs.map((log) {
       if (log.id == logId) {
         return ClientExerciseLog(
           id: log.id,
@@ -255,14 +295,45 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
           rir: log.rir,
           exerciseName: log.exerciseName,
           createdAt: log.createdAt,
-          updatedAt: log.updatedAt,
+          updatedAt: DateTime.now(),
           deletedAt: log.deletedAt,
         );
       }
       return log;
     }).toList();
 
-    state = state.copyWith(logs: updatedLogs);
+    state = state.copyWith(logs: optimisticLogs);
+
+    try {
+      // Call API to mark as completed (updates existing log via logId)
+      final log = await _remoteSource.logExercise(
+        exerciseId: existingLog.exerciseId,
+        workoutSessionId: state.session!.id,
+        reps: existingLog.reps,
+        weight: existingLog.weight,
+        isCompleted: true,
+        logId: logId,
+      );
+
+      // Sync with server response (update with actual data from backend)
+      final syncedLogs = state.logs.map((l) {
+        return l.id == logId ? log : l;
+      }).toList();
+
+      state = state.copyWith(logs: syncedLogs);
+      
+      // Start rest timer after completing a set
+      startRest();
+    } catch (e, st) {
+      debugPrint('COMPLETE_SET_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
+      
+      // ROLLBACK: Restore previous state on API failure
+      state = state.copyWith(
+        logs: previousLogs,
+        error: e.toString(),
+      );
+    }
   }
 
   /// POST /api/workout-sessions/finish

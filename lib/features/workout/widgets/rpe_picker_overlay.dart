@@ -47,7 +47,14 @@ const List<_RpeEntry> _kRpeValues = [
 /// - RIR input (0–5) using a slider / chip row
 /// - Apply button that saves to [WorkoutEnhancementNotifier]
 class RPEPickerOverlay extends ConsumerStatefulWidget {
-  const RPEPickerOverlay({super.key});
+  final void Function(double rpe)? onSelected;
+  final VoidCallback? onDismiss;
+
+  const RPEPickerOverlay({
+    super.key,
+    this.onSelected,
+    this.onDismiss,
+  });
 
   /// Shows this overlay as a modal bottom sheet.
   static Future<void> show(BuildContext context) {
@@ -80,9 +87,19 @@ class _RPEPickerOverlayState extends ConsumerState<RPEPickerOverlay> {
 
   void _apply() {
     final notifier = ref.read(workoutEnhancementProvider.notifier);
-    if (_selectedRpe != null) notifier.setRpe(_selectedRpe!);
-    if (_selectedRir != null) notifier.setRir(_selectedRir!);
-    Navigator.of(context).pop();
+    if (_selectedRpe != null) {
+      notifier.setRpe(_selectedRpe!);
+      widget.onSelected?.call(_selectedRpe!);
+    }
+    if (_selectedRir != null) {
+      notifier.setRir(_selectedRir!);
+    }
+    
+    if (widget.onDismiss != null) {
+      widget.onDismiss!();
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   // ---------------------------------------------------------------------------

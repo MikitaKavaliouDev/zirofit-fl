@@ -84,16 +84,17 @@ class _EnhancedExerciseListBuilderState
     }
 
     // Add button at bottom
+    items.add(const SizedBox(height: 16));
     items.add(_buildAddExerciseButton(theme));
+    items.add(const SizedBox(height: 100)); // Padding for floating controls
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       itemCount: items.length,
       itemBuilder: (context, index) => items[index],
     );
   }
 
-  /// Groups exercises by supersetKey. Empty/null keys are grouped under ''.
   Map<String, List<ClientExerciseLog>> _groupExercisesBySupersetKey(
       List<ClientExerciseLog> logs) {
     final Map<String, List<ClientExerciseLog>> grouped = {};
@@ -107,7 +108,6 @@ class _EnhancedExerciseListBuilderState
     return grouped;
   }
 
-  /// Finds the superset group by key from the enhancement state.
   SupersetGroup? _findSupersetGroup(
       WorkoutEnhancementState state, String key) {
     return state.supersetGroups.firstWhere(
@@ -116,7 +116,6 @@ class _EnhancedExerciseListBuilderState
     );
   }
 
-  /// Builds a container for a superset group with blue border and link icon.
   Widget _buildSupersetGroupContainer(
     BuildContext context,
     String groupKey,
@@ -124,59 +123,58 @@ class _EnhancedExerciseListBuilderState
     SupersetGroup? supersetGroup,
     ThemeData theme,
   ) {
+    const accentColor = Color(0xFF3B82F6);
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.03),
         border: Border.all(
-          color: const Color(0xFF2563EB),
-          width: 2,
+          color: accentColor.withValues(alpha: 0.3),
+          width: 1.5,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Group header
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.link,
-                  color: Color(0xFF2563EB),
-                  size: 20,
+                  color: accentColor,
+                  size: 18,
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2563EB),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    groupKey.toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 9,
-                    ),
+                Text(
+                  'SUPERSET ${groupKey.toUpperCase()}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: accentColor,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const Spacer(),
                 if (supersetGroup != null && supersetGroup.totalSets > 0)
-                  Text(
-                    '${supersetGroup.completedSets}/${supersetGroup.totalSets} sets',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF2563EB),
-                      fontWeight: FontWeight.w500,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${supersetGroup.completedSets}/${supersetGroup.totalSets}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
               ],
             ),
           ),
-          // Exercises in the group
           Column(
             children: exercises
                 .map((exercise) => _buildExerciseCard(
@@ -187,12 +185,12 @@ class _EnhancedExerciseListBuilderState
                     ))
                 .toList(),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  /// Builds an exercise card matching iOS WorkoutExerciseCard
   Widget _buildExerciseCard(
     BuildContext context,
     ClientExerciseLog exercise,
@@ -201,83 +199,92 @@ class _EnhancedExerciseListBuilderState
   }) {
     final state = ref.watch(activeWorkoutProvider);
     final exerciseName = state.exerciseNames[exercise.exerciseId] ?? 'Exercise';
-
-    // Get sets from the exercise (stored in sets field)
     final sets = _parseSets(exercise);
 
     return Container(
-      margin: EdgeInsets.only(
-        bottom: isInSuperset ? 0 : 8,
-        top: isInSuperset ? 0 : 8,
+      margin: EdgeInsets.symmetric(
+        vertical: isInSuperset ? 4 : 10,
+        horizontal: isInSuperset ? 8 : 0,
       ),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            _buildExerciseHeader(context, exercise, exerciseName, theme),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(isInSuperset ? 14 : 20),
+        boxShadow: isInSuperset ? null : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: isInSuperset ? null : Border.all(color: theme.colorScheme.onSurface.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildExerciseHeader(context, exercise, exerciseName, theme),
+          _buildSetsTableHeader(theme),
+          ...sets.asMap().entries.map((entry) {
+            final index = entry.key;
+            final set = entry.value;
+            final previousSet = _getPreviousSet(exercise.exerciseId, index);
 
-            // Table header
-            _buildSetsTableHeader(theme),
-
-            // Sets list
-            ...sets.asMap().entries.map((entry) {
-              final index = entry.key;
-              final set = entry.value;
-              final previousSet = _getPreviousSet(exercise.exerciseId, index);
-
-              return Dismissible(
-                key: ValueKey('set-${set.id}'),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
+            return Dismissible(
+              key: ValueKey('set-${set.id}'),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade400,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                onDismissed: (_) {
-                  HapticFeedback.mediumImpact();
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              onDismissed: (_) {
+                HapticFeedback.mediumImpact();
+                ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
+              },
+              child: EnhancedWorkoutSetRow(
+                set: set,
+                index: index,
+                previousSet: previousSet,
+                isActive: widget.inputState.overlay == WorkoutInputOverlay.keyboard ||
+                    widget.inputState.overlay == WorkoutInputOverlay.rpePicker ||
+                    widget.inputState.overlay == WorkoutInputOverlay.plateCalculator,
+                activeText: widget.inputState.activeSetId == set.id
+                    ? widget.inputState.activeText
+                    : '',
+                isInputSelected: widget.inputState.isInputSelected,
+                onFocus: widget.onFocus,
+                onWeightChanged: (weight) {
+                  widget.onWeightChanged(weight ?? 0);
+                },
+                onRepsChanged: (reps) {
+                  widget.onRepsChanged(reps ?? 0);
+                },
+                onRpeChanged: (rpe) {
+                  widget.onRpeChanged(rpe ?? 0);
+                },
+                onStatusChanged: (status) {
+                  ref.read(activeWorkoutProvider.notifier).updateSetStatus(set.id, status);
+                },
+                onDelete: () {
                   ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
                 },
-                child: EnhancedWorkoutSetRow(
-                  set: set,
-                  index: index,
-                  previousSet: previousSet,
-                  isActive: widget.inputState.overlay == WorkoutInputOverlay.keyboard ||
-                      widget.inputState.overlay == WorkoutInputOverlay.rpePicker,
-                  activeText: widget.inputState.activeSetId == set.id
-                      ? widget.inputState.activeText
-                      : '',
-                  isInputSelected: widget.inputState.isInputSelected,
-                  onFocus: widget.onFocus,
-                  onWeightChanged: (weight) {
-                    widget.onWeightChanged(weight ?? 0);
-                  },
-                  onRepsChanged: (reps) {
-                    widget.onRepsChanged(reps ?? 0);
-                  },
-                  onRpeChanged: (rpe) {
-                    widget.onRpeChanged(rpe ?? 0);
-                  },
-                  onStatusChanged: (status) {
-                    ref.read(activeWorkoutProvider.notifier).updateSetStatus(set.id, status);
-                  },
-                  onDelete: () {
-                    ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
-                  },
-                  onComplete: () {
-                    HapticFeedback.mediumImpact();
-                    ref.read(activeWorkoutProvider.notifier).completeSet(exercise.id);
-                  },
-                ),
-              );
-            }),
-
-            // Add Set button
-            _buildAddSetButton(context, exercise, theme),
-          ],
-        ),
+                onComplete: () {
+                  HapticFeedback.mediumImpact();
+                  ref.read(activeWorkoutProvider.notifier).completeSet(
+                    exercise.id,
+                    exerciseName: exercise.exerciseName,
+                  );
+                },
+                activeSetId: widget.inputState.activeSetId,
+              ),
+            );
+          }),
+          _buildAddSetButton(context, exercise, theme),
+        ],
       ),
     );
   }
@@ -289,7 +296,7 @@ class _EnhancedExerciseListBuilderState
     ThemeData theme,
   ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+      padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
       child: Row(
         children: [
           Expanded(
@@ -297,27 +304,29 @@ class _EnhancedExerciseListBuilderState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  exerciseName,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  exerciseName.toUpperCase(),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                if (exercise.side != null && exercise.side != 'BOTH')
+                if (exercise.side != 'BOTH')
                   Text(
-                    exercise.side!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    exercise.side,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
               ],
             ),
           ),
-          // Menu button
           PopupMenuButton<String>(
             icon: Icon(
-              Icons.more_vert,
+              Icons.more_horiz,
               color: theme.colorScheme.onSurfaceVariant,
             ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             onSelected: (value) {
               switch (value) {
                 case 'delete':
@@ -329,13 +338,13 @@ class _EnhancedExerciseListBuilderState
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'superset',
                 child: Row(
                   children: [
-                    Icon(Icons.link, size: 20),
-                    SizedBox(width: 8),
-                    Text('Create Superset'),
+                    Icon(Icons.link, size: 18, color: theme.colorScheme.primary),
+                    const SizedBox(width: 12),
+                    const Text('Create Superset'),
                   ],
                 ),
               ),
@@ -343,9 +352,9 @@ class _EnhancedExerciseListBuilderState
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Remove', style: TextStyle(color: Colors.red)),
+                    Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                    const SizedBox(width: 12),
+                    Text('Remove Exercise', style: TextStyle(color: Colors.red)),
                   ],
                 ),
               ),
@@ -358,17 +367,16 @@ class _EnhancedExerciseListBuilderState
 
   Widget _buildSetsTableHeader(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          SizedBox(width: 44, child: Text('SET', style: theme.textTheme.labelSmall)),
-          Expanded(child: Center(child: Text('KG', style: theme.textTheme.labelSmall))),
+          SizedBox(width: 36, child: Text('SET', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold))),
+          Expanded(child: Center(child: Text('KG', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
           const SizedBox(width: 8),
-          Expanded(child: Center(child: Text('REPS', style: theme.textTheme.labelSmall))),
+          Expanded(child: Center(child: Text('REPS', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
           const SizedBox(width: 8),
-          SizedBox(width: 50, child: Center(child: Text('RPE', style: theme.textTheme.labelSmall))),
-          const SizedBox(width: 8),
-          SizedBox(width: 32),
+          SizedBox(width: 44, child: Center(child: Text('RPE', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
+          const SizedBox(width: 40),
         ],
       ),
     );
@@ -380,81 +388,111 @@ class _EnhancedExerciseListBuilderState
     ThemeData theme,
   ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: TextButton.icon(
-        onPressed: () {
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      child: GestureDetector(
+        onTap: () {
           HapticFeedback.lightImpact();
           ref.read(activeWorkoutProvider.notifier).addSet(exercise.exerciseId);
         },
-        icon: const Icon(Icons.add, size: 18),
-        label: const Text('Add Set'),
-        style: TextButton.styleFrom(
-          foregroundColor: theme.colorScheme.primary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddExerciseButton(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: OutlinedButton.icon(
-        onPressed: widget.onAddExercise,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Exercise'),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'ADD SET',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// Builds the empty state UI matching iOS SafeEmptySessionView
+  Widget _buildAddExerciseButton(ThemeData theme) {
+    return GestureDetector(
+      onTap: widget.onAddExercise,
+      child: Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2), width: 1.5),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Text(
+              'ADD EXERCISE',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(ThemeData theme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.fitness_center,
-              size: 64,
-              color: theme.colorScheme.outline,
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.fitness_center_rounded,
+                size: 48,
+                color: theme.colorScheme.primary.withValues(alpha: 0.4),
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Text(
-              'Start by adding an exercise',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
+              'Your workout is empty',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Tap "Add Exercise" to begin your workout.',
-              style: theme.textTheme.bodyMedium?.copyWith(
+              'Time to put in some work.\nAdd your first exercise to begin.',
+              style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: widget.onAddExercise,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Exercise'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: widget.onAddExercise,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
+              child: const Text('ADD FIRST EXERCISE'),
             ),
           ],
         ),
@@ -469,7 +507,7 @@ class _EnhancedExerciseListBuilderState
     final sets = log.sets;
     if (sets != null && sets.isNotEmpty) {
       try {
-        return (sets as List).map((s) {
+        return sets.map((s) {
           if (s is WorkoutSet) return s;
           if (s is Map) return WorkoutSet.fromJson(Map<String, dynamic>.from(s));
           return null;

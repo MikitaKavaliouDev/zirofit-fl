@@ -54,6 +54,7 @@ void main() {
     double? weight,
     String side = 'BOTH',
     int? order,
+    bool? isCompleted,
   }) => {
     'id': id,
     'client_id': 'test-client-id',
@@ -63,7 +64,7 @@ void main() {
     'weight': weight,
     'side': side,
     'order': order,
-    'is_completed': null,
+    'is_completed': isCompleted,
     'tempo': null,
     'superset_key': null,
     'order_in_superset': null,
@@ -301,7 +302,13 @@ void main() {
                 as ApiResponse<ClientExerciseLog> Function(
                   Map<String, dynamic>,
                 );
-        return fromJson({'data': exerciseLogJson(exerciseId: 'ex-1')});
+        // Backend returns {data: {log: {...}, newRecords: [...]}}
+        return fromJson({
+          'data': {
+            'log': exerciseLogJson(exerciseId: 'ex-1'),
+            'newRecords': [],
+          }
+        });
       });
 
       final result = await remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'test-session-id');
@@ -331,13 +338,16 @@ void main() {
                   Map<String, dynamic>,
                 );
         return fromJson({
-          'data': exerciseLogJson(
-            exerciseId: 'ex-1',
-            reps: 10,
-            weight: 50.0,
-            side: 'LEFT',
-            order: 1,
-          ),
+          'data': {
+            'log': exerciseLogJson(
+              exerciseId: 'ex-1',
+              reps: 10,
+              weight: 50.0,
+              side: 'LEFT',
+              order: 1,
+            ),
+            'newRecords': [],
+          },
         });
       });
 
@@ -393,7 +403,12 @@ void main() {
                 as ApiResponse<ClientExerciseLog> Function(
                   Map<String, dynamic>,
                 );
-        return fromJson({'data': exerciseLogJson()});
+        return fromJson({
+          'data': {
+            'log': exerciseLogJson(),
+            'newRecords': [],
+          }
+        });
       });
 
       await remoteSource.logExercise(exerciseId: 'ex-1', workoutSessionId: 'test-session-id');
@@ -405,6 +420,129 @@ void main() {
           fromJson: any(named: 'fromJson'),
         ),
       ).called(1);
+    });
+
+    test('sends isCompleted when provided', () async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          ApiConstants.workoutLive,
+          body: {
+            'exerciseId': 'ex-1',
+            'workoutSessionId': 'test-session-id',
+            'isCompleted': true,
+          },
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
+        final fromJson =
+            invocation.namedArguments[#fromJson]
+                as ApiResponse<ClientExerciseLog> Function(
+                  Map<String, dynamic>,
+                );
+        return fromJson({
+          'data': {
+            'log': exerciseLogJson(
+              exerciseId: 'ex-1',
+              isCompleted: true,
+            ),
+            'newRecords': [],
+          },
+        });
+      });
+
+      final result = await remoteSource.logExercise(
+        exerciseId: 'ex-1',
+        workoutSessionId: 'test-session-id',
+        isCompleted: true,
+      );
+
+      expect(result.isCompleted, true);
+    });
+
+    test('sends logId when provided for update', () async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          ApiConstants.workoutLive,
+          body: {
+            'exerciseId': 'ex-1',
+            'workoutSessionId': 'test-session-id',
+            'logId': 'existing-log-id',
+            'reps': 10,
+            'weight': 50.0,
+          },
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
+        final fromJson =
+            invocation.namedArguments[#fromJson]
+                as ApiResponse<ClientExerciseLog> Function(
+                  Map<String, dynamic>,
+                );
+        return fromJson({
+          'data': {
+            'log': exerciseLogJson(
+              exerciseId: 'ex-1',
+              reps: 10,
+              weight: 50.0,
+            ),
+            'newRecords': [],
+          },
+        });
+      });
+
+      final result = await remoteSource.logExercise(
+        exerciseId: 'ex-1',
+        workoutSessionId: 'test-session-id',
+        logId: 'existing-log-id',
+        reps: 10,
+        weight: 50.0,
+      );
+
+      expect(result, isA<ClientExerciseLog>());
+    });
+
+    test('sends both isCompleted and logId for completing existing log', () async {
+      when(
+        () => mockApiClient.post<ApiResponse<ClientExerciseLog>>(
+          ApiConstants.workoutLive,
+          body: {
+            'exerciseId': 'ex-1',
+            'workoutSessionId': 'test-session-id',
+            'logId': 'existing-log-id',
+            'reps': 10,
+            'weight': 50.0,
+            'isCompleted': true,
+          },
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer((invocation) async {
+        final fromJson =
+            invocation.namedArguments[#fromJson]
+                as ApiResponse<ClientExerciseLog> Function(
+                  Map<String, dynamic>,
+                );
+        return fromJson({
+          'data': {
+            'log': exerciseLogJson(
+              exerciseId: 'ex-1',
+              reps: 10,
+              weight: 50.0,
+            ),
+            'newRecords': [],
+          },
+        });
+      });
+
+      final result = await remoteSource.logExercise(
+        exerciseId: 'ex-1',
+        workoutSessionId: 'test-session-id',
+        logId: 'existing-log-id',
+        reps: 10,
+        weight: 50.0,
+        isCompleted: true,
+      );
+
+      expect(result, isA<ClientExerciseLog>());
     });
   });
 

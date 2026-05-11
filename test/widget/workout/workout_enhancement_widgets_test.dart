@@ -489,7 +489,16 @@ void main() {
   group('WorkoutNumericKeyboard', () {
     testWidgets('renders all digit buttons 0-9', (t) async {
       await t.pumpWidget(
-        const MaterialApp(home: Scaffold(body: WorkoutNumericKeyboard())),
+        MaterialApp(
+          home: Scaffold(
+            body: WorkoutNumericKeyboard(
+              onChanged: (_) {},
+              onNext: (_) {},
+              onDismiss: () {},
+              onAction: () {},
+            ),
+          ),
+        ),
       );
       await t.pump();
 
@@ -503,9 +512,14 @@ void main() {
 
     testWidgets('decimal button works', (t) async {
       await t.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
-            body: WorkoutNumericKeyboard(),
+            body: WorkoutNumericKeyboard(
+              onChanged: (_) {},
+              onNext: (_) {},
+              onDismiss: () {},
+              onAction: () {},
+            ),
           ),
         ),
       );
@@ -522,6 +536,9 @@ void main() {
           home: Scaffold(
             body: WorkoutNumericKeyboard(
               onChanged: (v) => currentValue = v,
+              onNext: (_) {},
+              onDismiss: () {},
+              onAction: () {},
             ),
           ),
         ),
@@ -552,8 +569,10 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: WorkoutNumericKeyboard(
-              submitLabel: 'Next',
-              onSubmitted: (v) => submitted = v,
+              onChanged: (_) {},
+              onNext: (v) => submitted = v,
+              onDismiss: () {},
+              onAction: () {},
             ),
           ),
         ),
@@ -581,6 +600,9 @@ void main() {
           home: Scaffold(
             body: WorkoutNumericKeyboard(
               onChanged: (v) => currentValue = v,
+              onNext: (_) {},
+              onDismiss: () {},
+              onAction: () {},
             ),
           ),
         ),
