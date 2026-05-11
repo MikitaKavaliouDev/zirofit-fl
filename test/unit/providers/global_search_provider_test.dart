@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +43,7 @@ void main() {
 
   group('SearchResult', () {
     test('constructor assigns fields correctly', () {
-      final result = SearchResult(
+      const result = SearchResult(
         id: '1',
         type: SearchResultType.exercise,
         title: 'Bench Press',
@@ -62,17 +61,17 @@ void main() {
     });
 
     test('equality works correctly', () {
-      final a = SearchResult(
+      const a = SearchResult(
         id: '1',
         type: SearchResultType.exercise,
         title: 'Bench Press',
       );
-      final b = SearchResult(
+      const b = SearchResult(
         id: '1',
         type: SearchResultType.exercise,
         title: 'Bench Press',
       );
-      final c = SearchResult(
+      const c = SearchResult(
         id: '2',
         type: SearchResultType.client,
         title: 'John Doe',
@@ -84,7 +83,7 @@ void main() {
     });
 
     test('toString returns a meaningful representation', () {
-      final result = SearchResult(
+      const result = SearchResult(
         id: '1',
         type: SearchResultType.exercise,
         title: 'Bench Press',
@@ -98,7 +97,7 @@ void main() {
     });
 
     test('optional fields can be null', () {
-      final result = SearchResult(
+      const result = SearchResult(
         id: '1',
         type: SearchResultType.exercise,
         title: 'Test',

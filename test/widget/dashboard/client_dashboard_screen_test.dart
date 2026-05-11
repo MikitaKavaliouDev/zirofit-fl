@@ -293,23 +293,23 @@ GoRouter _createTestRouter(Widget dashboardScreen) {
     routes: [
       GoRoute(
         path: '/client/dashboard',
-        builder: (_, __) => dashboardScreen,
+        builder: (_, _) => dashboardScreen,
       ),
       GoRoute(
         path: '/client/workout',
-        builder: (_, __) => const _TestRoute(label: 'Workout Screen'),
+        builder: (_, _) => const _TestRoute(label: 'Workout Screen'),
       ),
       GoRoute(
         path: '/client/daily-targets',
-        builder: (_, __) => const _TestRoute(label: 'Daily Targets Screen'),
+        builder: (_, _) => const _TestRoute(label: 'Daily Targets Screen'),
       ),
       GoRoute(
         path: '/client/check-in',
-        builder: (_, __) => const _TestRoute(label: 'Check-in'),
+        builder: (_, _) => const _TestRoute(label: 'Check-in'),
         routes: [
           GoRoute(
             path: 'history',
-            builder: (_, __) =>
+            builder: (_, _) =>
                 const _TestRoute(label: 'Check-in History Screen'),
           ),
         ],
@@ -363,7 +363,7 @@ void main() {
 
   /// Use a large surface so all dashboard sections are visible + tappable.
   /// Sets SharedPreferences to suppress the educational overlay by default.
-  Future<void> _pumpApp(WidgetTester t, Widget widget, {bool showOverlay = false}) async {
+  Future<void> pumpApp(WidgetTester t, Widget widget, {bool showOverlay = false}) async {
     if (!showOverlay) {
       SharedPreferences.setMockInitialValues({'dashboard_education_seen': true});
     }
@@ -381,7 +381,7 @@ void main() {
   testWidgets('loading state shows spinner', (t) async {
     _testDashboardState = null; // ensure no stale state
     final router = _createTestRouter(const ClientDashboardScreen());
-    await _pumpApp(t, ProviderScope(
+    await pumpApp(t, ProviderScope(
       overrides: [
         clientDashboardProvider.overrideWith(
           () => LoadingClientDashboardNotifier(),
@@ -406,7 +406,7 @@ void main() {
   });
 
   testWidgets('loaded state shows dashboard content', (t) async {
-    await _pumpApp(t, buildTestWidget(
+    await pumpApp(t, buildTestWidget(
       dashboardState: loadedState,
       programsState: activeProgramState,
       historyState: WorkoutHistoryState(
@@ -424,7 +424,7 @@ void main() {
   });
 
   testWidgets('error state shows retry button', (t) async {
-    await _pumpApp(t, buildTestWidget(
+    await pumpApp(t, buildTestWidget(
       dashboardState: AsyncError<ClientDashboardData>(
         Exception('Something went wrong'),
         StackTrace.current,
@@ -439,7 +439,7 @@ void main() {
   // -----------------------------------------------------------------------
 
   testWidgets('Quick Start navigates to empty workout', (t) async {
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState));
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState));
 
     final qs = find.text('Quick Start');
     await t.ensureVisible(qs);
@@ -457,7 +457,7 @@ void main() {
   // -----------------------------------------------------------------------
 
   testWidgets('Templates navigates to template picker', (t) async {
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState));
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState));
 
     final templates = find.text('Templates');
     await t.ensureVisible(templates);
@@ -474,7 +474,7 @@ void main() {
   // -----------------------------------------------------------------------
 
   testWidgets('Daily target Add navigates to management screen', (t) async {
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState));
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState));
 
     final cta = find.text('Set a Daily Target');
     await t.ensureVisible(cta);
@@ -493,7 +493,7 @@ void main() {
   // -----------------------------------------------------------------------
 
   testWidgets('Check-in complete banner shows View History link', (t) async {
-    await _pumpApp(t, buildTestWidget(
+    await pumpApp(t, buildTestWidget(
       dashboardState: completedCheckInState,
     ));
 
@@ -502,7 +502,7 @@ void main() {
   });
 
   testWidgets('View History link navigates to check-in history', (t) async {
-    await _pumpApp(t, buildTestWidget(
+    await pumpApp(t, buildTestWidget(
       dashboardState: completedCheckInState,
     ));
 
@@ -523,7 +523,7 @@ void main() {
   // -----------------------------------------------------------------------
 
   testWidgets('Upcoming session tap navigates to session detail', (t) async {
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState));
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState));
 
     final sn = find.text('Upper Body Strength');
     await t.ensureVisible(sn);
@@ -537,7 +537,7 @@ void main() {
 
   testWidgets('Recent history tile tap navigates to session detail',
       (t) async {
-    await _pumpApp(t, buildTestWidget(
+    await pumpApp(t, buildTestWidget(
       dashboardState: loadedState,
       historyState: WorkoutHistoryState(
         sessions: [historySession],
@@ -562,7 +562,7 @@ void main() {
 
   testWidgets('educational overlay shows on first visit', (t) async {
     SharedPreferences.setMockInitialValues({});
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState), showOverlay: true);
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState), showOverlay: true);
 
     expect(find.text('Welcome to Your Dashboard'), findsOneWidget);
     expect(find.text('Got it!'), findsOneWidget);
@@ -570,7 +570,7 @@ void main() {
 
   testWidgets('educational overlay not shown after dismiss', (t) async {
     SharedPreferences.setMockInitialValues({});
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState), showOverlay: true);
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState), showOverlay: true);
 
     expect(find.text('Welcome to Your Dashboard'), findsOneWidget);
 
@@ -582,7 +582,7 @@ void main() {
     expect(find.text('Welcome to Your Dashboard'), findsNothing);
 
     // Rebuild — overlay persists via SharedPrefs
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState));
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState));
 
     expect(find.text('Welcome to Your Dashboard'), findsNothing);
   });
@@ -592,7 +592,7 @@ void main() {
       'dashboard_education_seen': true,
     });
 
-    await _pumpApp(t, buildTestWidget(dashboardState: loadedState));
+    await pumpApp(t, buildTestWidget(dashboardState: loadedState));
 
     expect(find.text('Welcome to Your Dashboard'), findsNothing);
     expect(find.text('Got it!'), findsNothing);

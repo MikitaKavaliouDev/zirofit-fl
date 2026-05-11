@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
@@ -10,16 +11,29 @@ class MockWorkoutRemoteSource extends Mock implements WorkoutRemoteSource {}
 
 void main() {
   late MockWorkoutRemoteSource mockRemoteSource;
+  late ProviderContainer container;
   late ActiveWorkoutNotifier notifier;
+
 
   setUp(() {
     mockRemoteSource = MockWorkoutRemoteSource();
-    notifier = ActiveWorkoutNotifier(remoteSource: mockRemoteSource);
+    container = ProviderContainer(
+      overrides: [
+        activeWorkoutProvider.overrideWith((ref) => ActiveWorkoutNotifier(
+          remoteSource: mockRemoteSource,
+          ref: ref,
+        )),
+      ],
+    );
   });
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
+  tearDown(() {
+    container.dispose();
+  });
+
+  setUp(() {
+    notifier = container.read(activeWorkoutProvider.notifier);
+  });
 
   WorkoutSession createSession({
     String id = 'ws-1',

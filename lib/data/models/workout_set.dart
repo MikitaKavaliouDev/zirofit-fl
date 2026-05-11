@@ -12,7 +12,6 @@ enum SetStatus {
     switch (json.toUpperCase()) {
       case 'WARM_UP':
       case 'WARMUP':
-      case 'WARMUP':
         return SetStatus.warmUp;
       case 'DROP_SET':
       case 'DROPSET':

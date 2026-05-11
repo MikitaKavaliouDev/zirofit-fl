@@ -53,7 +53,7 @@ Widget b(WorkoutHistoryState s) => ProviderScope(
 
 class FakeWithFetchMoreTracking extends Fake {
   bool fetchMoreCalled = false;
-  FakeWithFetchMoreTracking(WorkoutHistoryState s) : super(s);
+  FakeWithFetchMoreTracking(super.s);
   @override
   Future<void> fetchMore() async {
     fetchMoreCalled = true;
@@ -146,7 +146,7 @@ void main() {
         clientId: 'c1',
         name: 'Workout $i',
         startTime: now.subtract(Duration(days: i)),
-        endTime: now.subtract(Duration(hours: 1)),
+        endTime: now.subtract(const Duration(hours: 1)),
         status: WorkoutSessionStatus.completed,
         isTrainerLed: true,
         createdAt: now,
@@ -268,7 +268,7 @@ void main() {
         clientId: 'c1',
         name: 'Workout $i',
         startTime: now.subtract(Duration(days: i)),
-        endTime: now.subtract(Duration(hours: 1)),
+        endTime: now.subtract(const Duration(hours: 1)),
         status: WorkoutSessionStatus.completed,
         isTrainerLed: true,
         createdAt: now,

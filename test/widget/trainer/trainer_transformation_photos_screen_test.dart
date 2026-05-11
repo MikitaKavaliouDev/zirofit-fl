@@ -98,7 +98,7 @@ void main() {
     });
 
     testWidgets('Test 4: Empty state when no photos', (tester) async {
-      final state = const TrainerTransformationPhotosState(
+      const state = TrainerTransformationPhotosState(
         photos: [],
         isLoading: false,
       );
@@ -114,7 +114,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add flow shows dialog', (tester) async {
-      final state = const TrainerTransformationPhotosState(
+      const state = TrainerTransformationPhotosState(
         photos: [],
         isLoading: false,
       );

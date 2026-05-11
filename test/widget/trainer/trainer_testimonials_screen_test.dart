@@ -121,7 +121,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add testimonial form works', (tester) async {
-      final state = TrainerProfileState(
+      const state = TrainerProfileState(
           testimonials: [], isLoading: false);
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();

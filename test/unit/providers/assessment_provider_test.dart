@@ -3,8 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/client_assessment_result.dart';
-import 'package:zirofit_fl/data/models/trainer_assessment.dart';
 import 'package:zirofit_fl/features/clients/providers/assessment_provider.dart';
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 import 'dart:collection';
 
 import 'package:device_calendar/device_calendar.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -122,7 +121,7 @@ void main() {
 
         expect(eventId, isNotNull);
         expect(eventId!.eventId, 'event-abc-123');
-        expect(eventId!.calendarId, 'cal-1');
+        expect(eventId.calendarId, 'cal-1');
 
         // Verify the event was created with correct data
         final captured = verify(() => mockPlugin.createOrUpdateEvent(

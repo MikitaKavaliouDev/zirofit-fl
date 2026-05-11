@@ -101,7 +101,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         body: {
           'date': date.toIso8601String().split('T')[0],
           'isCompleted': isCompleted,
-          if (note != null) 'note': note,
+          'note': ?note,
         },
       );
 

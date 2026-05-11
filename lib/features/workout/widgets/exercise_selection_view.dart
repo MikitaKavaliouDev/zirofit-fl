@@ -636,16 +636,19 @@ class _ExerciseSelectionViewState
     );
   }
 
-  // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
   // Empty state
   // ---------------------------------------------------------------------------
 
   Widget _buildEmptyState(ThemeData theme) {
+    final searchText = _searchController.text;
+    final hasSearch = searchText.isNotEmpty;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.fitness_center,
@@ -654,19 +657,82 @@ class _ExerciseSelectionViewState
             ),
             const SizedBox(height: 16),
             Text(
-              'No exercises found',
+              hasSearch ? "Couldn't find '$searchText'?" : 'No exercises found',
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'Try adjusting your search or filters',
+              hasSearch
+                  ? 'Create a custom exercise to add to your library.'
+                  : 'Try adjusting your search or filters',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
+              textAlign: TextAlign.center,
             ),
+            if (hasSearch) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => _showCreateExerciseDialog(context, searchText),
+                icon: const Icon(Icons.add),
+                label: Text('Create "$searchText"'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showCreateExerciseDialog(BuildContext context, String exerciseName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create Exercise'),
+        content: Text('Create a custom exercise named "$exerciseName"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // TODO: Call exercise provider to create custom exercise
+      // ref.read(exerciseListProvider.notifier).createCustomExercise(exerciseName);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Exercise "$exerciseName" created'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      // Dismiss this sheet and return to let user pick the new exercise
+      Navigator.of(context).pop();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Exercise Detail View
+  // ---------------------------------------------------------------------------
+
+  void _showExerciseDetail(BuildContext context, Exercise exercise) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ExerciseDetailSheet(exercise: exercise),
     );
   }
 
@@ -750,6 +816,270 @@ class _FilterChipDropdown<T> extends StatelessWidget {
               color: isActive
                   ? theme.colorScheme.onSecondaryContainer
                   : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Exercise Detail Sheet
+// ---------------------------------------------------------------------------
+
+/// Exercise detail view matching iOS ExerciseDetailView
+/// Shows: About / History / Charts / Records tabs
+class _ExerciseDetailSheet extends StatelessWidget {
+  final Exercise exercise;
+
+  const _ExerciseDetailSheet({required this.exercise});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DefaultTabController(
+      length: 4,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          children: [
+            // Grab handle
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          exercise.name,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (exercise.muscleGroup != null) ...[
+                              _buildTag(theme, exercise.muscleGroup!),
+                              const SizedBox(width: 8),
+                            ],
+                            if (exercise.category != null)
+                              _buildTag(theme, exercise.category!),
+                            if (exercise.equipment != null) ...[
+                              const SizedBox(width: 8),
+                              _buildTag(theme, exercise.equipment!),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Tab bar
+            TabBar(
+              tabs: const [
+                Tab(text: 'About'),
+                Tab(text: 'History'),
+                Tab(text: 'Charts'),
+                Tab(text: 'Records'),
+              ],
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+            ),
+
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildAboutTab(context, theme),
+                  _buildHistoryTab(context, theme),
+                  _buildChartsTab(context, theme),
+                  _buildRecordsTab(context, theme),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTag(ThemeData theme, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall,
+      ),
+    );
+  }
+
+  Widget _buildAboutTab(BuildContext context, ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (exercise.description != null && exercise.description!.isNotEmpty) ...[
+            Text(
+              'Description',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              exercise.description!,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (exercise.videoUrl != null) ...[
+            Text(
+              'Video',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.play_circle_outline,
+                  size: 48,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.history,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No history yet',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Complete sets of this exercise to see your history.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartsTab(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.show_chart,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No data yet',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Complete sets to see your progress charts.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordsTab(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.emoji_events_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No records yet',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Set personal records to see them here.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

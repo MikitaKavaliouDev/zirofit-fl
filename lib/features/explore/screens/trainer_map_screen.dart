@@ -128,7 +128,7 @@ class TrainerMapScreen extends ConsumerWidget {
                               ? Container(
                                   width: 12,
                                   height: 12,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: Colors.green,
                                     shape: BoxShape.circle,
                                   ),

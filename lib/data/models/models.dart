@@ -43,6 +43,7 @@ export 'message.dart';
 export 'booking.dart';
 export 'event.dart';
 export 'event_booking.dart';
+export 'explore_event.dart';
 export 'package.dart';
 export 'client_package.dart';
 export 'public_trainer_profile_data.dart';

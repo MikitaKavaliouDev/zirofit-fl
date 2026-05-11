@@ -43,37 +43,37 @@ GoRouter _createTestRouter() {
     initialLocation: '/client/dashboard',
     routes: [
       ShellRoute(
-        builder: (_, __, child) => ClientShell(child: child),
+        builder: (_, _, child) => ClientShell(child: child),
         routes: [
           GoRoute(
             path: '/client/dashboard',
-            builder: (_, __) => const _TestRoute(route: 'client/dashboard'),
+            builder: (_, _) => const _TestRoute(route: 'client/dashboard'),
           ),
           GoRoute(
             path: '/client/workout',
-            builder: (_, __) => const _TestRoute(route: 'client/workout'),
+            builder: (_, _) => const _TestRoute(route: 'client/workout'),
           ),
           GoRoute(
             path: '/client/progress',
-            builder: (_, __) => const _TestRoute(route: 'client/progress'),
+            builder: (_, _) => const _TestRoute(route: 'client/progress'),
           ),
           GoRoute(
             path: '/client/trainer',
-            builder: (_, __) => const _TestRoute(route: 'client/trainer'),
+            builder: (_, _) => const _TestRoute(route: 'client/trainer'),
           ),
           GoRoute(
             path: '/client/check-in',
-            builder: (_, __) => const _TestRoute(route: 'client/check-in'),
+            builder: (_, _) => const _TestRoute(route: 'client/check-in'),
           ),
           GoRoute(
             path: '/client/explore',
-            builder: (_, __) => const _TestRoute(route: 'client/explore'),
+            builder: (_, _) => const _TestRoute(route: 'client/explore'),
           ),
         ],
       ),
       GoRoute(
         path: '/trainer/dashboard',
-        builder: (_, __) => const _TestRoute(route: 'trainer/dashboard'),
+        builder: (_, _) => const _TestRoute(route: 'trainer/dashboard'),
       ),
     ],
   );

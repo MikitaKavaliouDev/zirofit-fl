@@ -36,14 +36,14 @@ class FakeAnalyticsNotifier extends AnalyticsNotifier {
   }
 
   void simulateEmpty() {
-    final analytics = ClientAnalytics(
+    const analytics = ClientAnalytics(
       heatmapDates: [],
-      volumeHistory: const [],
-      muscleDistribution: const [],
+      volumeHistory: [],
+      muscleDistribution: [],
       recentPRs: [],
       consistency: 0,
     );
-    state = AnalyticsState(analytics: analytics);
+    state = const AnalyticsState(analytics: analytics);
   }
 }
 

@@ -4,34 +4,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 
 // ---------------------------------------------------------------------------
 // WorkoutMiniPlayer
 // ---------------------------------------------------------------------------
 
 /// A compact horizontal bar pinned at the bottom of the screen while a workout
-/// is active.  Shows the current exercise name, elapsed workout time, and a
-/// rest countdown.
+/// is active. Matches iOS WorkoutMiniPlayer design with rest ring overlay,
+/// expand chevron, pause/resume, and swipe gestures.
 ///
-/// Tapping the bar expands to the full [ActiveWorkoutScreen].
-/// A close (X) button dismisses / minimises it.
-///
-/// Uses a blurred glassmorphism background and is safe-area aware.
+/// Tapping expand or swiping up expands to full session.
+/// Tap anywhere else also expands.
 class WorkoutMiniPlayer extends ConsumerStatefulWidget {
   const WorkoutMiniPlayer({
     super.key,
     this.onTap,
     this.onClose,
+    this.onExpand,
     this.expanded = false,
   });
 
-  /// Called when the user taps the mini player to expand.
+  /// Called when the user taps the mini player.
   final VoidCallback? onTap;
 
-  /// Called when the user taps the close button.
+  /// Called when the user taps the close (X) button.
   final VoidCallback? onClose;
 
-  /// If true, shows a more detailed state (used when this is the primary view).
+  /// Called when the user taps the expand chevron or swipes up.
+  final VoidCallback? onExpand;
+
+  /// If true, shows expanded state (used when this is the primary view).
   final bool expanded;
 
   @override
@@ -43,23 +47,30 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
   Timer? _elapsedTimer;
   DateTime? _workoutStartTime;
   int _elapsedSeconds = 0;
+  double _dragAccumulator = 0;
+  bool _isDragging = false;
+
+  late AnimationController _springController;
+  late Animation<double> _springAnimation;
 
   @override
   void initState() {
     super.initState();
+    _springController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _springAnimation = CurvedAnimation(
+      parent: _springController,
+      curve: Curves.easeOutCubic,
+    );
     _startElapsedTimer();
-  }
-
-  @override
-  void didUpdateWidget(WorkoutMiniPlayer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final session = ref.read(activeWorkoutProvider).session;
-    _syncStartTime(session);
   }
 
   @override
   void dispose() {
     _elapsedTimer?.cancel();
+    _springController.dispose();
     super.dispose();
   }
 
@@ -96,6 +107,35 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
+  void _handleDragStart(DragStartDetails details) {
+    _dragAccumulator = 0;
+    _isDragging = true;
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    if (!_isDragging) return;
+    // Only respond to upward drags (negative dy = up)
+    if (details.delta.dy < 0) {
+      // Apply 1/3 resistance for drag-up to expand
+      _dragAccumulator += details.delta.dy.abs() / 3;
+    } else {
+      // Drag down with 1/3 resistance
+      _dragAccumulator -= details.delta.dy / 3;
+    }
+
+    if (_dragAccumulator >= 80) {
+      // Threshold reached: expand
+      _dragAccumulator = 0;
+      _isDragging = false;
+      widget.onExpand?.call();
+    }
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    _dragAccumulator = 0;
+    _isDragging = false;
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -104,6 +144,8 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final workoutState = ref.watch(activeWorkoutProvider);
+    final timerState = ref.watch(workoutTimerProvider);
+    final enhancementState = ref.watch(workoutEnhancementProvider);
 
     // Don't render if there's no active session
     if (!workoutState.hasActiveSession) {
@@ -113,6 +155,7 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     final session = workoutState.session!;
     final restSeconds = workoutState.restSeconds;
     final isRestRunning = workoutState.isRestRunning;
+    final isPaused = timerState == WorkoutTimerState.paused;
 
     // Find the most recent exercise name
     final lastLog =
@@ -121,130 +164,170 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
         ? (workoutState.exerciseNames[lastLog.exerciseId] ?? lastLog.exerciseName ?? 'Exercise')
         : session.name ?? 'Workout';
 
-    return SafeArea(
-      top: false,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.85),
-            border: Border(
-              top: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              // ── Play icon ──
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.fitness_center,
-                  size: 20,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width: 12),
+    // Rest progress for ring overlay (0.0 to 1.0)
+    final restTotal = enhancementState.restTimerSettings.defaultSeconds;
+    final restProgress = restTotal > 0
+        ? (restSeconds / restTotal).clamp(0.0, 1.0)
+        : 0.0;
 
-              // ── Exercise name + elapsed ──
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+    return GestureDetector(
+      onTap: widget.onTap,
+      onVerticalDragStart: _handleDragStart,
+      onVerticalDragUpdate: _handleDragUpdate,
+      onVerticalDragEnd: _handleDragEnd,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // Main content
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
                   children: [
-                    Text(
-                      exerciseName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    // Rest ring indicator (left of icon)
+                    if (isRestRunning && restSeconds > 0) ...[
+                      SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Background ring
+                            CircularProgressIndicator(
+                              value: 1.0,
+                              strokeWidth: 2,
+                              backgroundColor: Colors.transparent,
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.3),
+                            ),
+                            // Progress ring (orange)
+                            CircularProgressIndicator(
+                              value: restProgress,
+                              strokeWidth: 2,
+                              backgroundColor: Colors.transparent,
+                              color: const Color(0xFFFF6B00),
+                            ),
+                          ],
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.timer_outlined,
-                          size: 12,
-                          color: theme.colorScheme.onSurfaceVariant,
+                    ] else ...[
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatElapsed(_elapsedSeconds),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                        child: Icon(
+                          Icons.fitness_center,
+                          size: 20,
+                          color: theme.colorScheme.onPrimaryContainer,
                         ),
-                        if (isRestRunning && restSeconds > 0) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
+                      ),
+                    ],
+                    const SizedBox(width: 12),
+
+                    // Exercise name + elapsed
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                           Text(
-                            '${restSeconds}s',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
+                            exerciseName,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatElapsed(_elapsedSeconds),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              if (isRestRunning && restSeconds > 0) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${restSeconds}s',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
-                      ],
+                      ),
+                    ),
+
+                    // Pause/Resume button (iOS style)
+                    IconButton(
+                      icon: Icon(
+                        isPaused ? Icons.play_arrow : Icons.pause,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      iconSize: 22,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                      onPressed: () {
+                        ref.read(workoutTimerProvider.notifier).togglePause();
+                      },
+                    ),
+
+                    // Expand chevron button (iOS style)
+                    IconButton(
+                      icon: Icon(
+                        Icons.keyboard_arrow_up,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      iconSize: 24,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                      onPressed: widget.onExpand,
                     ),
                   ],
-                ),
-              ),
-
-              // ── Rest countdown badge ──
-              if (isRestRunning && restSeconds > 0) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: restSeconds <= 10
-                        ? theme.colorScheme.errorContainer
-                        : theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${(restSeconds ~/ 60).toString().padLeft(2, '0')}:${(restSeconds % 60).toString().padLeft(2, '0')}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: restSeconds <= 10
-                          ? theme.colorScheme.onErrorContainer
-                          : theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-
-              // ── Close button ──
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  iconSize: 18,
-                  icon: Icon(
-                    Icons.close,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: widget.onClose,
                 ),
               ),
             ],
@@ -254,4 +337,3 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     );
   }
 }
-

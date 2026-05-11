@@ -5,20 +5,15 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/check_in.dart';
 import 'package:zirofit_fl/data/models/client_analytics.dart';
 import 'package:zirofit_fl/data/models/fitness_goal.dart';
-import 'package:zirofit_fl/data/models/personal_record.dart';
-import 'package:zirofit_fl/data/models/workout_program.dart';
-import 'package:zirofit_fl/data/models/workout_template.dart';
-import 'package:zirofit_fl/features/auth/providers/auth_provider.dart' show apiClientProvider;
 import 'package:zirofit_fl/features/checkin/providers/check_in_provider.dart';
 import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
 import 'package:zirofit_fl/features/progress/data/analytics_remote_source.dart';
 import 'package:zirofit_fl/features/progress/providers/analytics_provider.dart';
 import 'package:zirofit_fl/features/progress/providers/goal_provider.dart' as goal_mod;
 import 'package:zirofit_fl/features/progress/providers/goal_provider.dart'
-    show goalsProvider, GoalsState, GoalsNotifier;
+    show goalsProvider;
 import '../helpers/provider_utils.dart';
 
 // ---------------------------------------------------------------------------

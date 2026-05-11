@@ -421,7 +421,7 @@ class _TransformationPairCard extends StatelessWidget {
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => Container(
+          errorBuilder: (_, _, _) => Container(
             color: Colors.grey[200],
             child: const Icon(Icons.broken_image, size: 24),
           ),
@@ -617,7 +617,7 @@ class _FullScreenPhotoViewer extends StatelessWidget {
             fit: BoxFit.contain,
             width: double.infinity,
             height: 200,
-            errorBuilder: (_, __, ___) => Container(
+            errorBuilder: (_, _, _) => Container(
               color: Colors.grey[900],
               height: 200,
               child: const Center(

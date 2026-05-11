@@ -3,9 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/blog_post.dart';
-import 'package:zirofit_fl/data/models/event.dart';
-import 'package:zirofit_fl/data/models/support_ticket.dart';
 import 'package:zirofit_fl/features/admin/providers/admin_provider.dart';
 import '../helpers/provider_utils.dart';
 

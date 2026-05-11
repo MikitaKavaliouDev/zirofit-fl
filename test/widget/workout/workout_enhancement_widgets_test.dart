@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/plate_calculation.dart';
+import 'package:zirofit_fl/features/workout/data/workout_remote_source.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/plate_calculator_overlay.dart';
 import 'package:zirofit_fl/features/workout/widgets/rest_timer_sheet.dart';
 import 'package:zirofit_fl/features/workout/widgets/rpe_picker_overlay.dart';
 import 'package:zirofit_fl/features/workout/widgets/superset_group_indicator.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_numeric_keyboard.dart';
+import 'package:zirofit_fl/features/workout/widgets/exercise_list_builder.dart';
 import '../../helpers/test_setup.dart';
 
 // =============================================================================
@@ -423,7 +428,7 @@ void main() {
     testWidgets('renders group letter badge', (t) async {
       const group = SupersetGroup(key: 'A');
       await t.pumpWidget(
-        MaterialApp(home: Scaffold(body: SupersetGroupIndicator(group: group))),
+        const MaterialApp(home: Scaffold(body: SupersetGroupIndicator(group: group))),
       );
 
       expect(find.text('A'), findsOneWidget);
@@ -436,7 +441,7 @@ void main() {
         totalSets: 4,
       );
       await t.pumpWidget(
-        MaterialApp(home: Scaffold(body: SupersetGroupIndicator(group: group))),
+        const MaterialApp(home: Scaffold(body: SupersetGroupIndicator(group: group))),
       );
 
       expect(find.text('B'), findsOneWidget);
@@ -445,10 +450,10 @@ void main() {
 
     testWidgets('different colors for different groups', (t) async {
       await t.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: Row(
-              children: const [
+              children: [
                 SupersetGroupIndicator(group: SupersetGroup(key: 'A')),
                 SizedBox(width: 16),
                 SupersetGroupIndicator(group: SupersetGroup(key: 'B')),
@@ -470,7 +475,7 @@ void main() {
         totalSets: 1,
       );
       await t.pumpWidget(
-        MaterialApp(home: Scaffold(body: SupersetGroupIndicator(group: group))),
+        const MaterialApp(home: Scaffold(body: SupersetGroupIndicator(group: group))),
       );
 
       expect(find.text('1/1 set'), findsOneWidget);
@@ -595,4 +600,192 @@ void main() {
       expect(currentValue, '67.5');
     });
   });
+
+// ===========================================================================
+// ExerciseListBuilder
+// ===========================================================================
+
+group('ExerciseListBuilder', () {
+  testWidgets('renders empty state when no exercises', (t) async {
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith(
+            (ref) => ActiveWorkoutNotifier(remoteSource: FakeWorkoutRemoteSource(), ref: ref),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ExerciseListBuilder(onAddExercise: () {}),
+          ),
+        ),
+      ),
+    );
+
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Start by adding an exercise'), findsOneWidget);
+    expect(find.byIcon(Icons.fitness_center), findsOneWidget);
+    expect(find.text('Add Exercise'), findsOneWidget);
+  });
+
+  testWidgets('renders non-superset exercises normally', (t) async {
+    final log = ClientExerciseLog(
+      id: '1',
+      clientId: 'client1',
+      exerciseId: 'exercise1',
+      reps: 10,
+      weight: 50.0,
+      isCompleted: false,
+      workoutSessionId: 'session1',
+      supersetKey: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith((ref) {
+            final notifier = ActiveWorkoutNotifier(remoteSource: FakeWorkoutRemoteSource(), ref: ref);
+            notifier.state = notifier.state.copyWith(
+              logs: [log],
+              exerciseNames: {'exercise1': 'Bench Press'},
+            );
+            return notifier;
+          }),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ExerciseListBuilder(onAddExercise: () {}),
+          ),
+        ),
+      ),
+    );
+
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Bench Press'), findsOneWidget);
+    expect(find.text('50.0 kg × 10 reps'), findsOneWidget);
+    // Should not have superset styling (no blue border or link icon)
+    expect(find.byIcon(Icons.link), findsNothing);
+  });
+
+  testWidgets('groups exercises with same supersetKey', (t) async {
+    final log1 = ClientExerciseLog(
+      id: '1',
+      clientId: 'client1',
+      exerciseId: 'exercise1',
+      reps: 10,
+      weight: 50.0,
+      isCompleted: false,
+      workoutSessionId: 'session1',
+      supersetKey: 'A',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final log2 = ClientExerciseLog(
+      id: '2',
+      clientId: 'client1',
+      exerciseId: 'exercise2',
+      reps: 12,
+      weight: 60.0,
+      isCompleted: false,
+      workoutSessionId: 'session1',
+      supersetKey: 'A',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith((ref) {
+            final notifier = ActiveWorkoutNotifier(remoteSource: FakeWorkoutRemoteSource(), ref: ref);
+            notifier.state = notifier.state.copyWith(
+              logs: [log1, log2],
+              exerciseNames: {
+                'exercise1': 'Bench Press',
+                'exercise2': 'Incline Press',
+              },
+            );
+            return notifier;
+          }),
+          workoutEnhancementProvider.overrideWith(
+            (_) => FakeWorkoutEnhancementNotifier(
+              const WorkoutEnhancementState(
+                supersetGroups: [
+                  SupersetGroup(key: 'A', exerciseIds: ['exercise1', 'exercise2']),
+                ],
+              ),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ExerciseListBuilder(onAddExercise: () {}),
+          ),
+        ),
+      ),
+    );
+
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 100));
+
+    // Should render superset group container
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('Bench Press'), findsOneWidget);
+    expect(find.text('Incline Press'), findsOneWidget);
+    // Should have link icon for superset group
+    expect(find.byIcon(Icons.link), findsOneWidget);
+  });
+
+  testWidgets('treats empty string supersetKey as non-superset', (t) async {
+    final log = ClientExerciseLog(
+      id: '1',
+      clientId: 'client1',
+      exerciseId: 'exercise1',
+      reps: 10,
+      weight: 50.0,
+      isCompleted: false,
+      workoutSessionId: 'session1',
+      supersetKey: '', // Empty string should be treated as non-superset
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith((ref) {
+            final notifier = ActiveWorkoutNotifier(remoteSource: FakeWorkoutRemoteSource(), ref: ref);
+            notifier.state = notifier.state.copyWith(
+              logs: [log],
+              exerciseNames: {'exercise1': 'Bench Press'},
+            );
+            return notifier;
+          }),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ExerciseListBuilder(onAddExercise: () {}),
+          ),
+        ),
+      ),
+    );
+
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Bench Press'), findsOneWidget);
+    // Should not have superset styling
+    expect(find.byIcon(Icons.link), findsNothing);
+  });
+  });
 }
+
+// Fake remote source for testing
+class FakeWorkoutRemoteSource extends Mock implements WorkoutRemoteSource {}

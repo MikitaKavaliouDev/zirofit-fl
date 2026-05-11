@@ -163,7 +163,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add package form works', (tester) async {
-      final state = TrainerProfileState(packages: [], isLoading: false);
+      const state = TrainerProfileState(packages: [], isLoading: false);
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();
 

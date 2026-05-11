@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:zirofit_fl/data/models/event.dart';
 
 /// Browse by category section - filter chips for specialty filtering.
 ///

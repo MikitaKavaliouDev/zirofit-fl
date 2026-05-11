@@ -21,7 +21,6 @@ import 'package:zirofit_fl/features/clients/screens/client_detail_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_history_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_list_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/invite_client_screen.dart';
-import 'package:zirofit_fl/features/clients/screens/my_trainer_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/client_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/daily_target_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/trainer_dashboard_screen.dart';
@@ -343,10 +342,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/client/progress',
             builder: (_, _) => const PersonalAnalyticsScreen(),
-          ),
-          GoRoute(
-            path: '/client/trainer',
-            builder: (_, _) => const MyTrainerScreen(),
           ),
           GoRoute(
             path: '/client/events/:id',

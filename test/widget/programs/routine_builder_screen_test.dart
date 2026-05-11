@@ -12,7 +12,7 @@ import '../../helpers/test_setup.dart';
 // ---------------------------------------------------------------------------
 
 class FakeTemplatePickerNotifier extends TemplatePickerNotifier {
-  TemplatePickerState _state;
+  final TemplatePickerState _state;
 
   FakeTemplatePickerNotifier(this._state)
       : super(apiClient: ApiClient.instance) {

@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_providers.dart';
@@ -98,7 +97,7 @@ void main() {
     });
 
     test('addSet adds set to list', () {
-      final set = WorkoutSet(
+      const set = WorkoutSet(
         id: 'ex1',
         logId: 'log1',
         reps: 10,
@@ -111,8 +110,8 @@ void main() {
     });
 
     test('updateSet replaces set at index', () {
-      final set1 = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
-      final set2 = WorkoutSet(id: 'ex1', logId: 'log2', reps: 10, weight: 105);
+      const set1 = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
+      const set2 = WorkoutSet(id: 'ex1', logId: 'log2', reps: 10, weight: 105);
       
       notifier.addSet(set1);
       notifier.addSet(set2);
@@ -122,7 +121,7 @@ void main() {
     });
 
     test('removeSet removes set at index', () {
-      final set = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
+      const set = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
       notifier.addSet(set);
       notifier.removeSet(0);
       
@@ -130,7 +129,7 @@ void main() {
     });
 
     test('clear empties the list', () {
-      final set = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
+      const set = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
       notifier.addSet(set);
       notifier.clear();
       
@@ -138,9 +137,9 @@ void main() {
     });
 
     test('getSetsForExercise returns correct sets', () {
-      final set1 = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
-      final set2 = WorkoutSet(id: 'ex2', logId: 'log2', reps: 5, weight: 150);
-      final set3 = WorkoutSet(id: 'ex1', logId: 'log3', reps: 8, weight: 105);
+      const set1 = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
+      const set2 = WorkoutSet(id: 'ex2', logId: 'log2', reps: 5, weight: 150);
+      const set3 = WorkoutSet(id: 'ex1', logId: 'log3', reps: 8, weight: 105);
       
       notifier.addSet(set1);
       notifier.addSet(set2);
@@ -151,8 +150,8 @@ void main() {
     });
 
     test('getLatestSetForExercise returns last set', () {
-      final set1 = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
-      final set2 = WorkoutSet(id: 'ex1', logId: 'log2', reps: 8, weight: 105);
+      const set1 = WorkoutSet(id: 'ex1', logId: 'log1', reps: 10, weight: 100);
+      const set2 = WorkoutSet(id: 'ex1', logId: 'log2', reps: 8, weight: 105);
       
       notifier.addSet(set1);
       notifier.addSet(set2);
@@ -267,7 +266,7 @@ void main() {
 
   group('calculateSetVolume', () {
     test('calculates volume correctly', () {
-      final set = WorkoutSet(
+      const set = WorkoutSet(
         id: 'ex1',
         logId: 'log1',
         weight: 100,
@@ -277,7 +276,7 @@ void main() {
     });
 
     test('returns 0 for null values', () {
-      final set = WorkoutSet(
+      const set = WorkoutSet(
         id: 'ex1',
         logId: 'log1',
         weight: null,

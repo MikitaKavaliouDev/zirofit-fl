@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:zirofit_fl/core/constants/api_constants.dart';
-import 'package:zirofit_fl/features/auth/providers/auth_provider.dart'
-    show apiClientProvider;
 import 'package:zirofit_fl/features/billing/providers/subscription_provider.dart';
 
 // ---------------------------------------------------------------------------

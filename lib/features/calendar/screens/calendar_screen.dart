@@ -5,6 +5,8 @@ import 'package:zirofit_fl/features/calendar/providers/calendar_provider.dart';
 import 'package:zirofit_fl/features/calendar/screens/create_session_screen.dart';
 import 'package:zirofit_fl/features/calendar/widgets/calendar_day_cell.dart';
 import 'package:zirofit_fl/features/calendar/widgets/session_card.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 
 /// Calendar screen with month view grid and day details.
 class CalendarScreen extends ConsumerStatefulWidget {
@@ -244,20 +246,24 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: selectedDateEvents.length,
-      itemBuilder: (context, index) {
-        final event = selectedDateEvents[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: SessionCard(
-            event: event,
-            onTap: () => _showSessionDetails(event),
-          ),
-        );
-      },
-    );
+     return ListView.builder(
+       padding: const EdgeInsets.all(16),
+       itemCount: selectedDateEvents.length,
+       itemBuilder: (context, index) {
+         final event = selectedDateEvents[index];
+         return Padding(
+           padding: const EdgeInsets.only(bottom: 12),
+           child: SessionCard(
+             event: event,
+             onTap: () => _showSessionDetails(event),
+              onStartWorkout: () {
+                ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
+                ref.read(activeWorkoutProvider.notifier).startWorkout();
+              },
+           ),
+         );
+       },
+     );
   }
 
   void _showSessionDetails(CalendarEvent event) {

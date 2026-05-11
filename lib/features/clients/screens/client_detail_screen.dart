@@ -10,6 +10,8 @@ import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/clients/providers/client_detail_provider.dart';
 import 'package:zirofit_fl/features/clients/screens/assign_program_screen.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 
 class ClientDetailScreen extends ConsumerStatefulWidget {
   final String id;
@@ -41,7 +43,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
     super.dispose();
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     final client = ref.watch(
       clientDetailProvider(widget.id).select((s) => s.client),
@@ -97,6 +99,16 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
         ],
       ),
       body: _buildBody(client, isLoadingClient, error, theme),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: client != null
+            ? () {
+                ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
+                ref.read(activeWorkoutProvider.notifier).startWorkout();
+              }
+            : null,
+        icon: const Icon(Icons.fitness_center),
+        label: const Text('Start Workout'),
+      ),
     );
   }
 

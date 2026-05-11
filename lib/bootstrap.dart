@@ -164,7 +164,7 @@ class AppBootstrap {
       final apiClient = container.read(apiClientProvider);
       final profile = await apiClient.get<Profile>(
         '/trainers/$trainerId',
-        fromJson: (json) => Profile.fromJson(json as Map<String, dynamic>),
+        fromJson: (json) => Profile.fromJson(json),
       );
       router.go('/public-trainer/$trainerId', extra: profile);
     } catch (_) {

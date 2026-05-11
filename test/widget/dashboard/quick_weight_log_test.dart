@@ -240,7 +240,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   testWidgets('Test 5: Shows loading placeholder when fetching', (t) async {
-    final state = ClientMeasurementState(
+    const state = ClientMeasurementState(
       measurements: [],
       isLoading: true,
     );
@@ -262,7 +262,7 @@ void main() {
 
   testWidgets('Test 5b: Shows "-- kg" when no measurements and not loading',
       (t) async {
-    final state = ClientMeasurementState(
+    const state = ClientMeasurementState(
       measurements: [],
       isLoading: false,
     );

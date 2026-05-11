@@ -120,7 +120,7 @@ void main() {
             ApiConstants.trainerBookingSettings,
             body: any(named: 'body'),
           )).thenAnswer((invocation) async {
-        final body = invocation.namedArguments[Symbol('body')] as Map;
+        final body = invocation.namedArguments[const Symbol('body')] as Map;
         expect(body['advanceNotice'], 6);
         expect(body['bookingHorizon'], 30);
         expect(body['bufferMinutes'], 20);

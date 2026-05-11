@@ -48,7 +48,7 @@ Map<String, dynamic> _measurementJson({
     'clientId': 'c-1',
     'measurementDate': date,
     'weightKg': weightKg,
-    if (bodyFat != null) 'bodyFatPercentage': bodyFat,
+    'bodyFatPercentage': ?bodyFat,
   };
 }
 
@@ -101,7 +101,7 @@ Map<String, dynamic> _backendDashboardResponse({
       'weightUnit': 'KG',
       'upcomingClientSessions':
           List.generate(upcomingCount, (i) => _upcomingSessionJson(id: 'us-$i', title: 'Session $i')),
-      if (lastCheckIn != null) 'lastCheckIn': lastCheckIn,
+      'lastCheckIn': ?lastCheckIn,
     },
   };
 }
@@ -302,7 +302,7 @@ void main() {
       addTearDown(container.dispose);
 
       // Reading the provider triggers build() -> _fetchDashboard()
-      final watcher = container.listen(clientDashboardProvider, (_, __) {});
+      final watcher = container.listen(clientDashboardProvider, (_, _) {});
       addTearDown(watcher.close);
 
       // Wait for the async operation to complete

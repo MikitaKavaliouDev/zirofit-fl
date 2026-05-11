@@ -157,7 +157,7 @@ void main() {
   // ===========================================================================
   group('Assessment', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final a = Assessment(
@@ -208,7 +208,7 @@ void main() {
   // ===========================================================================
   group('AssessmentResult', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final ar = AssessmentResult(
@@ -262,7 +262,7 @@ void main() {
   // ===========================================================================
   group('Benefit', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final b = Benefit(
@@ -316,7 +316,7 @@ void main() {
   // ===========================================================================
   group('BlogPost', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final bp = BlogPost(
@@ -374,7 +374,7 @@ void main() {
   // ===========================================================================
   group('Booking', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final b = Booking(
@@ -437,7 +437,7 @@ void main() {
   // ===========================================================================
   group('CheckIn', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final ci = CheckIn(
@@ -508,7 +508,7 @@ void main() {
   // ===========================================================================
   group('Client', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final c = Client(
@@ -580,7 +580,7 @@ void main() {
   // ===========================================================================
   group('ClientExerciseLog', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final log = ClientExerciseLog(
@@ -690,7 +690,7 @@ void main() {
   // ===========================================================================
   group('ClientMeasurement', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final cm = ClientMeasurement(
@@ -743,7 +743,7 @@ void main() {
   // ===========================================================================
   group('ClientPackage', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final cp = ClientPackage(
@@ -779,7 +779,7 @@ void main() {
   // ===========================================================================
   group('ClientProgramAssignment', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final cpa = ClientProgramAssignment(
@@ -815,7 +815,7 @@ void main() {
   // ===========================================================================
   group('ClientProgressPhoto', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final cpp = ClientProgressPhoto(
@@ -867,7 +867,7 @@ void main() {
   // ===========================================================================
   group('ClientResource', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final cr = ClientResource(
@@ -899,7 +899,7 @@ void main() {
   // ===========================================================================
   group('Conversation', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final conv = Conversation(
@@ -935,7 +935,7 @@ void main() {
   // ===========================================================================
   group('DailyHabit', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final dh = DailyHabit(
@@ -988,7 +988,7 @@ void main() {
   // ===========================================================================
   group('Event', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final e = Event(
@@ -1063,7 +1063,7 @@ void main() {
   // ===========================================================================
   group('EventBooking', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final eb = EventBooking(
@@ -1100,7 +1100,7 @@ void main() {
   // ===========================================================================
   group('Exercise', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final ex = Exercise(
@@ -1178,7 +1178,7 @@ void main() {
   // ===========================================================================
   group('ExternalLink', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final el = ExternalLink(
@@ -1213,7 +1213,7 @@ void main() {
   // ===========================================================================
   group('HabitLog', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final hl = HabitLog(
@@ -1263,7 +1263,7 @@ void main() {
   // ===========================================================================
   group('Location', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final loc = Location(
@@ -1300,7 +1300,7 @@ void main() {
   // ===========================================================================
   group('Message', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final msg = Message(
@@ -1353,7 +1353,7 @@ void main() {
   // ===========================================================================
   group('Notification', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final n = Notification(
@@ -1404,7 +1404,7 @@ void main() {
   // ===========================================================================
   group('Package', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final pkg = Package(
@@ -1461,7 +1461,7 @@ void main() {
   // ===========================================================================
   group('PersonalRecord', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final pr = PersonalRecord(
@@ -1499,7 +1499,7 @@ void main() {
   // ===========================================================================
   group('Product', () {
     test('toJson -> fromJson round-trip', () {
-      final prod = Product(
+      const prod = Product(
         id: 'prod-1',
         recipeId: 'rec-1',
         name: 'Whey Protein',
@@ -1542,7 +1542,7 @@ void main() {
   // ===========================================================================
   group('Profile', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final p = Profile(
@@ -1659,7 +1659,7 @@ void main() {
   // ===========================================================================
   group('Recipe', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final r = Recipe(
@@ -1724,7 +1724,7 @@ void main() {
   // ===========================================================================
   group('RecipeTag', () {
     test('toJson -> fromJson round-trip', () {
-      final rt = RecipeTag(
+      const rt = RecipeTag(
         id: 'rt-1',
         recipeId: 'rec-1',
         name: 'high-protein',
@@ -1750,7 +1750,7 @@ void main() {
   // ===========================================================================
   group('Resource', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final res = Resource(
@@ -1803,7 +1803,7 @@ void main() {
   // ===========================================================================
   group('Service', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final s = Service(
@@ -1857,7 +1857,7 @@ void main() {
   // ===========================================================================
   group('SocialLink', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final sl = SocialLink(
@@ -1894,7 +1894,7 @@ void main() {
   // ===========================================================================
   group('SupportTicket', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final st = SupportTicket(
@@ -1947,7 +1947,7 @@ void main() {
   // ===========================================================================
   group('SystemError', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final se = SystemError(
@@ -2005,7 +2005,7 @@ void main() {
   // ===========================================================================
   group('SystemSetting', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final ss = SystemSetting(
@@ -2046,7 +2046,7 @@ void main() {
   // ===========================================================================
   group('TemplateExercise', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final te = TemplateExercise(
@@ -2143,7 +2143,7 @@ void main() {
   // ===========================================================================
   group('Testimonial', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final tm = Testimonial(
@@ -2193,7 +2193,7 @@ void main() {
   // ===========================================================================
   group('TransformationPhoto', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final tp = TransformationPhoto(
@@ -2242,7 +2242,7 @@ void main() {
   // ===========================================================================
   group('User', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final u = User(
@@ -2355,7 +2355,7 @@ void main() {
   // ===========================================================================
   group('WorkoutProgram', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final wp = WorkoutProgram(
@@ -2416,7 +2416,7 @@ void main() {
   // ===========================================================================
   group('WorkoutSession', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final ws = WorkoutSession(
@@ -2542,7 +2542,7 @@ void main() {
   // ===========================================================================
   group('WorkoutSessionComment', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final wsc = WorkoutSessionComment(
@@ -2606,7 +2606,7 @@ void main() {
   // ===========================================================================
   group('WorkoutTemplate', () {
     final t = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
       final wt = WorkoutTemplate(
@@ -2669,10 +2669,10 @@ void main() {
   // ===========================================================================
   group('SyncChanges', () {
     test('toJson -> fromJson round-trip', () {
-      final sc = SyncChanges(
-        created: const [{'id': '1', 'name': 'new'}],
-        updated: const [{'id': '2', 'name': 'changed'}],
-        deleted: const ['3', '4'],
+      const sc = SyncChanges(
+        created: [{'id': '1', 'name': 'new'}],
+        updated: [{'id': '2', 'name': 'changed'}],
+        deleted: ['3', '4'],
       );
       final restored = SyncChanges.fromJson(sc.toJson());
       expect(restored.created, sc.created);
@@ -2707,11 +2707,11 @@ void main() {
   //  Backend: {"changes": {"table_name": {"created":[...],"updated":[...],"deleted":[...]}}, "timestamp": 1700000000000}
   // ===========================================================================
   group('SyncPayload', () {
-    final ms = 1700000000000;
+    const ms = 1700000000000;
 
     test('toJson -> fromJson round-trip', () {
-      final sp = SyncPayload(
-        changes: const {
+      const sp = SyncPayload(
+        changes: {
           'exercises': SyncChanges(
             created: [{'id': 'ex-1'}],
           ),

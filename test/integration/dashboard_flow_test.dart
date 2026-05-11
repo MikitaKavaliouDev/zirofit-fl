@@ -303,7 +303,7 @@ void main() {
 
     test('markCheckInCompleted optimistically updates check-in status', () async {
       // Force-build the provider by listening
-      final sub = container.listen(clientDashboardProvider, (_, __) {});
+      final sub = container.listen(clientDashboardProvider, (_, _) {});
       addTearDown(sub.close);
       await container.read(clientDashboardProvider.future);
 

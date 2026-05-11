@@ -15,6 +15,7 @@ import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
 import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
+import 'package:zirofit_fl/features/clients/widgets/trainer_details_bottom_sheet.dart';
 
 /// SharedPreferences key for the educational overlay.
 const _kEducationOverlayKey = 'dashboard_education_seen';
@@ -332,7 +333,7 @@ class _ClientDashboardScreenState
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {
-          context.push('/client/trainer');
+          TrainerDetailsBottomSheet.show(context);
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -405,7 +406,7 @@ class _ClientDashboardScreenState
           Expanded(
             child: GestureDetector(
               onTap: () {
-                context.push('/client/trainer');
+                TrainerDetailsBottomSheet.show(context);
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1013,28 +1014,28 @@ class _ClientDashboardScreenState
                         const SizedBox(height: 8),
 
                         // Section explanations
-                        _EducationItem(
+                        const _EducationItem(
                           icon: Icons.bolt,
                           title: 'Quick Start',
                           description:
                               'Jump straight into an empty workout session.',
                           color: Colors.blue,
                         ),
-                        _EducationItem(
+                        const _EducationItem(
                           icon: Icons.grid_view_rounded,
                           title: 'Templates',
                           description:
                               'Browse and pick a pre-made workout template.',
                           color: Colors.purple,
                         ),
-                        _EducationItem(
+                        const _EducationItem(
                           icon: Icons.monitor_weight,
                           title: 'Quick Weight Log',
                           description:
                               'Tap to log your current weight in seconds.',
                           color: Colors.green,
                         ),
-                        _EducationItem(
+                        const _EducationItem(
                           icon: Icons.checklist,
                           title: 'Check-in',
                           description:
@@ -1048,7 +1049,7 @@ class _ClientDashboardScreenState
                               'View and start your current workout program.',
                           color: theme.colorScheme.primary,
                         ),
-                        _EducationItem(
+                        const _EducationItem(
                           icon: Icons.calendar_month,
                           title: 'Upcoming Sessions',
                           description:
@@ -1062,7 +1063,7 @@ class _ClientDashboardScreenState
                               'Set and track your daily fitness goals.',
                           color: theme.colorScheme.secondary,
                         ),
-                        _EducationItem(
+                        const _EducationItem(
                           icon: Icons.history,
                           title: 'Recent History',
                           description:

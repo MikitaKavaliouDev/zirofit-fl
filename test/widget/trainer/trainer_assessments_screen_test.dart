@@ -123,7 +123,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add form validates + creates', (tester) async {
-      final state = TrainerAssessmentsState(assessments: [], isLoading: false);
+      const state = TrainerAssessmentsState(assessments: [], isLoading: false);
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();
 
@@ -244,7 +244,7 @@ void main() {
     });
 
     testWidgets('Test 5: Empty state', (tester) async {
-      final state = TrainerAssessmentsState(assessments: [], isLoading: false);
+      const state = TrainerAssessmentsState(assessments: [], isLoading: false);
 
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();

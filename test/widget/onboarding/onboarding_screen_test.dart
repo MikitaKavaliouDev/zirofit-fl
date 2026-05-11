@@ -61,13 +61,13 @@ GoRouter _testGoRouter(Widget Function(BuildContext, GoRouterState) builder) {
       ),
       GoRoute(
         path: '/trainer/dashboard',
-        builder: (_, __) => const Scaffold(
+        builder: (_, _) => const Scaffold(
           body: Center(child: Text('Trainer Dashboard')),
         ),
       ),
       GoRoute(
         path: '/client/dashboard',
-        builder: (_, __) => const Scaffold(
+        builder: (_, _) => const Scaffold(
           body: Center(child: Text('Client Dashboard')),
         ),
       ),
@@ -383,7 +383,7 @@ void main() {
         child: MaterialApp.router(
           title: 'Ziro Fit Test',
           routerConfig: _testGoRouter(
-            (_, __) => const OnboardingScreen(),
+            (_, _) => const OnboardingScreen(),
           ),
         ),
       ),
@@ -435,7 +435,7 @@ void main() {
         child: MaterialApp.router(
           title: 'Ziro Fit Test',
           routerConfig: _testGoRouter(
-            (_, __) => const OnboardingScreen(),
+            (_, _) => const OnboardingScreen(),
           ),
         ),
       ),

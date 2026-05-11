@@ -131,7 +131,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add service form works', (tester) async {
-      final state = TrainerProfileState(services: [], isLoading: false);
+      const state = TrainerProfileState(services: [], isLoading: false);
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();
 

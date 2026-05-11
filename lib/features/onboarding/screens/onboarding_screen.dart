@@ -355,7 +355,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             width: 96,
                             height: 96,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(
+                            errorBuilder: (_, _, _) => Icon(
                               Icons.person_rounded,
                               size: 48,
                               color: colorScheme.onPrimaryContainer,
@@ -471,7 +471,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 // Height
                 TextFormField(
                   controller: _heightController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Height (cm)',
@@ -497,7 +497,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 // Weight
                 TextFormField(
                   controller: _weightController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Weight (kg)',
@@ -522,7 +522,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 // Experience level dropdown
                 DropdownButtonFormField<String>(
-                  value: _experienceLevel,
+                  initialValue: _experienceLevel,
                   decoration: const InputDecoration(
                     labelText: 'Experience Level',
                     prefixIcon: Icon(Icons.trending_up_rounded),

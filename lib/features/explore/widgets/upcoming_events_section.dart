@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:zirofit_fl/data/models/event.dart';
+import 'package:zirofit_fl/data/models/explore_event.dart';
 
 /// Upcoming events section - grouped by date.
 ///
@@ -12,8 +12,8 @@ import 'package:zirofit_fl/data/models/event.dart';
 /// )
 /// ```
 class UpcomingEventsSection extends StatelessWidget {
-  final List<Event> events;
-  final void Function(Event event) onEventTap;
+  final List<ExploreEvent> events;
+  final void Function(ExploreEvent event) onEventTap;
 
   const UpcomingEventsSection({
     super.key,
@@ -75,8 +75,8 @@ class UpcomingEventsSection extends StatelessWidget {
     );
   }
 
-  Map<DateTime, List<Event>> _groupEventsByDate(List<Event> events) {
-    final Map<DateTime, List<Event>> grouped = {};
+  Map<DateTime, List<ExploreEvent>> _groupEventsByDate(List<ExploreEvent> events) {
+    final Map<DateTime, List<ExploreEvent>> grouped = {};
     
     for (final event in events) {
       final date = DateTime(
@@ -113,7 +113,7 @@ class UpcomingEventsSection extends StatelessWidget {
 }
 
 class _EventListTile extends StatelessWidget {
-  final Event event;
+  final ExploreEvent event;
   final VoidCallback onTap;
 
   const _EventListTile({

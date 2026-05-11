@@ -234,7 +234,7 @@ void main() {
     // -----------------------------------------------------------------------
     testWidgets('Shows loading indicator when loading with no data',
         (tester) async {
-      final state = const TrainerTextContentState(isLoading: true);
+      const state = TrainerTextContentState(isLoading: true);
 
       await tester.pumpWidget(buildTestApp(state));
       await tester.pump();
@@ -243,7 +243,7 @@ void main() {
     });
 
     testWidgets('Shows error with retry button', (tester) async {
-      final state = const TrainerTextContentState(
+      const state = TrainerTextContentState(
         isLoading: false,
         error: 'Failed to load',
       );

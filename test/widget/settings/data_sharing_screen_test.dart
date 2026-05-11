@@ -78,11 +78,11 @@ Widget buildAppWithRouter(FakeDataSharingNotifier notifier) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) => const SizedBox(),
+        builder: (_, _) => const SizedBox(),
         routes: [
           GoRoute(
             path: 'settings/data-sharing',
-            builder: (_, __) => const DataSharingScreen(),
+            builder: (_, _) => const DataSharingScreen(),
           ),
         ],
       ),
@@ -245,7 +245,7 @@ void main() {
     });
 
     testWidgets('Test 6: Cancel discards changes', (tester) async {
-      final initial = DataSharingState(shareWorkouts: true);
+      const initial = DataSharingState(shareWorkouts: true);
       final notifier = FakeDataSharingNotifier(initial);
 
       await tester.pumpWidget(buildAppWithRouter(notifier));

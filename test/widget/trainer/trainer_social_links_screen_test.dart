@@ -136,7 +136,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add form opens/stores/validates', (tester) async {
-      final state = TrainerSocialLinksState(
+      const state = TrainerSocialLinksState(
         socialLinks: [],
         isLoading: false,
       );
@@ -205,7 +205,7 @@ void main() {
     });
 
     testWidgets('Test 4: Empty state when no links', (tester) async {
-      final state = TrainerSocialLinksState(
+      const state = TrainerSocialLinksState(
         socialLinks: [],
         isLoading: false,
       );

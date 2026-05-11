@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
-import 'package:zirofit_fl/data/models/notification_model.dart' as models;
 import 'package:zirofit_fl/features/notifications/providers/notifications_provider.dart';
 import '../../helpers/mock_api_client.dart';
 import '../../helpers/test_setup.dart';

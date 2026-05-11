@@ -106,7 +106,7 @@ class _ExerciseProgressWidgetState extends State<ExerciseProgressWidget> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _selectedExercise != null &&
+      initialValue: _selectedExercise != null &&
               widget.exerciseNames.contains(_selectedExercise)
           ? _selectedExercise
           : null,
@@ -336,8 +336,8 @@ class _ExerciseProgressWidgetState extends State<ExerciseProgressWidget> {
               },
             ),
           ),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         gridData: FlGridData(
           show: true,

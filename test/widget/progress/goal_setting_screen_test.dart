@@ -23,7 +23,7 @@ class FakeGoalsNotifier extends GoalsNotifier {
     // Override the async-loaded state with the test state.
     // This runs after the super constructor starts _loadGoals but before the
     // SharedPreferences lookup completes, so the test state takes effect.
-    this.state = initialState;
+    state = initialState;
   }
 
   @override

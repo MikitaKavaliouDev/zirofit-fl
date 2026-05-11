@@ -201,7 +201,7 @@ class _PublicTrainerProfileScreenState
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: transformations.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(width: 12),
                   itemBuilder: (_, i) =>
                       _TransformationCard(photo: transformations[i]),
@@ -634,7 +634,7 @@ class _TransformationCard extends StatelessWidget {
                       photo.imagePath,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
+                      errorBuilder: (_, _, _) => Center(
                         child: Icon(Icons.broken_image,
                             color: theme.colorScheme.onSurfaceVariant),
                       ),

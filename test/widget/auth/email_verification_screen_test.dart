@@ -124,12 +124,12 @@ void main() {
         routes: [
           GoRoute(
             path: '/email-verification',
-            builder: (_, __) =>
+            builder: (_, _) =>
                 const EmailVerificationScreen(email: 'a@b.com'),
           ),
           GoRoute(
             path: '/auth/login',
-            builder: (_, __) => const Scaffold(
+            builder: (_, _) => const Scaffold(
               body: Center(child: Text('Login Page')),
             ),
           ),

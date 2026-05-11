@@ -31,19 +31,19 @@ void main() {
   testWidgets('loading', (t) async { await t.pumpWidget(b(const TrainerDashboardState(status: TrainerDashboardStatus.loading))); await t.pump(); expect(find.byType(CircularProgressIndicator), findsOneWidget); });
   testWidgets('data', (t) async {
     final now = DateTime.now();
-    final testData = TrainerDashboardData(
-      stats: const TrainerDashboardStats(
+    const testData = TrainerDashboardData(
+      stats: TrainerDashboardStats(
         revenue: 4250,
         activeClients: 24,
         todaySessions: 0,
         pendingCheckIns: 3,
         pendingBookings: 5,
       ),
-      upcomingSessions: const [],
-      recentActivity: const [],
-      activeClients: const [],
+      upcomingSessions: [],
+      recentActivity: [],
+      activeClients: [],
     );
-    await t.pumpWidget(b(TrainerDashboardState(status: TrainerDashboardStatus.loaded, data: testData)));
+    await t.pumpWidget(b(const TrainerDashboardState(status: TrainerDashboardStatus.loaded, data: testData)));
     await t.pump(); await t.pump(const Duration(seconds: 1));
     // Today's Overview and stats grid are in the initial viewport
     expect(find.text("Today's Overview"), findsOneWidget);

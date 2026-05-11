@@ -50,7 +50,7 @@ class WorkoutSession {
       final clientMap = json['client'] as Map<String, dynamic>?;
       final nestedId = clientMap?['id'] as String?;
       if (nestedId != null) return nestedId;
-      throw FormatException('Missing client_id/clientId/client.id');
+      throw const FormatException('Missing client_id/clientId/client.id');
     }(),
     name:
         json['name'] as String? ??

@@ -94,7 +94,7 @@ class TrainerTransformationPhotosNotifier
       final formData = FormData.fromMap({
         'before_image': await MultipartFile.fromFile(beforeImagePath),
         'after_image': await MultipartFile.fromFile(afterImagePath),
-        if (caption != null) 'caption': caption,
+        'caption': ?caption,
         'date': (date ?? DateTime.now())
             .toIso8601String()
             .split('T')[0],

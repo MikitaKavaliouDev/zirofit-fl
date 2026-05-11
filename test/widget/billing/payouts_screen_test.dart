@@ -195,7 +195,7 @@ void main() {
 
     testWidgets('shows "Not Started" when details not submitted', (tester) async {
       await tester.pumpWidget(
-        buildApp(BillingState(
+        buildApp(const BillingState(
           isLoading: false,
           stripeStatus: <String, dynamic>{
             'charges_enabled': false,
@@ -212,7 +212,7 @@ void main() {
     testWidgets('shows "Pending" when details submitted but not enabled',
         (tester) async {
       await tester.pumpWidget(
-        buildApp(BillingState(
+        buildApp(const BillingState(
           isLoading: false,
           stripeStatus: <String, dynamic>{
             'charges_enabled': false,
@@ -230,7 +230,7 @@ void main() {
     testWidgets('shows "Complete" with account ID when fully onboarded',
         (tester) async {
       await tester.pumpWidget(
-        buildApp(BillingState(
+        buildApp(const BillingState(
           isLoading: false,
           stripeStatus: <String, dynamic>{
             'charges_enabled': true,

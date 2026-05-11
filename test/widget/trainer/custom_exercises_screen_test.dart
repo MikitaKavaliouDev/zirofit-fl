@@ -144,7 +144,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add form validates required fields', (tester) async {
-      final state = TrainerCustomExercisesState(
+      const state = TrainerCustomExercisesState(
         exercises: [],
         isLoading: false,
       );
@@ -271,7 +271,7 @@ void main() {
     });
 
     testWidgets('Test 5: Empty state', (tester) async {
-      final state = TrainerCustomExercisesState(
+      const state = TrainerCustomExercisesState(
         exercises: [],
         isLoading: false,
       );

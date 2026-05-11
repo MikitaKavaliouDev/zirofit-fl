@@ -2,11 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
-import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_summary_provider.dart';
-import 'package:zirofit_fl/data/models/workout_summary.dart';
 import '../../helpers/mock_api_client.dart';
 
 void main() {
@@ -61,14 +59,14 @@ void main() {
     test('Test 1: calculates total volume (reps × weight for each set)', () {
       final session = createSession();
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 8,
@@ -86,21 +84,21 @@ void main() {
     test('Test 2: calculates total sets count', () {
       final session = createSession();
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 8,
           weight: 60,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's3',
           logId: 'log-squat',
           reps: 5,
@@ -117,21 +115,21 @@ void main() {
     test('Test 3: calculates total reps count', () {
       final session = createSession();
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 8,
           weight: 60,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's3',
           logId: 'log-squat',
           reps: 5,
@@ -149,21 +147,21 @@ void main() {
     test('ignores incomplete sets in calculations', () {
       final session = createSession();
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 8,
           weight: 60,
           isCompleted: false, // not completed
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's3',
           logId: 'log-squat',
           reps: null,
@@ -184,7 +182,7 @@ void main() {
       final endTime = DateTime(2025, 5, 6, 11, 30, 0);
       final session = createSession(startTime: startTime, endTime: endTime);
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
@@ -201,7 +199,7 @@ void main() {
     test('duration is zero when session has no end time', () {
       final session = createSession(endTime: null);
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
@@ -223,28 +221,28 @@ void main() {
   group('findBestSet', () {
     test('Test 4: returns set with highest weight × reps', () {
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ), // 500
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 5,
           weight: 100,
           isCompleted: true,
         ), // 500
-        WorkoutSet(
+        const WorkoutSet(
           id: 's3',
           logId: 'log-squat',
           reps: 8,
           weight: 70,
           isCompleted: true,
         ), // 560 ← best
-        WorkoutSet(
+        const WorkoutSet(
           id: 's4',
           logId: 'log-squat',
           reps: 3,
@@ -263,14 +261,14 @@ void main() {
 
     test('skips incomplete sets', () {
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: false,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-squat',
           reps: 5,
@@ -287,14 +285,14 @@ void main() {
 
     test('skips sets without weight or reps', () {
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: null,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 10,
@@ -322,7 +320,7 @@ void main() {
   group('detectPRs', () {
     test('Test 5: detects PR for heavier weight than history', () {
       final currentSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'c1',
           logId: 'log-bench',
           reps: 5,
@@ -331,7 +329,7 @@ void main() {
         ),
       ];
       final historicalSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'h1',
           logId: 'log-bench',
           reps: 5,
@@ -356,7 +354,7 @@ void main() {
 
     test('Test 6: detects PR for more volume than history', () {
       final currentSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'c1',
           logId: 'log-squat',
           reps: 10,
@@ -365,7 +363,7 @@ void main() {
         ), // volume: 800
       ];
       final historicalSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'h1',
           logId: 'log-squat',
           reps: 8,
@@ -390,7 +388,7 @@ void main() {
 
     test('Test 7: no PR when history has higher values', () {
       final currentSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'c1',
           logId: 'log-bench',
           reps: 5,
@@ -399,7 +397,7 @@ void main() {
         ), // weight: 80, volume: 400
       ];
       final historicalSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'h1',
           logId: 'log-bench',
           reps: 5,
@@ -420,7 +418,7 @@ void main() {
 
     test('returns empty when current set has no values', () {
       final currentSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'c1',
           logId: 'log-bench',
           reps: null,
@@ -429,7 +427,7 @@ void main() {
         ),
       ];
       final historicalSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'h1',
           logId: 'log-bench',
           reps: 5,
@@ -450,14 +448,14 @@ void main() {
 
     test('handles multiple exercises independently', () {
       final currentSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'c1',
           logId: 'log-bench',
           reps: 5,
           weight: 100,
           isCompleted: true,
         ), // bench weight: 100 (↑), volume: 500 (↓ vs 900)
-        WorkoutSet(
+        const WorkoutSet(
           id: 'c2',
           logId: 'log-squat',
           reps: 5,
@@ -466,14 +464,14 @@ void main() {
         ), // squat same as history (no PR)
       ];
       final historicalSets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 'h1',
           logId: 'log-bench',
           reps: 10,
           weight: 90,
           isCompleted: true,
         ), // bench weight: 90, volume: 900 (higher)
-        WorkoutSet(
+        const WorkoutSet(
           id: 'h2',
           logId: 'log-squat',
           reps: 5,
@@ -508,21 +506,21 @@ void main() {
     test('Test 8: groups by exercise name with correct totals', () {
       final session = createSession();
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-bench',
           reps: 8,
           weight: 60,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's3',
           logId: 'log-squat',
           reps: 5,
@@ -563,14 +561,14 @@ void main() {
     test('uses logId as fallback when no exercise name map provided', () {
       final session = createSession();
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,
           weight: 50,
           isCompleted: true,
         ),
-        WorkoutSet(
+        const WorkoutSet(
           id: 's2',
           logId: 'log-squat',
           reps: 5,
@@ -620,7 +618,7 @@ void main() {
         endTime: DateTime(2025, 5, 6, 11, 0, 0),
       );
       final sets = [
-        WorkoutSet(
+        const WorkoutSet(
           id: 's1',
           logId: 'log-bench',
           reps: 10,

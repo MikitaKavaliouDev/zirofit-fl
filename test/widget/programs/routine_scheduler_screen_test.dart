@@ -12,7 +12,7 @@ import '../../helpers/test_setup.dart';
 // ---------------------------------------------------------------------------
 
 class FakeClientProgramsNotifier extends ClientProgramsNotifier {
-  ClientProgramsState _state;
+  final ClientProgramsState _state;
 
   bool setActiveProgramCalled = false;
   String? capturedProgramId;

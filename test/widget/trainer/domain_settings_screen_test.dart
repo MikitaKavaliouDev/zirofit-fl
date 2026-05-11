@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/settings/providers/domain_provider.dart';

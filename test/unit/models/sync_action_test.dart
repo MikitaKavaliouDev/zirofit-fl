@@ -62,7 +62,7 @@ void main() {
 
   group('LogSetPayload', () {
     test('toJson produces correct output', () {
-      final payload = LogSetPayload(
+      const payload = LogSetPayload(
         sessionId: 'sess-1',
         exerciseId: 'ex-1',
         exerciseName: 'Squat',
@@ -84,7 +84,7 @@ void main() {
     });
 
     test('toJson omits null optional fields', () {
-      final payload = LogSetPayload(
+      const payload = LogSetPayload(
         sessionId: 'sess-1',
         exerciseId: 'ex-1',
       );
@@ -99,7 +99,7 @@ void main() {
 
   group('FinishWorkoutPayload', () {
     test('toJson produces correct output', () {
-      final payload = FinishWorkoutPayload(
+      const payload = FinishWorkoutPayload(
         sessionId: 'sess-1',
         completeUnfinished: true,
         notes: 'Great workout!',
@@ -113,7 +113,7 @@ void main() {
     });
 
     test('toJson handles default values', () {
-      final payload = FinishWorkoutPayload(sessionId: 'sess-1');
+      const payload = FinishWorkoutPayload(sessionId: 'sess-1');
       final json = payload.toJson();
 
       expect(json['complete_unfinished'], false);

@@ -91,27 +91,27 @@ void main() {
     });
 
     test('hasData returns true when reps > 0', () {
-      final set = WorkoutSet(id: 's1', logId: 'l1', reps: 10);
+      const set = WorkoutSet(id: 's1', logId: 'l1', reps: 10);
       expect(set.hasData, true);
     });
 
     test('hasData returns true when weight > 0', () {
-      final set = WorkoutSet(id: 's1', logId: 'l1', weight: 50.0);
+      const set = WorkoutSet(id: 's1', logId: 'l1', weight: 50.0);
       expect(set.hasData, true);
     });
 
     test('hasData returns false when no data', () {
-      final set = WorkoutSet(id: 's1', logId: 'l1');
+      const set = WorkoutSet(id: 's1', logId: 'l1');
       expect(set.hasData, false);
     });
 
     test('canComplete returns true when hasData', () {
-      final set = WorkoutSet(id: 's1', logId: 'l1', reps: 10);
+      const set = WorkoutSet(id: 's1', logId: 'l1', reps: 10);
       expect(set.canComplete, true);
     });
 
     test('canComplete returns false when no data', () {
-      final set = WorkoutSet(id: 's1', logId: 'l1');
+      const set = WorkoutSet(id: 's1', logId: 'l1');
       expect(set.canComplete, false);
     });
 
@@ -143,7 +143,7 @@ void main() {
     });
 
     test('handles null values gracefully', () {
-      final set = WorkoutSet(
+      const set = WorkoutSet(
         id: 'set-1',
         logId: 'log-1',
         reps: null,

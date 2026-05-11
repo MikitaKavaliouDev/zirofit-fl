@@ -170,7 +170,7 @@ class ClientDashboardData {
   /// }
   /// ```
   factory ClientDashboardData.fromJson(Map<String, dynamic> json) {
-    final data = json is Map ? json : <String, dynamic>{};
+    final data = json;
 
     // clientData nested object
     final clientData = data['clientData'] is Map

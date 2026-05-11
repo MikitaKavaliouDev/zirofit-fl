@@ -120,7 +120,7 @@ class BestSetSummary {
         reps: json['reps'] as int? ?? json['reps'] as int? ?? 0,
       );
 
-  String get formatted => '${weight.toStringAsFixed(1)} kg × ${reps} reps';
+  String get formatted => '${weight.toStringAsFixed(1)} kg × $reps reps';
 }
 
 /// API response for workout summary

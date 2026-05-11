@@ -203,7 +203,9 @@ void main() {
         },
       );
 
-      final (:session, :logs) = await remoteSource.getActiveSession();
+      final result = await remoteSource.getActiveSession();
+      final (:session, :logs) = result!;
+
 
       expect(session, isA<WorkoutSession>());
       expect(session.id, 'test-session-id');
@@ -226,7 +228,9 @@ void main() {
         },
       );
 
-      final (:session, :logs) = await remoteSource.getActiveSession();
+      final result2 = await remoteSource.getActiveSession();
+      final (:session, :logs) = result2!;
+
 
       expect(session.id, 'flat-session');
       expect(logs, hasLength(1));
@@ -245,7 +249,9 @@ void main() {
         },
       );
 
-      final (:session, :logs) = await remoteSource.getActiveSession();
+      final result3 = await remoteSource.getActiveSession();
+      final (:session, :logs) = result3!;
+
 
       expect(session, isA<WorkoutSession>());
       expect(logs, isEmpty);

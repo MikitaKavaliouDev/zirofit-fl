@@ -90,11 +90,11 @@ Widget buildAppWithRouter({required FakeProgramsNotifier notifier}) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) => const SizedBox(),
+        builder: (_, _) => const SizedBox(),
         routes: [
           GoRoute(
             path: 'create',
-            builder: (_, __) => const CreateProgramScreen(),
+            builder: (_, _) => const CreateProgramScreen(),
           ),
         ],
       ),

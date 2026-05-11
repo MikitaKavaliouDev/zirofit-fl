@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
 
 class TrainerShell extends ConsumerWidget {
   final Widget child;
@@ -22,14 +24,40 @@ class TrainerShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _selectedIndex(location);
+    final overlayState = ref.watch(sessionOverlayProvider);
+
+    final showMiniPlayer = overlayState == SessionOverlayState.mini;
 
     return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
+      body: Stack(
+        children: [
+          child,
+          // Mini player above tab bar when in mini state
+          if (showMiniPlayer)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 80, // above nav bar
+              child: WorkoutMiniPlayer(
+                onExpand: () {
+                  ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
+                  // Navigate to workout screen when expanding
+                  context.push('/workout/active');
+                },
+                onClose: () {
+                  // Minimize: just keep mini state, stay on current screen
+                },
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: showMiniPlayer
+          ? null // Hide nav bar when mini player shown (matches iOS)
+          : NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
           if (i == 6) {
-            // Mode switch — router handles the redirect automatically
+            // Mode switch
             ref.read(modeSwitchProvider.notifier).switchMode();
             return;
           }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
-import 'package:zirofit_fl/data/models/trainer_search_result.dart';
 import 'package:zirofit_fl/features/explore/providers/explore_provider.dart';
 import 'package:zirofit_fl/features/explore/screens/public_trainer_profile_screen.dart';
 import 'package:zirofit_fl/features/explore/widgets/featured_trainers_section.dart';
@@ -198,7 +197,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: nearbyTrainers.length.clamp(0, 5),
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final trainer = nearbyTrainers[index];
               return _NearbyTrainerCard(

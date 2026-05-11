@@ -18,8 +18,8 @@ class FakeClientHistoryNotifier extends ClientHistoryNotifier {
 
   FakeClientHistoryNotifier(
     this._overriddenState, {
-    required String clientId,
-  }) : super(apiClient: ApiClient.instance, clientId: clientId) {
+    required super.clientId,
+  }) : super(apiClient: ApiClient.instance) {
     super.state = _overriddenState;
   }
 
@@ -295,7 +295,7 @@ void main() {
     // Test 6: Loading + empty + error states
     testWidgets('shows loading spinner when loading with no sessions',
         (tester) async {
-      final state = const ClientHistoryState(isLoading: true);
+      const state = ClientHistoryState(isLoading: true);
       await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
 
@@ -303,7 +303,7 @@ void main() {
     });
 
     testWidgets('shows empty state when no sessions', (tester) async {
-      final state = const ClientHistoryState();
+      const state = ClientHistoryState();
       await tester.pumpWidget(createTestApp(state: state));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -312,7 +312,7 @@ void main() {
     });
 
     testWidgets('shows error state with retry button', (tester) async {
-      final state = const ClientHistoryState(
+      const state = ClientHistoryState(
         error: 'Something went wrong',
       );
       await tester.pumpWidget(createTestApp(state: state));

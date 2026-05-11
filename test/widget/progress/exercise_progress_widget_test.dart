@@ -42,7 +42,7 @@ void main() {
     // -------------------------------------------------------------------------
     testWidgets('shows exercise selector dropdown', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: ExerciseProgressWidget(
               exerciseNames: ['Bench Press', 'Squat', 'Deadlift'],
@@ -137,7 +137,7 @@ void main() {
     // -------------------------------------------------------------------------
     testWidgets('shows prompt when no exercise is selected', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: ExerciseProgressWidget(
               exerciseNames: ['Bench Press', 'Squat'],
@@ -165,9 +165,9 @@ void main() {
     testWidgets('shows loading indicator when isLoading is true',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
-            body: const ExerciseProgressWidget(
+            body: ExerciseProgressWidget(
               exerciseNames: ['Bench Press'],
               isLoading: true,
             ),
@@ -192,9 +192,9 @@ void main() {
     testWidgets('shows no data message when exercise names list is empty',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
-            body: const ExerciseProgressWidget(
+            body: ExerciseProgressWidget(
               exerciseNames: [],
             ),
           ),
@@ -212,11 +212,11 @@ void main() {
     testWidgets('shows empty data message when selected exercise has no data',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: ExerciseProgressWidget(
               exerciseNames: ['Bench Press'],
-              dataPoints: const [],
+              dataPoints: [],
               exerciseId: 'Bench Press',
             ),
           ),

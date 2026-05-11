@@ -8,7 +8,6 @@ import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/core/network/secure_storage.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
-import '../../fixtures/auth/auth_fixture.dart';
 import '../../helpers/provider_utils.dart';
 
 class MockApiClient extends Mock implements ApiClient {}

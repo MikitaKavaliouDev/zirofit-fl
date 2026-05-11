@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/event.dart';
+import 'package:zirofit_fl/data/models/explore_event.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
 import 'package:zirofit_fl/data/models/trainer_search_result.dart';
 import 'package:zirofit_fl/data/models/public_trainer_profile_data.dart';
@@ -51,7 +51,7 @@ class ExploreState {
   // New search / discovery fields
   final List<TrainerSearchResult> results;
   final List<String> specialties;
-  final List<Event> featuredEvents;
+  final List<ExploreEvent> featuredEvents;
   final String? searchQuery;
   final String? selectedSpecialty;
   final String? locationFilter;
@@ -62,7 +62,7 @@ class ExploreState {
 
   // City and event data for explore tab
   final List<ExploreCity> cities;
-  final List<Event> upcomingEvents;
+  final List<ExploreEvent> upcomingEvents;
 
   const ExploreState({
     this.trainers = const [],
@@ -89,7 +89,7 @@ class ExploreState {
     bool clearError = false,
     List<TrainerSearchResult>? results,
     List<String>? specialties,
-    List<Event>? featuredEvents,
+    List<ExploreEvent>? featuredEvents,
     String? searchQuery,
     bool clearSearchQuery = false,
     String? selectedSpecialty,
@@ -101,7 +101,7 @@ class ExploreState {
     bool? hasMore,
     int? currentPage,
     List<ExploreCity>? cities,
-    List<Event>? upcomingEvents,
+    List<ExploreEvent>? upcomingEvents,
   }) {
     return ExploreState(
       trainers: trainers ?? this.trainers,
@@ -239,11 +239,11 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       }).toList();
 
       // Parse featured events from the data
-      final List<Event> events;
+      final List<ExploreEvent> events;
       final rawEvents = data['featuredEvents'] as List?;
       if (rawEvents != null) {
         events = rawEvents
-            .map((e) => Event.fromJson(e as Map<String, dynamic>))
+            .map((e) => ExploreEvent.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
         events = [];
@@ -315,11 +315,11 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       // Backend wraps response in { data: ... } via jsonSuccess()
       final Map<String, dynamic> data = response['data'] as Map<String, dynamic>? ?? {};
 
-      final List<Event> events;
+      final List<ExploreEvent> events;
       final rawEvents = data['events'] as List?;
       if (rawEvents != null) {
         events = rawEvents
-            .map((e) => Event.fromJson(e as Map<String, dynamic>))
+            .map((e) => ExploreEvent.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
         events = [];

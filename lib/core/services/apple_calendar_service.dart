@@ -1,9 +1,7 @@
 import 'package:device_calendar/device_calendar.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart';
 
 // ---------------------------------------------------------------------------
 // Riverpod provider
@@ -156,8 +154,8 @@ class AppleCalendarService {
     required String calendarId,
   }) async {
     final prefs = await _sharedPrefs;
-    await prefs.setString('${_eventPrefix}${bookingId}_event', eventId);
-    await prefs.setString('${_eventPrefix}${bookingId}_calendar', calendarId);
+    await prefs.setString('$_eventPrefix${bookingId}_event', eventId);
+    await prefs.setString('$_eventPrefix${bookingId}_calendar', calendarId);
   }
 
   /// Returns the stored mapping for [bookingId], or `null`.
@@ -165,8 +163,8 @@ class AppleCalendarService {
     String bookingId,
   ) async {
     final prefs = await _sharedPrefs;
-    final eventId = prefs.getString('${_eventPrefix}${bookingId}_event');
-    final calendarId = prefs.getString('${_eventPrefix}${bookingId}_calendar');
+    final eventId = prefs.getString('$_eventPrefix${bookingId}_event');
+    final calendarId = prefs.getString('$_eventPrefix${bookingId}_calendar');
     if (eventId == null || calendarId == null) return null;
     return (eventId: eventId, calendarId: calendarId);
   }
@@ -174,8 +172,8 @@ class AppleCalendarService {
   /// Removes the stored mapping for [bookingId].
   Future<void> removeEventMapping(String bookingId) async {
     final prefs = await _sharedPrefs;
-    await prefs.remove('${_eventPrefix}${bookingId}_event');
-    await prefs.remove('${_eventPrefix}${bookingId}_calendar');
+    await prefs.remove('$_eventPrefix${bookingId}_event');
+    await prefs.remove('$_eventPrefix${bookingId}_calendar');
   }
 
   // ---------------------------------------------------------------------------

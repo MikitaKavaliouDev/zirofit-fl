@@ -14,14 +14,14 @@ void main() {
 
   group('DashboardPromptCard', () {
     testWidgets('renders with title text', (tester) async {
-      final prompt = DashboardPrompt(
+      const prompt = DashboardPrompt(
         id: 'prompt-1',
         type: DashboardPromptType.newClient,
         title: 'New client assigned',
         actionLabel: 'View',
       );
 
-      await tester.pumpWidget(MaterialApp(
+      await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: DashboardPromptCard(prompt: prompt),
         ),
@@ -58,14 +58,14 @@ void main() {
     });
 
     testWidgets('dismiss button hides the card', (tester) async {
-      final prompt = DashboardPrompt(
+      const prompt = DashboardPrompt(
         id: 'prompt-3',
         type: DashboardPromptType.upcomingSession,
         title: 'Upcoming session reminder',
         actionLabel: 'Review',
       );
 
-      await tester.pumpWidget(MaterialApp(
+      await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: DashboardPromptCard(prompt: prompt),
         ),

@@ -164,7 +164,7 @@ void main() {
             ApiConstants.trainerAvailability,
             body: any(named: 'body'),
           )).thenAnswer((invocation) async {
-        final body = invocation.namedArguments[Symbol('body')] as List;
+        final body = invocation.namedArguments[const Symbol('body')] as List;
         expect(body, hasLength(7));
         expect(body[0]['day'], 'Monday');
         expect(body[0]['isOpen'], true);

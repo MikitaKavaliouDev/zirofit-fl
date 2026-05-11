@@ -18,7 +18,7 @@ class ClientExerciseLog {
   final double? rir;
   final String? exerciseName;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
   final DateTime? deletedAt;
 
   const ClientExerciseLog({
@@ -39,16 +39,18 @@ class ClientExerciseLog {
     this.rir,
     this.exerciseName,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
     this.deletedAt,
   });
 
   factory ClientExerciseLog.fromJson(
     Map<String, dynamic> json, {
     /// When parsing exercise logs from a workout-sessions/live response the
-    /// backend nests client info at the session level, not per log entry.
-    /// Pass the session-level client id here so it can be used as a fallback.
+    /// backend nests client info and session info at the session level, not
+    /// per log entry.
+    /// Pass the session-level IDs here so they can be used as a fallback.
     String? sessionClientId,
+    String? workoutSessionId,
   }) => ClientExerciseLog(
     id: json['id'] as String,
     clientId: () {
@@ -70,11 +72,13 @@ class ClientExerciseLog {
     order: json['order'] as int?,
     tempo: json['tempo'] as String?,
     side: (json['side'] as String?) ?? 'BOTH',
-    workoutSessionId: readString(
-      json,
-      'workout_session_id',
-      'workoutSessionId',
-    ),
+    workoutSessionId: () {
+      final flat = readStringOrNull(json, 'workout_session_id', 'workoutSessionId');
+      if (flat != null) return flat;
+      if (workoutSessionId != null) return workoutSessionId;
+      throw const FormatException('Missing workout_session_id/workoutSessionId');
+    }(),
+
     supersetKey: readStringOrNull(json, 'superset_key', 'supersetKey'),
     orderInSuperset: readIntOrNull(
       json,
@@ -86,7 +90,7 @@ class ClientExerciseLog {
     rir: (json['rir'] as num?)?.toDouble(),
     exerciseName: readStringOrNull(json, 'exercise_name', 'exerciseName'),
     createdAt: readDateTime(json, 'created_at', 'createdAt'),
-    updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+    updatedAt: readDateTimeOrNull(json, 'updated_at', 'updatedAt'),
     deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
   );
 

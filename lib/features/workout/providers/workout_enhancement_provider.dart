@@ -281,6 +281,29 @@ class WorkoutEnhancementNotifier
     );
   }
 
+  /// Creates a superset with the given exercise IDs.
+  void createSuperset(List<String> exerciseIds) {
+    if (exerciseIds.isEmpty) return;
+
+    // Find next available key (A, B, C, etc.)
+    final existingKeys = state.supersetGroups.map((g) => g.key).toSet();
+    String nextKey = 'A';
+    for (var i = 0; i < 26; i++) {
+      final key = String.fromCharCode(65 + i);
+      if (!existingKeys.contains(key)) {
+        nextKey = key;
+        break;
+      }
+    }
+
+    state = state.copyWith(
+      supersetGroups: [
+        ...state.supersetGroups,
+        SupersetGroup(key: nextKey, exerciseIds: exerciseIds),
+      ],
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Plate calculator
   // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:zirofit_fl/data/models/event.dart';
+import 'package:zirofit_fl/data/models/explore_event.dart';
 
 /// Featured events section - carousel of event cards.
 ///
@@ -14,8 +14,8 @@ import 'package:zirofit_fl/data/models/event.dart';
 /// )
 /// ```
 class FeaturedEventsSection extends StatelessWidget {
-  final List<Event> events;
-  final void Function(Event event) onEventTap;
+  final List<ExploreEvent> events;
+  final void Function(ExploreEvent event) onEventTap;
 
   const FeaturedEventsSection({
     super.key,
@@ -50,7 +50,7 @@ class FeaturedEventsSection extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: events.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final event = events[index];
               return _FeaturedEventCard(
@@ -66,7 +66,7 @@ class FeaturedEventsSection extends StatelessWidget {
 }
 
 class _FeaturedEventCard extends StatelessWidget {
-  final Event event;
+  final ExploreEvent event;
   final VoidCallback onTap;
 
   const _FeaturedEventCard({
@@ -93,7 +93,7 @@ class _FeaturedEventCard extends StatelessWidget {
                   child: Image.network(
                     event.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: theme.colorScheme.primaryContainer,
                     ),
                   ),

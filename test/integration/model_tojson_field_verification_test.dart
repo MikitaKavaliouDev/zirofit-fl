@@ -1369,10 +1369,10 @@ void main() {
   // ===========================================================================
   group('SyncChanges', () {
     test('toJson() produces correct format', () {
-      final obj = SyncChanges(
-        created: const [{'id': '1', 'name': 'new'}],
-        updated: const [{'id': '2', 'name': 'changed'}],
-        deleted: const ['3', '4'],
+      const obj = SyncChanges(
+        created: [{'id': '1', 'name': 'new'}],
+        updated: [{'id': '2', 'name': 'changed'}],
+        deleted: ['3', '4'],
       );
       final json = obj.toJson();
       _verifySnakeCaseKeys(json, 'SyncChanges');
@@ -1402,10 +1402,10 @@ void main() {
   // ===========================================================================
   group('SyncPayload', () {
     test('toJson() produces correct format', () {
-      final obj = SyncPayload(
+      const obj = SyncPayload(
         changes: {
           'exercises': SyncChanges(
-            created: const [{'id': 'ex-1'}],
+            created: [{'id': 'ex-1'}],
           ),
         },
         timestamp: _ms,

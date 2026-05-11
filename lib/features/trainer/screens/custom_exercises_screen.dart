@@ -547,7 +547,7 @@ class _ExerciseCard extends StatelessWidget {
                     color: Colors.orange,
                   ),
                 if (exercise.videoUrl != null)
-                  _TagChip(
+                  const _TagChip(
                     label: 'Video',
                     icon: Icons.videocam,
                     color: Colors.red,

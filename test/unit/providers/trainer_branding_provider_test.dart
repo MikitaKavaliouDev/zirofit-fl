@@ -113,7 +113,7 @@ void main() {
           )).thenAnswer((invocation) async {
         // Invoke progress callback
         final onSendProgress =
-            invocation.namedArguments[Symbol('onSendProgress')]
+            invocation.namedArguments[const Symbol('onSendProgress')]
                 as void Function(int, int);
         onSendProgress(50, 100);
 
@@ -152,7 +152,7 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           )).thenAnswer((invocation) async {
         final onSendProgress =
-            invocation.namedArguments[Symbol('onSendProgress')]
+            invocation.namedArguments[const Symbol('onSendProgress')]
                 as void Function(int, int);
         onSendProgress(100, 100);
 

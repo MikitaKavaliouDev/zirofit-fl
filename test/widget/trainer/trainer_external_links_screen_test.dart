@@ -116,7 +116,7 @@ void main() {
     });
 
     testWidgets('Test 2: Add form validates URL', (tester) async {
-      final state = TrainerExternalLinksState(links: [], isLoading: false);
+      const state = TrainerExternalLinksState(links: [], isLoading: false);
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();
 
@@ -206,7 +206,7 @@ void main() {
     });
 
     testWidgets('Test 4: Empty state', (tester) async {
-      final state = TrainerExternalLinksState(links: [], isLoading: false);
+      const state = TrainerExternalLinksState(links: [], isLoading: false);
 
       await tester.pumpWidget(buildTestApp(state));
       await tester.pumpAndSettle();

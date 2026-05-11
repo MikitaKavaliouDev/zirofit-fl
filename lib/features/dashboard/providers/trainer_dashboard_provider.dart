@@ -32,7 +32,7 @@ class TrainerDashboardStats {
   });
 
   factory TrainerDashboardStats.fromJson(Map<String, dynamic> json) {
-    final stats = json is Map ? json : <String, dynamic>{};
+    final stats = json;
     return TrainerDashboardStats(
       revenue: (stats['revenue'] as num?)?.toDouble() ?? 0.0,
       activeClients: stats['activeClients'] as int? ?? 0,
@@ -79,7 +79,7 @@ class TrainerDashboardData {
   });
 
   factory TrainerDashboardData.fromJson(Map<String, dynamic> json) {
-    final data = json is Map ? json : <String, dynamic>{};
+    final data = json;
     final statsJson = data['stats'] is Map ? data['stats'] as Map<String, dynamic> : <String, dynamic>{};
     
     // Parse upcoming sessions

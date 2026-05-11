@@ -202,7 +202,7 @@ void main() {
     });
 
     testWidgets('Test 5: Shows best set card', (t) async {
-      final bestSet = WorkoutSet(
+      const bestSet = WorkoutSet(
         id: 'best-1',
         logId: 'ex-bench',
         reps: 8,
@@ -293,7 +293,7 @@ void main() {
     testWidgets('Test 7: Done navigates to dashboard (pops to first route)',
         (t) async {
       final session = createSession();
-      final state = const WorkoutSummaryState(
+      const state = WorkoutSummaryState(
         totalSets: 5,
         totalReps: 40,
       );

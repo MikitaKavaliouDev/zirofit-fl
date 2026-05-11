@@ -1,6 +1,5 @@
 import 'package:zirofit_fl/data/models/profile.dart';
 import 'package:zirofit_fl/data/models/event.dart';
-import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
 /// Shared test fixtures for explore section widget tests.
 ///

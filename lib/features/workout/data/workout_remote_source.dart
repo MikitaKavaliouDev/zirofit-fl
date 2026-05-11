@@ -88,6 +88,7 @@ class WorkoutRemoteSource {
               return ClientExerciseLog.fromJson(
                 logJson,
                 sessionClientId: sessionClientId,
+                workoutSessionId: session.id,
               );
             })
             .toList() ??
@@ -218,7 +219,10 @@ class WorkoutRemoteSource {
     final logsList = data['logs'] as List<dynamic>? ?? data['data'] as List<dynamic>? ?? [];
     
     return logsList
-        .map((e) => ClientExerciseLog.fromJson(e as Map<String, dynamic>))
+        .map((e) => ClientExerciseLog.fromJson(
+          e as Map<String, dynamic>,
+          workoutSessionId: sessionId,
+        ))
         .toList();
   }
 
@@ -236,7 +240,10 @@ class WorkoutRemoteSource {
     );
 
     final data = response['data'] as Map<String, dynamic>? ?? response;
-    return ClientExerciseLog.fromJson(data);
+    return ClientExerciseLog.fromJson(
+      data,
+      workoutSessionId: sessionId,
+    );
   }
 
   /// DELETE /api/workout-sessions/{id}/exercises/{logId}
@@ -323,7 +330,7 @@ class WorkoutRemoteSource {
   }) async {
     final body = <String, dynamic>{
       'name': name,
-      if (description != null) 'description': description,
+      'description': ?description,
     };
 
     final response = await _apiClient.post<Map<String, dynamic>>(

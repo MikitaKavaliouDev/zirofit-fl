@@ -145,7 +145,7 @@ class _TrainerAssessmentsScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedUnit,
+                    initialValue: selectedUnit,
                     decoration: const InputDecoration(
                       labelText: 'Unit *',
                       border: OutlineInputBorder(),
@@ -230,7 +230,7 @@ class _TrainerAssessmentsScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedUnit,
+                    initialValue: selectedUnit,
                     decoration: const InputDecoration(
                       labelText: 'Unit *',
                       border: OutlineInputBorder(),

@@ -101,7 +101,7 @@ void main() {
             id: 'user-2',
             name: 'Bob Client',
             email: 'bob@example.com',
-            username: Value('bob_the_client'),
+            username: const Value('bob_the_client'),
             role: 'client',
             createdAt: now,
             updatedAt: now,
@@ -182,7 +182,7 @@ void main() {
             id: 'client-1',
             name: 'John Doe',
             status: 'active',
-            trainerId: Value('trainer-1'),
+            trainerId: const Value('trainer-1'),
             createdAt: now,
             updatedAt: now,
           ));
@@ -200,7 +200,7 @@ void main() {
               id: 'client-a',
               name: 'Alice',
               status: 'active',
-              trainerId: Value('trainer-x'),
+              trainerId: const Value('trainer-x'),
               createdAt: now,
               updatedAt: now,
             ));
@@ -208,7 +208,7 @@ void main() {
               id: 'client-b',
               name: 'Bob',
               status: 'active',
-              trainerId: Value('trainer-x'),
+              trainerId: const Value('trainer-x'),
               createdAt: now,
               updatedAt: now,
             ));
@@ -216,7 +216,7 @@ void main() {
               id: 'client-c',
               name: 'Carol',
               status: 'active',
-              trainerId: Value('trainer-y'),
+              trainerId: const Value('trainer-y'),
               createdAt: now,
               updatedAt: now,
             ));
@@ -259,7 +259,7 @@ void main() {
       await db.into(db.exercises).insert(ExercisesCompanion.insert(
             id: 'ex-1',
             name: 'Bench Press',
-            muscleGroup: Value('Chest'),
+            muscleGroup: const Value('Chest'),
             createdAt: now,
             updatedAt: now,
           ));
@@ -329,21 +329,21 @@ void main() {
         batch.insert(db.exercises, ExercisesCompanion.insert(
               id: 'ex-1',
               name: 'Bench Press',
-              muscleGroup: Value('Chest'),
+              muscleGroup: const Value('Chest'),
               createdAt: now,
               updatedAt: now,
             ));
         batch.insert(db.exercises, ExercisesCompanion.insert(
               id: 'ex-2',
               name: 'Leg Press',
-              muscleGroup: Value('Legs'),
+              muscleGroup: const Value('Legs'),
               createdAt: now,
               updatedAt: now,
             ));
         batch.insert(db.exercises, ExercisesCompanion.insert(
               id: 'ex-3',
               name: 'Push Up',
-              muscleGroup: Value('Chest'),
+              muscleGroup: const Value('Chest'),
               createdAt: now,
               updatedAt: now,
             ));

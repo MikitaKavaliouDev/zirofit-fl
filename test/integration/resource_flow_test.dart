@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
-import 'package:zirofit_fl/data/models/resource.dart';
 import 'package:zirofit_fl/features/resources/providers/resource_provider.dart';
 import '../helpers/provider_utils.dart';
 

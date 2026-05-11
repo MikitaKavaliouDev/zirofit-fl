@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/core/services/apple_calendar_service.dart';
-import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/bookings/providers/client_booking_provider.dart';
 import 'package:zirofit_fl/features/bookings/screens/client_booking_screen.dart';
 import '../../helpers/test_setup.dart';
@@ -122,7 +121,7 @@ void main() {
     testWidgets('shows trainer header with name, specialty, rating',
         (tester) async {
       await tester.pumpWidget(buildTestApp(
-        ClientBookingState(
+        const ClientBookingState(
           trainerInfo: _trainer,
           isLoading: false,
         ),

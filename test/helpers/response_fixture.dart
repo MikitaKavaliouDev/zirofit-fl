@@ -7,6 +7,7 @@
 /// Use these helpers to wrap test data in the correct wire format so that
 /// integration tests verify the full `fromJson` pipeline against real backend
 /// response shapes.
+library;
 
 /// Wraps [payload] in the success envelope that `ApiResponse.fromJson`
 /// expects: `{"data": <payload>}`.
@@ -28,9 +29,8 @@ Map<String, dynamic> errorResponse({
     {
       'error': {
         'message': message,
-        if (code != null) 'code': code,
-        if (statusCode != null)
-          'statusCode': statusCode,
+        'code': ?code,
+        'statusCode': ?statusCode,
       },
     };
 

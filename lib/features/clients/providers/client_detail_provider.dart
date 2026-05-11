@@ -197,9 +197,8 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
         body: {
           'measurementDate':
               measurementDate.toIso8601String().split('T')[0],
-          if (weightKg != null) 'weightKg': weightKg,
-          if (bodyFatPercentage != null)
-            'bodyFatPercentage': bodyFatPercentage,
+          'weightKg': ?weightKg,
+          'bodyFatPercentage': ?bodyFatPercentage,
           if (notes != null && notes.isNotEmpty) 'notes': notes,
         },
       );
@@ -249,7 +248,7 @@ class ClientDetailNotifier extends StateNotifier<ClientDetailState> {
         'photoDate': (photoDate ?? DateTime.now())
             .toIso8601String()
             .split('T')[0],
-        if (caption != null) 'caption': caption,
+        'caption': ?caption,
       });
 
       await _apiClient.dio.post(

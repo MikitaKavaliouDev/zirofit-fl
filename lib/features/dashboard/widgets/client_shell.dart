@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
 
 class ClientShell extends ConsumerWidget {
   final Widget child;
@@ -12,9 +14,8 @@ class ClientShell extends ConsumerWidget {
     if (location.startsWith('/client/dashboard')) return 0;
     if (location.startsWith('/client/workout')) return 1;
     if (location.startsWith('/client/progress')) return 2;
-    if (location.startsWith('/client/trainer')) return 3;
-    if (location.startsWith('/client/check-in')) return 4;
-    if (location.startsWith('/client/explore')) return 5;
+    if (location.startsWith('/client/check-in')) return 3;
+    if (location.startsWith('/client/explore')) return 4;
     return 0;
   }
 
@@ -22,14 +23,35 @@ class ClientShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _selectedIndex(location);
+    final overlayState = ref.watch(sessionOverlayProvider);
+
+    // Mini player visible when session is mini state
+    final showMiniPlayer = overlayState == SessionOverlayState.mini;
 
     return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
+      body: Stack(
+        children: [
+          child,
+          // Mini player above tab bar when in mini state
+          if (showMiniPlayer)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 80, // above nav bar
+              child: WorkoutMiniPlayer(
+                onExpand: () {
+                  ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
+                },
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: showMiniPlayer
+          ? null // Hide nav bar when mini player is shown (matches iOS)
+          : NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
-          if (i == 6) {
-            // Mode switch — router handles the redirect automatically
+          if (i == 5) {
             ref.read(modeSwitchProvider.notifier).switchMode();
             return;
           }
@@ -44,12 +66,9 @@ class ClientShell extends ConsumerWidget {
               context.go('/client/progress');
               break;
             case 3:
-              context.go('/client/trainer');
-              break;
-            case 4:
               context.go('/client/check-in');
               break;
-            case 5:
+            case 4:
               context.go('/client/explore');
               break;
           }
@@ -69,11 +88,6 @@ class ClientShell extends ConsumerWidget {
             icon: Icon(Icons.trending_up_outlined),
             selectedIcon: Icon(Icons.trending_up),
             label: 'Progress',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Trainer',
           ),
           NavigationDestination(
             icon: Icon(Icons.check_circle_outline),

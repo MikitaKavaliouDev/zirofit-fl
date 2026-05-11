@@ -262,7 +262,7 @@ class ClientHistoryNotifier extends StateNotifier<ClientHistoryState> {
         return;
     }
 
-    params['start_date'] = from!.toIso8601String().split('T')[0];
+    params['start_date'] = from.toIso8601String().split('T')[0];
   }
 
   String _extractErrorMessage(dynamic error) {

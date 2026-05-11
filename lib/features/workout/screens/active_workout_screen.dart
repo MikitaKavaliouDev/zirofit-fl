@@ -11,6 +11,7 @@ import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart'
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
 import 'package:zirofit_fl/features/workout/services/voice_log_service.dart';
 import 'package:zirofit_fl/features/workout/widgets/exercise_selection_view.dart';
+import 'package:zirofit_fl/features/workout/widgets/exercise_list_builder.dart';
 import 'package:zirofit_fl/features/workout/widgets/set_input_sheet.dart';
 import 'package:zirofit_fl/features/workout/widgets/voice_input_overlay.dart';
 
@@ -216,9 +217,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
         // Main content
         Expanded(
-          child: state.logs.isEmpty
-              ? _buildEmptyLog(theme)
-              : _buildExerciseLog(state.logs, theme),
+          child: ExerciseListBuilder(
+            onAddExercise: () => _showExerciseSelection(context),
+          ),
         ),
 
         // Bottom action bar
@@ -275,112 +276,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
-  Widget _buildEmptyLog(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.fitness_center,
-              size: 48,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Log your first set',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap "Add Set" to log an exercise with weight and reps.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildExerciseLog(List<ClientExerciseLog> logs, ThemeData theme) {
-    final state = ref.watch(activeWorkoutProvider);
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: logs.length,
-      itemBuilder: (context, index) {
-        final log = logs[index];
-        final isCompleted = log.isCompleted ?? false;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Icon(
-              isCompleted ? Icons.check_circle : Icons.circle_outlined,
-              color: isCompleted
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            title: Text(
-              _formatExerciseName(log),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${log.weight != null ? '${log.weight!.toStringAsFixed(1)} kg' : '—'} × '
-                  '${log.reps != null ? '${log.reps} reps' : '—'}'
-                  '${log.side != 'BOTH' ? ' (${log.side})' : ''}',
-                  style: theme.textTheme.bodySmall,
-                ),
-                if (state.isTrainerLed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 12,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          state.clientName!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            trailing: isCompleted
-                ? Icon(Icons.check, color: theme.colorScheme.primary)
-                : IconButton(
-                    icon: Icon(
-                      Icons.check_circle_outline,
-                      color: theme.colorScheme.primary,
-                    ),
-                    tooltip: 'Complete set',
-                    onPressed: () =>
-                        ref.read(activeWorkoutProvider.notifier).completeSet(log.id),
-                  ),
-          ),
-        );
-      },
-    );
-  }
 
   String _formatExerciseName(ClientExerciseLog log) {
     final exerciseNames = ref.read(activeWorkoutProvider).exerciseNames;

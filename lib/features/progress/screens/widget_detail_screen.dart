@@ -1,6 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_analytics.dart';
 import 'package:zirofit_fl/features/progress/models/analytics_widget_config.dart';
 import 'package:zirofit_fl/features/progress/widgets/activity_heatmap_widget.dart';
@@ -163,10 +162,10 @@ class WidgetDetailScreen extends StatelessWidget {
                 },
               ),
             ),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: FlGridData(show: true, drawVerticalLine: false),
+          gridData: const FlGridData(show: true, drawVerticalLine: false),
           borderData: FlBorderData(show: false),
         ),
       ),
@@ -230,16 +229,16 @@ class WidgetDetailScreen extends StatelessWidget {
                 },
               ),
             ),
-            leftTitles: AxisTitles(
+            leftTitles: const AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 36,
               ),
             ),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: FlGridData(show: true, drawVerticalLine: false),
+          gridData: const FlGridData(show: true, drawVerticalLine: false),
           borderData: FlBorderData(show: false),
         ),
       ),

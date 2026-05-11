@@ -110,7 +110,7 @@ void main() {
     // -----------------------------------------------------------------------
     testWidgets('shows shimmer loading skeleton when loading and no data',
         (tester) async {
-      final state = const CheckInHistoryState(isLoading: true);
+      const state = CheckInHistoryState(isLoading: true);
       await tester.pumpWidget(buildApp(state));
       await tester.pump();
 
@@ -266,7 +266,7 @@ void main() {
     // -----------------------------------------------------------------------
     testWidgets('shows empty state when no check-ins exist',
         (tester) async {
-      final state = const CheckInHistoryState();
+      const state = CheckInHistoryState();
       await tester.pumpWidget(buildApp(state));
       await tester.pump();
 
@@ -283,7 +283,7 @@ void main() {
     // Test 6: Shows error state with retry
     // -----------------------------------------------------------------------
     testWidgets('shows error state with retry button', (tester) async {
-      final state = const CheckInHistoryState(error: 'Network error');
+      const state = CheckInHistoryState(error: 'Network error');
       await tester.pumpWidget(buildApp(state));
       await tester.pump();
 

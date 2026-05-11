@@ -5,6 +5,7 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/workout/data/workout_remote_source.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/screens/active_workout_screen.dart';
@@ -12,7 +13,7 @@ import '../../helpers/test_setup.dart';
 
 class Fake extends ActiveWorkoutNotifier {
   final ActiveWorkoutState _s;
-  Fake(this._s)
+  Fake(this._s, {required super.ref})
     : super(remoteSource: WorkoutRemoteSource(apiClient: ApiClient.instance)) {
     super.state = _s;
   }
@@ -30,7 +31,6 @@ class Fake extends ActiveWorkoutNotifier {
   @override
   Future<void> logExercise({
     required String exerciseId,
-    required String workoutSessionId,
     int? reps,
     double? weight,
   }) async {}
@@ -51,7 +51,7 @@ class Fake extends ActiveWorkoutNotifier {
 }
 
 Widget b(ActiveWorkoutState s) => ProviderScope(
-  overrides: [activeWorkoutProvider.overrideWith((ref) => Fake(s))],
+  overrides: [activeWorkoutProvider.overrideWith((ref) => Fake(s, ref: ref))],
   child: const MaterialApp(home: ActiveWorkoutScreen()),
 );
 
@@ -59,7 +59,7 @@ Widget b(ActiveWorkoutState s) => ProviderScope(
 
 class FakeReturnsSession extends Fake {
   final WorkoutSession? sessionToReturn;
-  FakeReturnsSession(super.s, {this.sessionToReturn});
+  FakeReturnsSession(super.s, {this.sessionToReturn, required super.ref});
   @override
   Future<WorkoutSession?> finishWorkout() async => sessionToReturn;
 }
@@ -70,7 +70,7 @@ class FakeWithStartTracking extends Fake {
   bool startSessionForClientCalled = false;
   String? sessionClientId;
   String? sessionClientName;
-  FakeWithStartTracking(super.s);
+  FakeWithStartTracking(super.s, {required super.ref});
   @override
   Future<void> startWorkout({String? templateId}) async {
     startWorkoutCalled = true;
@@ -88,7 +88,7 @@ class FakeWithStartTracking extends Fake {
 }
 
 class FakeMutable extends ActiveWorkoutNotifier {
-  FakeMutable(ActiveWorkoutState s)
+  FakeMutable(ActiveWorkoutState s, {required super.ref})
     : super(remoteSource: WorkoutRemoteSource(apiClient: ApiClient.instance)) {
     super.state = s;
   }
@@ -102,7 +102,7 @@ class FakeMutable extends ActiveWorkoutNotifier {
   @override
   Future<void> loadActiveSession() async {}
   @override
-  Future<void> logExercise({required String exerciseId, required String workoutSessionId, int? reps, double? weight}) async {}
+  Future<void> logExercise({required String exerciseId, int? reps, double? weight}) async {}
   @override
   Future<void> completeSet(String logId) async {}
   @override
@@ -117,6 +117,13 @@ class FakeMutable extends ActiveWorkoutNotifier {
   void reset() {}
 }
 
+class _TrainerAuthNotifier extends AuthNotifier {
+  _TrainerAuthNotifier()
+    : super(apiClient: ApiClient.instance, secureStorage: FakeSecureStorage()) {
+    state = const AuthState(role: 'trainer');
+  }
+}
+
 class TestNavigatorObserver extends NavigatorObserver {
   bool popDidHappen = false;
   @override
@@ -129,7 +136,7 @@ Widget bWithFinish(ActiveWorkoutState s, {WorkoutSession? sessionToReturn}) =>
     ProviderScope(
       overrides: [
         activeWorkoutProvider.overrideWith(
-          (ref) => FakeReturnsSession(s, sessionToReturn: sessionToReturn),
+          (ref) => FakeReturnsSession(s, sessionToReturn: sessionToReturn, ref: ref),
         ),
       ],
       child: const MaterialApp(home: ActiveWorkoutScreen()),
@@ -139,7 +146,7 @@ Widget bWithTracking(ActiveWorkoutState s) =>
     ProviderScope(
       overrides: [
         activeWorkoutProvider.overrideWith(
-          (ref) => FakeWithStartTracking(s),
+          (ref) => FakeWithStartTracking(s, ref: ref),
         ),
       ],
       child: const MaterialApp(home: ActiveWorkoutScreen()),
@@ -149,7 +156,7 @@ Widget bWithTemplate(ActiveWorkoutState s, {required String templateId}) =>
     ProviderScope(
       overrides: [
         activeWorkoutProvider.overrideWith(
-          (ref) => FakeWithStartTracking(s),
+          (ref) => FakeWithStartTracking(s, ref: ref),
         ),
       ],
       child: MaterialApp(home: ActiveWorkoutScreen(templateId: templateId)),
@@ -307,14 +314,15 @@ void main() {
     );
     await t.pump();
 
-    expect(find.text('Log your first set'), findsOneWidget);
+    expect(find.text('Start by adding an exercise'), findsOneWidget);
     expect(
-      find.text('Tap "Add Set" to log an exercise with weight and reps.'),
+      find.text('Tap "Add Exercise" to begin your workout.'),
       findsOneWidget,
     );
   });
 
   testWidgets('rest timer card visible when restSeconds > 0', (t) async {
+    await t.binding.setSurfaceSize(const Size(400, 1200));
     final sess = WorkoutSession(
       id: '1',
       clientId: 'c1',
@@ -342,6 +350,7 @@ void main() {
   });
 
   testWidgets('rest timer running shows End button', (t) async {
+    await t.binding.setSurfaceSize(const Size(400, 1200));
     final sess = WorkoutSession(
       id: '1',
       clientId: 'c1',
@@ -411,6 +420,7 @@ void main() {
   });
 
   testWidgets('rest timer', (t) async {
+    await t.binding.setSurfaceSize(const Size(400, 1200));
     final sess = WorkoutSession(
       id: '1',
       clientId: 'c1',
@@ -474,6 +484,7 @@ void main() {
             (ref) => FakeReturnsSession(
               ActiveWorkoutState(session: sess, isLoading: false),
               sessionToReturn: finished,
+              ref: ref,
             ),
           ),
         ],
@@ -547,7 +558,7 @@ void main() {
       ProviderScope(
         overrides: [
           activeWorkoutProvider.overrideWith(
-            (ref) => Fake(ActiveWorkoutState(session: sess, isLoading: false)),
+            (ref) => Fake(ActiveWorkoutState(session: sess, isLoading: false), ref: ref),
           ),
         ],
         child: MaterialApp(
@@ -635,11 +646,14 @@ void main() {
   });
 
   testWidgets('Start Workout button calls startWorkout', (t) async {
-    final fake = FakeWithStartTracking(const ActiveWorkoutState());
+    late FakeWithStartTracking fake;
     await t.pumpWidget(
       ProviderScope(
         overrides: [
-          activeWorkoutProvider.overrideWith((ref) => fake),
+          activeWorkoutProvider.overrideWith((ref) {
+            fake = FakeWithStartTracking(const ActiveWorkoutState(), ref: ref);
+            return fake;
+          }),
         ],
         child: const MaterialApp(home: ActiveWorkoutScreen()),
       ),
@@ -688,6 +702,7 @@ void main() {
                 error: 'Network error',
                 isLoading: false,
               ),
+              ref: ref,
             ),
           ),
         ],
@@ -709,11 +724,14 @@ void main() {
   });
 
   testWidgets('Template init passes templateId', (t) async {
-    final fake = FakeWithStartTracking(const ActiveWorkoutState());
+    late FakeWithStartTracking fake;
     await t.pumpWidget(
       ProviderScope(
         overrides: [
-          activeWorkoutProvider.overrideWith((ref) => fake),
+          activeWorkoutProvider.overrideWith((ref) {
+            fake = FakeWithStartTracking(const ActiveWorkoutState(), ref: ref);
+            return fake;
+          }),
         ],
         child: const MaterialApp(
           home: ActiveWorkoutScreen(templateId: 'tpl-1'),
@@ -795,7 +813,15 @@ void main() {
   });
 
   testWidgets('idle — shows Start Trainer-Led Session button', (t) async {
-    await t.pumpWidget(b(const ActiveWorkoutState()));
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeWorkoutProvider.overrideWith((ref) => Fake(const ActiveWorkoutState(), ref: ref)),
+          authProvider.overrideWith((ref) => _TrainerAuthNotifier()),
+        ],
+        child: const MaterialApp(home: ActiveWorkoutScreen()),
+      ),
+    );
     await t.pump(const Duration(milliseconds: 100));
 
     expect(

@@ -21,10 +21,10 @@ class MockSecureStorage extends Mock implements SecureStorage {}
 
 class _TestAuthNotifier extends AuthNotifier {
   _TestAuthNotifier({
-    required ApiClient apiClient,
-    required SecureStorage secureStorage,
+    required super.apiClient,
+    required super.secureStorage,
     required AuthState initialState,
-  }) : super(apiClient: apiClient, secureStorage: secureStorage) {
+  }) {
     state = initialState;
   }
 }

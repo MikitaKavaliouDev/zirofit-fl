@@ -47,9 +47,9 @@ Map<String, dynamic> _logJson({
   'side': side,
   'created_at': 1700000000000,
   'updated_at': 1700000000000,
-  if (reps != null) 'reps': reps,
-  if (weight != null) 'weight': weight,
-  if (order != null) 'order': order,
+  'reps': ?reps,
+  'weight': ?weight,
+  'order': ?order,
 };
 
 // ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ void main() {
 
           final result = await remoteSource.getActiveSession();
 
-          expect(result.session, isA<WorkoutSession>());
+          expect(result!.session, isA<WorkoutSession>());
           expect(result.logs, hasLength(1));
           verify(
             () => mockApiClient.get<Map<String, dynamic>>(
@@ -200,7 +200,7 @@ void main() {
 
         final result = await remoteSource.getActiveSession();
 
-        expect(result.logs, isEmpty);
+        expect(result!.logs, isEmpty);
       });
 
       test('handles flat response without data envelope', () async {
@@ -216,7 +216,7 @@ void main() {
 
         final result = await remoteSource.getActiveSession();
 
-        expect(result.session.id, 'flat-session');
+        expect(result!.session.id, 'flat-session');
       });
 
       test('parses nested client object from backend response', () async {
@@ -241,12 +241,13 @@ void main() {
 
         final result = await remoteSource.getActiveSession();
 
-        expect(result.session.id, 'session-nested');
+        expect(result!.session.id, 'session-nested');
         expect(result.session.clientId, 'client-nested');
         expect(
           result.session.name,
           'John Doe',
-        ); // Should be read from nested client name
+        );
+ // Should be read from nested client name
       });
     });
 
@@ -464,8 +465,9 @@ void main() {
           (_) async => {
             'data': {
               'sessions': [_sessionJson(id: 'h-1')],
-              'has_more': true,
+              'hasMore': true,
             },
+
           },
         );
 

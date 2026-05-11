@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zirofit_fl/data/models/workout_summary.dart';
-import 'package:zirofit_fl/data/models/new_record.dart';
 
 void main() {
   group('WorkoutSummaryData', () {
@@ -100,7 +99,7 @@ void main() {
     });
 
     test('formatted returns correct string', () {
-      final best = BestSetSummary(
+      const best = BestSetSummary(
         exerciseId: 'ex-1',
         exerciseName: 'Deadlift',
         weight: 150.0,
