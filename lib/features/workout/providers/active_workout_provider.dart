@@ -676,7 +676,7 @@ try {
     try {
       // TODO: Implement when template exercise endpoint is available
       // For now, this is a placeholder that follows the existing pattern
-      final response = await _remoteSource.fetchSession(templateId); // Using fetchSession as placeholder
+      await _remoteSource.fetchSession(templateId); // Using fetchSession as placeholder
       // In a real implementation, we would fetch template exercises and add them to the session
     } catch (e, st) {
       debugPrint('TEMPLATE_PREPOPULATION_ERROR: $e');

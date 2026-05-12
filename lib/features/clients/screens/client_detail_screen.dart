@@ -102,7 +102,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: client != null
             ? () {
-                ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
+                ref.read(sessionOverlayProvider.notifier).showFull();
                 ref.read(activeWorkoutProvider.notifier).startWorkout();
               }
             : null,

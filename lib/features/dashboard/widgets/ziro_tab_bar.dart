@@ -140,7 +140,6 @@ class _ZiroTabBarState extends State<ZiroTabBar>
 
   static const double _tabBarHeight = 64.0;
   static const double _expandedOverlayHeight = 160.0;
-  static const double _modeButtonSize = 36.0;
 
   @override
   void initState() {

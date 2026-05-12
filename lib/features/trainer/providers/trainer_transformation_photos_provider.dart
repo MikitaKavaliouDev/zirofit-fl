@@ -100,7 +100,7 @@ class TrainerTransformationPhotosNotifier
             .split('T')[0],
       });
 
-      final response = await _apiClient.dio.post(
+      await _apiClient.dio.post(
         ApiConstants.profileMeTransformations,
         data: formData,
       );

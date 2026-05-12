@@ -286,12 +286,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
 
 
-  String _formatExerciseName(ClientExerciseLog log) {
-    final exerciseNames = ref.read(activeWorkoutProvider).exerciseNames;
-    return exerciseNames[log.exerciseId] ??
-        'Exercise: ${log.exerciseId.substring(0, 8)}…';
-  }
-
   // ---------------------------------------------------------------------------
   // Dialogs
   // ---------------------------------------------------------------------------
@@ -380,14 +374,47 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     if (confirmed == true && mounted) {
       // Capture logs before finishing (finishWorkout clears state)
-      final currentLogs = ref.read(activeWorkoutProvider).logs.toList();
+      final state = ref.read(activeWorkoutProvider);
+      final currentLogs = state.logs.toList();
+      final exerciseNames = state.exerciseNames;
+
+      // Enrich logs with exercise names from provider state
+      // (ensures names survive API response replacement in completeSet)
+      final enrichedLogs = currentLogs.map((log) {
+        if (log.exerciseName == null &&
+            exerciseNames.containsKey(log.exerciseId)) {
+          return ClientExerciseLog(
+            id: log.id,
+            clientId: log.clientId,
+            exerciseId: log.exerciseId,
+            reps: log.reps,
+            weight: log.weight,
+            isCompleted: log.isCompleted,
+            order: log.order,
+            tempo: log.tempo,
+            side: log.side,
+            workoutSessionId: log.workoutSessionId,
+            supersetKey: log.supersetKey,
+            orderInSuperset: log.orderInSuperset,
+            sets: log.sets,
+            rpe: log.rpe,
+            rir: log.rir,
+            exerciseName: exerciseNames[log.exerciseId],
+            createdAt: log.createdAt,
+            updatedAt: log.updatedAt,
+            deletedAt: log.deletedAt,
+          );
+        }
+        return log;
+      }).toList();
+
       final notifier = ref.read(activeWorkoutProvider.notifier);
       final finishedSession = await notifier.finishWorkout();
       if (finishedSession != null && mounted) {
         // Voice feedback: announce workout complete
         _voiceService.announceWorkoutComplete();
         // ignore: use_build_context_synchronously
-        _navigateToSummary(context, finishedSession, currentLogs);
+        _navigateToSummary(context, finishedSession, enrichedLogs);
       }
     }
   }

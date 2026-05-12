@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' hide Column;
-import 'package:zirofit_fl/core/database/app_database.dart';
 import 'package:zirofit_fl/core/database/database_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/daily_target_provider.dart';
 import 'package:zirofit_fl/shared/widgets/ziro_sheet_header.dart';
@@ -74,7 +73,6 @@ class _AddDailyTargetScreenState extends ConsumerState<AddDailyTargetScreen> {
   bool _showSearchResults = false;
 
   // Target list for frequency
-  int _customDays = 3;
   final List<String> _selectedDays = [
     'Mon',
     'Tue',

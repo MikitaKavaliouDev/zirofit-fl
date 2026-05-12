@@ -257,8 +257,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           onDateChanged: _onDayViewDateChanged,
           onSessionTap: _showSessionDetails,
           onStartWorkout: () {
-            ref.read(sessionOverlayProvider.notifier).state =
-                SessionOverlayState.full;
+            ref.read(sessionOverlayProvider.notifier).showFull();
             ref.read(activeWorkoutProvider.notifier).startWorkout();
           },
         );
@@ -269,8 +268,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           selectedDate: calendarState.selectedDate,
           onSessionTap: _showSessionDetails,
           onStartWorkout: () {
-            ref.read(sessionOverlayProvider.notifier).state =
-                SessionOverlayState.full;
+            ref.read(sessionOverlayProvider.notifier).showFull();
             ref.read(activeWorkoutProvider.notifier).startWorkout();
           },
         );
@@ -480,8 +478,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             event: event,
             onTap: () => _showSessionDetails(event),
             onStartWorkout: () {
-              ref.read(sessionOverlayProvider.notifier).state =
-                  SessionOverlayState.full;
+              ref.read(sessionOverlayProvider.notifier).showFull();
               ref.read(activeWorkoutProvider.notifier).startWorkout();
             },
           ),

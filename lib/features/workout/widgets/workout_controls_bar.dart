@@ -19,10 +19,6 @@ class FloatingControlsBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final timerState = ref.watch(workoutTimerProvider);
-    final isPaused = timerState == WorkoutTimerState.paused;
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),

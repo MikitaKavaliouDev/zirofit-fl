@@ -16,11 +16,15 @@ class FakeOnboardingNotifier extends OnboardingNotifier {
   FakeOnboardingNotifier()
       : super(
           apiClient: ApiClient.instance,
-          onComplete: () async {},
+          onComplete: (_) async {},
         );
 
   /// Capture whether submit was called.
   bool submitCalled = false;
+
+  void setRole(String role) {
+    state = state.copyWith(role: role);
+  }
 
   @override
   Future<void> submit() async {
@@ -34,7 +38,7 @@ class _ThrowingOnboardingNotifier extends OnboardingNotifier {
   _ThrowingOnboardingNotifier()
       : super(
           apiClient: ApiClient.instance,
-          onComplete: () async {},
+          onComplete: (_) async {},
         );
 
   @override

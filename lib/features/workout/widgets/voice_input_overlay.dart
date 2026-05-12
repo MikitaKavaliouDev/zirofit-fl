@@ -49,7 +49,6 @@ enum _VoiceOverlayPhase { listening, processing, result, error }
 class _VoiceInputOverlayState extends State<VoiceInputOverlay>
     with SingleTickerProviderStateMixin {
   _VoiceOverlayPhase _phase = _VoiceOverlayPhase.listening;
-  String _recognizedText = '';
   ParsedVoiceInput? _parsed;
   String _errorText = '';
   late AnimationController _pulseController;
@@ -89,7 +88,6 @@ class _VoiceInputOverlayState extends State<VoiceInputOverlay>
       }
 
       setState(() {
-        _recognizedText = text;
         _phase = _VoiceOverlayPhase.processing;
       });
 
@@ -283,7 +281,6 @@ class _VoiceInputOverlayState extends State<VoiceInputOverlay>
             setState(() {
               _phase = _VoiceOverlayPhase.listening;
               _errorText = '';
-              _recognizedText = '';
             });
             _startListening();
           },

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
-import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 
 /// Header bar for the full-screen workout session view.
@@ -63,7 +62,6 @@ class _WorkoutHeaderWidgetState extends ConsumerState<WorkoutHeaderWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final enhancementState = ref.watch(workoutEnhancementProvider);
     final workoutState = ref.watch(activeWorkoutProvider);
 
     final isTrainerLed = widget.clientName != null;

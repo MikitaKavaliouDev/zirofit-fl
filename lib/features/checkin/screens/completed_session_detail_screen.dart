@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
-import 'package:zirofit_fl/core/theme/theme_colors.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -30,7 +29,10 @@ class CompletedSessionDetail {
   });
 
   factory CompletedSessionDetail.fromJson(Map<String, dynamic> json) {
-    final exercisesRaw = json['exercises'] as List<dynamic>? ?? [];
+    // API returns exerciseLogs (camelCase) with nested exercise objects
+    final exercisesRaw = json['exerciseLogs'] as List<dynamic>? ??
+        json['exercises'] as List<dynamic>? ??
+        [];
     final exercises = exercisesRaw
         .map((e) =>
             CompletedExercise.fromJson(e as Map<String, dynamic>))
@@ -39,12 +41,16 @@ class CompletedSessionDetail {
     return CompletedSessionDetail(
       id: json['id'] as String,
       name: json['name'] as String? ?? 'Workout Session',
-      startTime: DateTime.parse(json['start_time'] as String),
-      endTime: json['end_time'] != null
-          ? DateTime.parse(json['end_time'] as String)
+      startTime: DateTime.parse(
+        (json['startTime'] ?? json['start_time']) as String,
+      ),
+      endTime: (json['endTime'] ?? json['end_time']) != null
+          ? DateTime.parse(
+              (json['endTime'] ?? json['end_time']) as String,
+            )
           : null,
       notes: json['notes'] as String?,
-      caloriesBurned: json['calories_burned'] as int? ??
+      caloriesBurned: json['caloriesBurned'] as int? ??
           json['calories'] as int?,
       exercises: exercises,
     );
@@ -93,10 +99,16 @@ class CompletedExercise {
         .map((s) => CompletedSet.fromJson(s as Map<String, dynamic>))
         .toList();
 
+    // API returns exerciseLogs with nested exercise object:
+    // { id, sets: [...], exercise: { id, name } }
+    final exerciseObj = json['exercise'] as Map<String, dynamic>?;
+    final name = exerciseObj?['name'] as String? ??
+        json['exercise_name'] as String? ??
+        json['name'] as String? ??
+        'Exercise';
+
     return CompletedExercise(
-      name: json['name'] as String? ??
-          json['exercise_name'] as String? ??
-          'Exercise',
+      name: name,
       sets: sets,
       isPersonalRecord: json['is_personal_record'] as bool? ??
           json['isPR'] as bool? ??
@@ -189,7 +201,10 @@ class _CompletedSessionDetailScreenState
       );
 
       final data = response['data'] as Map<String, dynamic>? ?? response;
-      final detail = CompletedSessionDetail.fromJson(data);
+      // API wraps session inside data.session (camelCase)
+      final sessionJson =
+          data['session'] as Map<String, dynamic>? ?? data;
+      final detail = CompletedSessionDetail.fromJson(sessionJson);
 
       if (!mounted) return;
       setState(() {

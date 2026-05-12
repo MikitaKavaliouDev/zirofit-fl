@@ -30,7 +30,6 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(preferencesProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(

@@ -118,8 +118,16 @@ class WorkoutRemoteSource {
         (sessionMap['exerciseLogs'] as List<dynamic>?)
             ?.map((e) {
               final logJson = e as Map<String, dynamic>;
+              // Extract exerciseName from nested exercise object if present
+              final exerciseMap = logJson['exercise'] as Map<String, dynamic>?;
+              final exerciseName = exerciseMap?['name'] as String?;
+              final exerciseId = exerciseMap?['id'] as String?;
               return ClientExerciseLog.fromJson(
-                logJson,
+                {
+                  ...logJson,
+                  if (exerciseId != null) 'exerciseId': exerciseId,
+                  if (exerciseName != null) 'exerciseName': exerciseName,
+                },
                 sessionClientId: sessionClientId,
                 workoutSessionId: session.id,
               );
@@ -171,14 +179,17 @@ return (session: session, logs: logsList);
     throw const FormatException('Missing log in response');
   }
 
-  // Extract exerciseName from nested exercise object if present
+  // Extract exerciseName and exerciseId from nested exercise object if present
   final exerciseMap = logJson['exercise'] as Map<String, dynamic>?;
   final exerciseName = exerciseMap?['name'] as String?;
+  final nestedExerciseId = exerciseMap?['id'] as String?;
 
   final log = ClientExerciseLog.fromJson(
-    exerciseName != null
-        ? {...logJson, 'exerciseName': exerciseName}
-        : logJson,
+    {
+      ...logJson,
+      if (nestedExerciseId != null) 'exerciseId': nestedExerciseId,
+      if (exerciseName != null) 'exerciseName': exerciseName,
+    },
   );
 
   return log;

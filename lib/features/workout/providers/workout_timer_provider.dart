@@ -13,7 +13,6 @@ class WorkoutTimerNotifier extends StateNotifier<WorkoutTimerState> {
   WorkoutTimerNotifier() : super(WorkoutTimerState.idle);
 
   DateTime? _startTime;
-  DateTime? _pauseTime;
   Duration _elapsed = Duration.zero;
   Timer? _timer;
   
@@ -73,7 +72,6 @@ class WorkoutTimerNotifier extends StateNotifier<WorkoutTimerState> {
     
     _timer?.cancel();
     _timer = null;
-    _pauseTime = DateTime.now();
     state = WorkoutTimerState.paused;
   }
 
@@ -103,7 +101,6 @@ class WorkoutTimerNotifier extends StateNotifier<WorkoutTimerState> {
     _timer?.cancel();
     _timer = null;
     _startTime = null;
-    _pauseTime = null;
     _elapsed = Duration.zero;
     state = WorkoutTimerState.idle;
   }
@@ -113,7 +110,6 @@ class WorkoutTimerNotifier extends StateNotifier<WorkoutTimerState> {
     _timer?.cancel();
     _timer = null;
     _startTime = startTime;
-    _pauseTime = null;
     _elapsed = Duration.zero;
     state = WorkoutTimerState.running;
     

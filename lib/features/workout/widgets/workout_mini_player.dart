@@ -53,7 +53,6 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
   bool _isDragging = false;
 
   late AnimationController _springController;
-  late Animation<double> _springAnimation;
 
   @override
   void initState() {
@@ -61,10 +60,6 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     _springController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
-    );
-    _springAnimation = CurvedAnimation(
-      parent: _springController,
-      curve: Curves.easeOutCubic,
     );
     _startElapsedTimer();
   }

@@ -70,21 +70,21 @@ void main() {
       SharedPreferences.setMockInitialValues({});
 
       await container.read(modeSwitchProvider.notifier).initialize();
-      expect(container.read(modeSwitchProvider), ModeState.trainer);
+      expect(container.read(modeSwitchProvider), AppMode.trainer);
     });
 
     test('reads saved trainer preference', () async {
       SharedPreferences.setMockInitialValues({'app_mode': 'trainer'});
 
       await container.read(modeSwitchProvider.notifier).initialize();
-      expect(container.read(modeSwitchProvider), ModeState.trainer);
+      expect(container.read(modeSwitchProvider), AppMode.trainer);
     });
 
     test('reads saved personal preference', () async {
       SharedPreferences.setMockInitialValues({'app_mode': 'personal'});
 
       await container.read(modeSwitchProvider.notifier).initialize();
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
     });
   });
 
@@ -97,22 +97,22 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await container.read(modeSwitchProvider.notifier).initialize();
 
-      expect(container.read(modeSwitchProvider), ModeState.trainer);
+      expect(container.read(modeSwitchProvider), AppMode.trainer);
 
       await container.read(modeSwitchProvider.notifier).switchMode();
 
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
     });
 
     test('toggles from personal to trainer', () async {
       SharedPreferences.setMockInitialValues({'app_mode': 'personal'});
       await container.read(modeSwitchProvider.notifier).initialize();
 
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
 
       await container.read(modeSwitchProvider.notifier).switchMode();
 
-      expect(container.read(modeSwitchProvider), ModeState.trainer);
+      expect(container.read(modeSwitchProvider), AppMode.trainer);
     });
 
     test('back-to-back toggles return to original', () async {
@@ -120,10 +120,10 @@ void main() {
       await container.read(modeSwitchProvider.notifier).initialize();
 
       await container.read(modeSwitchProvider.notifier).switchMode();
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
 
       await container.read(modeSwitchProvider.notifier).switchMode();
-      expect(container.read(modeSwitchProvider), ModeState.trainer);
+      expect(container.read(modeSwitchProvider), AppMode.trainer);
     });
   });
 
@@ -148,7 +148,7 @@ void main() {
       ]);
 
       await container.read(modeSwitchProvider.notifier).initialize();
-      expect(container.read(modeSwitchProvider), ModeState.trainer);
+      expect(container.read(modeSwitchProvider), AppMode.trainer);
     });
 
     test('persists personal mode across restarts', () async {
@@ -168,7 +168,7 @@ void main() {
       ]);
 
       await container.read(modeSwitchProvider.notifier).initialize();
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
     });
   });
 
@@ -214,7 +214,7 @@ void main() {
           )).called(1);
 
       // Verify mode is now personal
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
     });
 
     test('graceful when no tokens exist for current mode', () async {
@@ -227,23 +227,23 @@ void main() {
       // Should not throw
       await container.read(modeSwitchProvider.notifier).switchMode();
 
-      expect(container.read(modeSwitchProvider), ModeState.personal);
+      expect(container.read(modeSwitchProvider), AppMode.personal);
     });
   });
 
   // ===========================================================================
-  // ModeState enum
+  // AppMode enum
   // ===========================================================================
 
-  group('ModeState', () {
+  group('AppMode', () {
     test('trainer and personal are distinct values', () {
-      expect(ModeState.trainer, isNot(ModeState.personal));
+      expect(AppMode.trainer, isNot(AppMode.personal));
     });
 
     test('trainer is the default initial value', () {
       // When no preference is loaded, the provider starts as trainer
       final localContainer = createTestContainer();
-      expect(localContainer.read(modeSwitchProvider), ModeState.trainer);
+      expect(localContainer.read(modeSwitchProvider), AppMode.trainer);
       localContainer.dispose();
     });
   });

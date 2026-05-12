@@ -40,8 +40,6 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
   List<Client> _clients = [];
   List<WorkoutTemplate> _templates = [];
   bool _isLoadingData = true;
-  String? _dataError;
-
   @override
   void initState() {
     super.initState();
@@ -54,7 +52,6 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
   Future<void> _fetchData() async {
     setState(() {
       _isLoadingData = true;
-      _dataError = null;
     });
 
     try {
@@ -91,7 +88,6 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
       if (mounted) {
         setState(() {
           _isLoadingData = false;
-          _dataError = e.toString();
         });
       }
     }

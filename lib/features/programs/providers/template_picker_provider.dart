@@ -66,6 +66,11 @@ class TemplatePickerNotifier extends StateNotifier<TemplatePickerState> {
         templates = rawData
             .map((e) => WorkoutTemplate.fromJson(e as Map<String, dynamic>))
             .toList();
+      } else if (rawData is Map<String, dynamic>) {
+        final templatesList = rawData['templates'] as List<dynamic>? ?? [];
+        templates = templatesList
+            .map((e) => WorkoutTemplate.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         templates = [];
       }

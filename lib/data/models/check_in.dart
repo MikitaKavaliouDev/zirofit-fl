@@ -46,7 +46,7 @@ class CheckIn {
 
   factory CheckIn.fromJson(Map<String, dynamic> json) => CheckIn(
         id: readString(json, 'id', 'id'),
-        clientId: readString(json, 'client_id', 'clientId'),
+        clientId: readStringOrNull(json, 'client_id', 'clientId') ?? '',
         date: readDateTime(json, 'date', 'date'),
         status: readStringOrNull(json, 'status', 'status'),
         weight: (json['weight'] as num?)?.toDouble(),
@@ -61,8 +61,8 @@ class CheckIn {
         trainerResponse: readStringOrNull(json, 'trainer_response', 'trainerResponse'),
         reviewedAt: readDateTimeOrNull(json, 'reviewed_at', 'reviewedAt'),
         reviewedByUserId: readStringOrNull(json, 'reviewed_by_user_id', 'reviewedByUserId'),
-        createdAt: readDateTime(json, 'created_at', 'createdAt'),
-        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        createdAt: readDateTimeOrNull(json, 'created_at', 'createdAt') ?? DateTime(2020),
+        updatedAt: readDateTimeOrNull(json, 'updated_at', 'updatedAt') ?? DateTime(2020),
         client: json['client'] != null ? Client.fromJson(json['client'] as Map<String, dynamic>) : null,
       );
 

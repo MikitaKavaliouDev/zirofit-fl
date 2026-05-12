@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
 import 'package:zirofit_fl/features/workout/models/workout_focus_state.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
-import 'package:zirofit_fl/features/workout/widgets/blinking_cursor.dart';
 
 /// Enhanced WorkoutSetRow matching iOS WorkoutSetRow.swift
 ///

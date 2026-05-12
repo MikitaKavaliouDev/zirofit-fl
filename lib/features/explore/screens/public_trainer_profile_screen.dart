@@ -574,14 +574,12 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isFilled;
-  final bool isLoading;
 
   const _ActionButton({
     this.onPressed,
     required this.label,
     required this.icon,
     this.isFilled = true,
-    this.isLoading = false,
   });
 
   @override
@@ -591,14 +589,8 @@ class _ActionButton extends StatelessWidget {
     return SizedBox(
       height: 48,
       child: button(
-        onPressed: isLoading ? null : onPressed,
-        icon: isLoading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(icon, size: 18),
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
         label: Text(label, style: const TextStyle(fontSize: 14)),
       ),
     );

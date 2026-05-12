@@ -129,13 +129,6 @@ class _DayPage extends StatelessWidget {
     this.onStartWorkout,
   });
 
-  bool get _isToday {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
@@ -148,12 +146,9 @@ class _ModeSelectorOverlayState extends State<ModeSelectorOverlay>
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
 
-  AppMode _previousMode = AppMode.trainer;
-
   @override
   void initState() {
     super.initState();
-    _previousMode = widget.currentMode;
     _glowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900), // 0.1s in + 0.8s out
@@ -172,7 +167,6 @@ class _ModeSelectorOverlayState extends State<ModeSelectorOverlay>
   void didUpdateWidget(ModeSelectorOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentMode != widget.currentMode) {
-      _previousMode = oldWidget.currentMode;
       // Trigger glow animation
       _glowController
         ..reset()
