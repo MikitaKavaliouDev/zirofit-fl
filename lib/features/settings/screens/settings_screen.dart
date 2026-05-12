@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
+import 'package:zirofit_fl/features/auth/widgets/role_login_sheet.dart';
 import 'package:zirofit_fl/features/settings/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -317,6 +318,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onTap: () => context.push('/settings/subscription'),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    _SwitchAccountCard(authState: authState),
                     const SizedBox(height: 8),
                     Card(
                       child: ListTile(
@@ -724,6 +727,49 @@ class _WeightUnitOption extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Switch Account Card
+// ---------------------------------------------------------------------------
+
+/// Card that initiates a real auth role switch.
+///
+/// Tries [AuthNotifier.switchToRole] first; if no saved tokens exist for
+/// the target role, shows [RoleLoginSheet] so the user can sign in.
+class _SwitchAccountCard extends ConsumerWidget {
+  final AuthState authState;
+
+  const _SwitchAccountCard({required this.authState});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final targetRole = ref.read(authProvider.notifier).otherRole;
+
+    if (targetRole == null) return const SizedBox.shrink();
+
+    final roleLabel = AuthNotifier.roleLabel(targetRole);
+
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.swap_horiz_rounded),
+        title: const Text('Switch Account'),
+        subtitle: Text('Switch to $roleLabel mode'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          // 1 – Try direct switch with saved tokens.
+          final switched = await ref.read(authProvider.notifier).switchToRole(targetRole);
+          if (switched || !context.mounted) return;
+
+          // 2 – No saved tokens → show sign-in bottom sheet.
+          final loggedIn = await RoleLoginSheet.show(context, targetRole: targetRole);
+          if (!loggedIn || !context.mounted) return;
+
+          // 3 – Login succeeded; auth state change will trigger router redirect.
+        },
       ),
     );
   }

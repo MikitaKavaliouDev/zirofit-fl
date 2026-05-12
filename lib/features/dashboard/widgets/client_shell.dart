@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_sheet_overlay.dart';
@@ -15,9 +14,8 @@ class ClientShell extends ConsumerWidget {
     if (location.startsWith('/client/dashboard')) return 0;
     if (location.startsWith('/client/workout')) return 1;
     if (location.startsWith('/client/progress')) return 2;
-    if (location.startsWith('/client/check-in')) return 3;
-    if (location.startsWith('/client/explore')) return 4;
-    if (location.startsWith('/client/settings')) return 5;
+    if (location.startsWith('/client/explore')) return 3;
+    if (location.startsWith('/client/settings')) return 4;
     return 0;
   }
 
@@ -72,11 +70,6 @@ class ClientShell extends ConsumerWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
-          if (i == 6) {
-            // Mode switch - stay on client mode
-            ref.read(modeSwitchProvider.notifier).switchMode();
-            return;
-          }
           switch (i) {
             case 0:
               context.go('/client/dashboard');
@@ -94,12 +87,9 @@ class ClientShell extends ConsumerWidget {
               context.go('/client/progress');
               break;
             case 3:
-              context.go('/client/check-in');
-              break;
-            case 4:
               context.go('/client/explore');
               break;
-            case 5:
+            case 4:
               context.go('/client/settings');
               break;
           }
@@ -121,11 +111,6 @@ class ClientShell extends ConsumerWidget {
             label: 'Progress',
           ),
           NavigationDestination(
-            icon: Icon(Icons.check_circle_outline),
-            selectedIcon: Icon(Icons.check_circle),
-            label: 'Check-in',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.explore_outlined),
             selectedIcon: Icon(Icons.explore),
             label: 'Explore',
@@ -134,11 +119,6 @@ class ClientShell extends ConsumerWidget {
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.swap_horiz),
-            selectedIcon: Icon(Icons.swap_horiz),
-            label: 'Trainer',
           ),
         ],
       ),

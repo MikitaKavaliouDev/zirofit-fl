@@ -10,6 +10,8 @@ import 'package:zirofit_fl/features/dashboard/providers/daily_target_provider.da
 import 'package:zirofit_fl/features/dashboard/widgets/quick_weight_log.dart';
 import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
 import 'package:zirofit_fl/features/programs/screens/workout_templates_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/my_routines_screen.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_history_provider.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
@@ -853,36 +855,64 @@ class _ClientDashboardScreenState
   }
 
   // ---------------------------------------------------------------------------
-  // Quick Actions
+  // Quick Actions: Quick Start, Templates, Programs
   // ---------------------------------------------------------------------------
 
   Widget _buildQuickActions(ThemeData theme, ClientDashboardData data) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.bolt,
-            label: 'Quick Start',
-            color: Colors.blue,
-            onTap: () {
-              context.push('/client/workout');
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.grid_view_rounded,
-            label: 'Templates',
-            color: Colors.purple,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const WorkoutTemplatesScreen(),
-                ),
-              );
-            },
-          ),
+        _buildSectionHeader(theme, 'Quick Actions'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.bolt,
+                label: 'Quick Start',
+                subtitle: 'Empty session',
+                color: Colors.blue,
+                onTap: () async {
+                  await ref.read(activeWorkoutProvider.notifier).startWorkout();
+                  if (context.mounted) {
+                    context.go('/client/workout');
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.grid_view_rounded,
+                label: 'Templates',
+                subtitle: 'Pre-built workouts',
+                color: Colors.purple,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WorkoutTemplatesScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.fitness_center_outlined,
+                label: 'Programs',
+                subtitle: 'My routines',
+                color: Colors.teal,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MyRoutinesScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1289,12 +1319,14 @@ class _ClientDashboardScreenState
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final Color color;
   final VoidCallback onTap;
 
   const _QuickActionCard({
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.color,
     required this.onTap,
   });
@@ -1311,6 +1343,7 @@ class _QuickActionCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
@@ -1324,7 +1357,7 @@ class _QuickActionCard extends StatelessWidget {
                   size: 28,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 label,
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -1332,6 +1365,19 @@ class _QuickActionCard extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),

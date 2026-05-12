@@ -40,4 +40,32 @@ class SecureStorage {
     final token = await _storage.read(key: 'access_token');
     return token != null;
   }
+
+  // ---------------------------------------------------------------------------
+  // Role-specific token storage (for account switching)
+  // ---------------------------------------------------------------------------
+
+  /// Saves tokens scoped to a specific [role] (e.g. "trainer" or "client").
+  Future<void> saveRoleTokens(
+    String role, {
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await _storage.write(key: '${role}_access_token', value: accessToken);
+    await _storage.write(key: '${role}_refresh_token', value: refreshToken);
+  }
+
+  /// Returns the saved tokens for [role], or null if none stored.
+  Future<Map<String, String>?> getRoleTokens(String role) async {
+    final access = await _storage.read(key: '${role}_access_token');
+    final refresh = await _storage.read(key: '${role}_refresh_token');
+    if (access == null || refresh == null) return null;
+    return {'accessToken': access, 'refreshToken': refresh};
+  }
+
+  /// Whether tokens exist for [role].
+  Future<bool> hasRoleTokens(String role) async {
+    final token = await _storage.read(key: '${role}_access_token');
+    return token != null;
+  }
 }

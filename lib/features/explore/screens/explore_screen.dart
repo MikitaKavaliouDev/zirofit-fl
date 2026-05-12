@@ -33,36 +33,37 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    // Sequentially: 1) request location, 2) load data with location context.
+    Future.microtask(() async {
       final notifier = ref.read(exploreProvider.notifier);
-      // Load all needed data in parallel
+
+      // Step 1: Request geolocation permission and detect city.
+      await _detectUserCityAndSetLocation(notifier);
+
+      // Step 2: Now load data — API calls will include the location filter.
       notifier.loadFeatured();
       notifier.loadMetadata();
       notifier.loadUpcomingEvents();
-
-      // Auto-detect user's city via LocationService (best-effort).
-      _detectUserCity(notifier);
     });
   }
 
-  /// Attempts to auto-detect the user's city from their device location.
+  /// Requests geolocation permission, reverse-geocodes to a city name,
+  /// and updates the explore state with the detected location.
   ///
-  /// If successful and no city filter is already set, updates the explore
-  /// state so the "Trainers Near You" section reflects the user's actual
-  /// location rather than a default.
-  Future<void> _detectUserCity(ExploreNotifier notifier) async {
+  /// Uses [updateLocation] (no search triggered) so that the subsequent
+  /// [loadFeatured] / [loadUpcomingEvents] calls include the location
+  /// context. Falls back silently if permission is denied or location
+  /// is unavailable — the screen still loads data without a filter.
+  Future<void> _detectUserCityAndSetLocation(
+      ExploreNotifier notifier) async {
     final locService = ref.read(locationServiceProvider);
     final position = await locService.requestLocation();
     if (position != null && locService.currentCity != null && mounted) {
-      // Only auto-set if the user hasn't already chosen a city filter.
-      final state = ref.read(exploreProvider);
-      if (state.locationFilter == null || state.locationFilter!.isEmpty) {
-        notifier.setLocation(
-          locService.currentCity!,
-          position.latitude,
-          position.longitude,
-        );
-      }
+      notifier.updateLocation(
+        locService.currentCity!,
+        position.latitude,
+        position.longitude,
+      );
     }
   }
 
@@ -149,7 +150,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
     final selectedCity = await CityPickerSheet.show(context);
     if (selectedCity != null) {
-      notifier.setLocation(selectedCity.name, selectedCity.latitude, selectedCity.longitude);
+      // Update location without triggering search, then reload explore data.
+      notifier.updateLocation(
+        selectedCity.name,
+        selectedCity.latitude,
+        selectedCity.longitude,
+      );
+      notifier.loadFeatured();
+      notifier.loadUpcomingEvents();
     }
   }
 

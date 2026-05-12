@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_sheet_overlay.dart';
@@ -70,11 +69,6 @@ class TrainerShell extends ConsumerWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
-          if (i == 6) {
-            // Mode switch
-            ref.read(modeSwitchProvider.notifier).switchMode();
-            return;
-          }
           switch (i) {
             case 0:
               context.go('/trainer/dashboard');
@@ -126,11 +120,6 @@ class TrainerShell extends ConsumerWidget {
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.swap_horiz),
-            selectedIcon: Icon(Icons.swap_horiz),
-            label: 'Personal',
           ),
         ],
       ),

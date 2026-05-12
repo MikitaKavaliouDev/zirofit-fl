@@ -187,10 +187,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Fetch extended profile
       final meData = await fetchMe();
 
+      final resolvedRole = role ?? meData['role'] as String?;
+
+      // Save tokens under the resolved role for later account switching.
+      if (resolvedRole != null) {
+        await _secureStorage.saveRoleTokens(
+          resolvedRole,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+        );
+      }
+
       state = AuthState(
         status: AuthStatus.authenticated,
         user: user,
-        role: role ?? meData['role'] as String?,
+        role: resolvedRole,
         hasCompletedOnboarding:
             meData['hasCompletedOnboarding'] as bool? ?? false,
         isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
@@ -253,6 +264,62 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     await _launchUrl(uri.toString());
   }
+
+  // -- Account Switching --
+
+  /// Saves the current session's tokens under the current role key
+  /// so they can be restored when switching back.
+  Future<void> _saveCurrentRoleTokens() async {
+    final role = state.role;
+    if (role == null) return;
+    final accessToken = await _secureStorage.getAccessToken();
+    final refreshToken = await _secureStorage.getRefreshToken();
+    if (accessToken != null && refreshToken != null) {
+      await _secureStorage.saveRoleTokens(
+        role,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+    }
+  }
+
+  /// Switches the active auth session to [targetRole] (e.g. "trainer" or
+  /// "client").
+  ///
+  /// 1. Saves current tokens under the current role.
+  /// 2. Loads the target role's stored tokens as the active session.
+  /// 3. Calls [refreshSession] to verify and populate auth state.
+  ///
+  /// Returns `true` if the switch succeeded and the new role matches
+  /// [targetRole]. Returns `false` if no saved tokens exist for the target
+  /// role (caller should show a login flow instead).
+  Future<bool> switchToRole(String targetRole) async {
+    // 1. Save the current session.
+    await _saveCurrentRoleTokens();
+
+    // 2. Check for target role tokens.
+    final targetTokens = await _secureStorage.getRoleTokens(targetRole);
+    if (targetTokens == null) return false;
+
+    // 3. Overwrite active tokens with the target role's tokens.
+    await _secureStorage.saveTokens(
+      accessToken: targetTokens['accessToken']!,
+      refreshToken: targetTokens['refreshToken']!,
+    );
+
+    // 4. Refresh the session — this updates auth state to the new role.
+    await refreshSession();
+
+    return state.isAuthenticated && state.role == targetRole;
+  }
+
+  /// Returns the other role that the user can switch to.
+  String? get otherRole =>
+      state.role == 'trainer' ? 'client' : state.role == 'client' ? 'trainer' : null;
+
+  /// Human-readable label for a role.
+  static String roleLabel(String role) =>
+      role == 'trainer' ? 'Professional' : role == 'client' ? 'Personal' : role;
 
   // -- Sign Out --
 
@@ -319,6 +386,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Fetch profile after successful refresh
       final meData = await fetchMe();
 
+      final refreshedRole = meData['role'] as String?;
+
+      // Save tokens under the resolved role for account switching.
+      if (refreshedRole != null) {
+        await _secureStorage.saveRoleTokens(
+          refreshedRole,
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+        );
+      }
+
       state = AuthState(
         status: AuthStatus.authenticated,
         user: meData['id'] != null
@@ -328,7 +406,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
                 name: meData['name'] as String?,
               )
             : null,
-        role: meData['role'] as String?,
+        role: refreshedRole,
         hasCompletedOnboarding:
             meData['hasCompletedOnboarding'] as bool? ?? false,
         isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,

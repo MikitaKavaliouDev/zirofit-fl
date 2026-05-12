@@ -265,12 +265,25 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
   // =========================================================================
 
   /// Loads featured content (trainers + events) from the explore endpoint.
+  /// Passes the current location filter (city + coordinates) if available.
   Future<void> loadFeatured() async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
+      final queryParams = <String, dynamic>{};
+      if (state.locationFilter != null) {
+        queryParams['city'] = state.locationFilter;
+      }
+      if (state.latitude != null) {
+        queryParams['lat'] = state.latitude;
+      }
+      if (state.longitude != null) {
+        queryParams['lon'] = state.longitude;
+      }
+
       final Map<String, dynamic> response = await _api.get(
         ApiConstants.exploreFeatured,
+        queryParams: queryParams.isNotEmpty ? queryParams : null,
       );
 
       // Backend wraps response in { data: ... } via jsonSuccess()
@@ -361,13 +374,25 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
   }
 
   /// Fetches upcoming events for the explore tab.
+  /// Passes the current location filter (city + coordinates) if available.
   Future<void> loadUpcomingEvents({int limit = 10}) async {
     try {
+      final queryParams = <String, dynamic>{
+        'limit': limit.toString(),
+      };
+      if (state.locationFilter != null) {
+        queryParams['city'] = state.locationFilter;
+      }
+      if (state.latitude != null) {
+        queryParams['lat'] = state.latitude;
+      }
+      if (state.longitude != null) {
+        queryParams['lon'] = state.longitude;
+      }
+
       final Map<String, dynamic> response = await _api.get(
         ApiConstants.exploreEvents,
-        queryParams: {
-          'limit': limit.toString(),
-        },
+        queryParams: queryParams,
       );
 
       // Backend wraps response in { data: ... } via jsonSuccess()
@@ -564,6 +589,19 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
     if (specialty != null || state.searchQuery != null) {
       search(specialty: specialty, page: 1);
     }
+  }
+
+  /// Updates the location filter in state WITHOUT triggering a search.
+  ///
+  /// Use this during initial screen load when you want to set the location
+  /// before fetching featured/events data. For manual city picker changes
+  /// that should trigger a search, use [setLocation] instead.
+  void updateLocation(String location, double? lat, double? lon) {
+    state = state.copyWith(
+      locationFilter: location,
+      latitude: lat,
+      longitude: lon,
+    );
   }
 
   /// Sets a location filter and immediately re-searches.
