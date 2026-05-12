@@ -6,6 +6,17 @@ import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
 // ---------------------------------------------------------------------------
+// Calendar View Mode
+// ---------------------------------------------------------------------------
+
+/// The display mode of the calendar.
+enum CalendarViewMode {
+  month,
+  day,
+  agenda,
+}
+
+// ---------------------------------------------------------------------------
 // Calendar Event (union of Booking & WorkoutSession for display)
 // ---------------------------------------------------------------------------
 
@@ -19,6 +30,7 @@ class CalendarEvent {
   final String type; // 'booking' or 'session'
   final String? clientId;
   final String? clientName;
+  final String? clientAvatarUrl;
   final String status;
   final String? notes;
   final Booking? booking;
@@ -32,6 +44,7 @@ class CalendarEvent {
     required this.type,
     this.clientId,
     this.clientName,
+    this.clientAvatarUrl,
     required this.status,
     this.notes,
     this.booking,
@@ -47,10 +60,13 @@ class CalendarEvent {
       id: json['id'] as String,
       title: json['title'] as String? ?? 'Event',
       startTime: DateTime.parse(json['start'] as String),
-      endTime: DateTime.parse(json['end'] as String),
+      endTime: json['end_time'] != null
+          ? DateTime.parse(json['end_time'] as String)
+          : DateTime.parse(json['end'] as String),
       type: _mapEventType(apiType),
       clientId: json['clientId'] as String?,
       clientName: json['clientName'] as String?,
+      clientAvatarUrl: json['clientAvatarUrl'] as String?,
       status: _deriveStatus(apiType),
       notes: json['notes'] as String?,
     );
@@ -119,12 +135,14 @@ class CalendarState {
   final bool isLoading;
   final String? error;
   final DateTime selectedDate;
+  final CalendarViewMode viewMode;
 
   CalendarState({
     this.events = const [],
     this.isLoading = false,
     this.error,
     DateTime? selectedDate,
+    this.viewMode = CalendarViewMode.month,
   }) : selectedDate = selectedDate ?? DateTime(2024, 1, 1);
 
   CalendarState copyWith({
@@ -132,6 +150,7 @@ class CalendarState {
     bool? isLoading,
     String? error,
     DateTime? selectedDate,
+    CalendarViewMode? viewMode,
     bool clearError = false,
   }) {
     return CalendarState(
@@ -139,10 +158,11 @@ class CalendarState {
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       selectedDate: selectedDate ?? this.selectedDate,
+      viewMode: viewMode ?? this.viewMode,
     );
   }
 
-  /// Get events for a specific date
+  /// Get events for a specific date (events starting on this date)
   List<CalendarEvent> getEventsForDate(DateTime date) {
     return events.where((event) {
       return event.startTime.year == date.year &&
@@ -153,6 +173,33 @@ class CalendarState {
 
   /// Get events for the currently selected date
   List<CalendarEvent> get selectedDateEvents => getEventsForDate(selectedDate);
+
+  /// Get events from the selected date forward (for Agenda view)
+  List<CalendarEvent> getEventsFromDateForward() {
+    final startOfDay = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    return events
+        .where((event) => event.startTime.isAfter(startOfDay) ||
+            _isSameDay(event.startTime, selectedDate))
+        .toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+  }
+
+  /// Generate dates around the selected date for the date strip
+  List<DateTime> get daysAroundSelected {
+    const totalDays = 60;
+    const half = totalDays ~/ 2;
+    return List.generate(totalDays, (i) {
+      return selectedDate.subtract(Duration(days: half - i));
+    });
+  }
+
+  static bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +349,16 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
   /// Update the selected date
   void setSelectedDate(DateTime date) {
     state = state.copyWith(selectedDate: date);
+  }
+
+  /// Set the view mode
+  void setViewMode(CalendarViewMode mode) {
+    state = state.copyWith(viewMode: mode);
+  }
+
+  /// Set view mode and date together (for page swipe in day view)
+  void setViewModeAndDate(CalendarViewMode mode, DateTime date) {
+    state = state.copyWith(viewMode: mode, selectedDate: date);
   }
 
   /// Clear error

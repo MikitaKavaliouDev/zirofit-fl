@@ -6,6 +6,7 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/calendar/providers/calendar_provider.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
+import 'package:zirofit_fl/shared/widgets/custom_calendar_picker.dart';
 
 /// Screen for creating a new workout session.
 class CreateSessionScreen extends ConsumerStatefulWidget {
@@ -104,11 +105,13 @@ class _CreateSessionScreenState extends ConsumerState<CreateSessionScreen> {
   }
 
   Future<void> _selectDate() async {
-    final picked = await showDatePicker(
+    final picked = await showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      isScrollControlled: true,
+      builder: (context) => CustomCalendarPicker(
+        selectedDate: _selectedDate,
+        onDateSelected: (date) => Navigator.of(context).pop(date),
+      ),
     );
     if (picked != null) {
       setState(() {

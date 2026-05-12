@@ -47,7 +47,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   double _hungerLevel = 5;
   double _digestionLevel = 5;
   NutritionComplianceOption? _nutritionCompliance;
-  XFile? _photo;
+  XFile? _frontPhoto;
+  XFile? _sidePhoto;
+  XFile? _backPhoto;
   bool _hasAttemptedNext = false;
 
   static const _stepLabels = ['Body Metrics', 'How You Feel', 'Photos', 'Notes'];
@@ -112,10 +114,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   // -------------------------------------------------------------------------
-  // Photo picker
+  // Photo picker (slot-aware)
   // -------------------------------------------------------------------------
 
-  Future<void> _pickPhoto() async {
+  Future<void> _pickPhotoForSlot(String slot) async {
     final picker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -147,7 +149,16 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
 
     if (photo != null) {
-      setState(() => _photo = photo);
+      setState(() {
+        switch (slot) {
+          case 'front':
+            _frontPhoto = photo;
+          case 'side':
+            _sidePhoto = photo;
+          case 'back':
+            _backPhoto = photo;
+        }
+      });
     }
   }
 
@@ -178,7 +189,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           digestionLevel: _digestionLevel.round(),
           nutritionCompliance: _nutritionCompliance!.value,
           clientNotes: _notesController.text.trim(),
-          photo: _photo,
+          frontPhoto: _frontPhoto,
+          sidePhoto: _sidePhoto,
+          backPhoto: _backPhoto,
         );
 
     if (!mounted) return;
@@ -785,71 +798,176 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Photo gallery horizontal scroll
-          SizedBox(
-            height: 200,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                // Existing photo
-                if (_photo != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            File(_photo!.path),
-                            width: 150,
-                            height: 200,
-                            fit: BoxFit.cover,
-                          ),
+          // Front photo slot
+          _buildPhotoSlot(
+            theme: theme,
+            label: 'Front',
+            photo: _frontPhoto,
+            onPick: () => _pickPhotoForSlot('front'),
+            onClear: () => setState(() => _frontPhoto = null),
+          ),
+          const SizedBox(height: 16),
+
+          // Side photo slot
+          _buildPhotoSlot(
+            theme: theme,
+            label: 'Side',
+            photo: _sidePhoto,
+            onPick: () => _pickPhotoForSlot('side'),
+            onClear: () => setState(() => _sidePhoto = null),
+          ),
+          const SizedBox(height: 16),
+
+          // Back photo slot (optional)
+          _buildPhotoSlot(
+            theme: theme,
+            label: 'Back (Optional)',
+            photo: _backPhoto,
+            onPick: () => _pickPhotoForSlot('back'),
+            onClear: () => setState(() => _backPhoto = null),
+            optional: true,
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  /// A single photo picker slot matching iOS PhotoPickerBox style.
+  /// Shows a 120x150 rounded-rect with label, photo preview (or add button),
+  /// and a remove button overlay when a photo is selected.
+  Widget _buildPhotoSlot({
+    required ThemeData theme,
+    required String label,
+    required XFile? photo,
+    required VoidCallback onPick,
+    required VoidCallback onClear,
+    bool optional = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label row
+        Row(
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (photo != null) ...[
+              const Spacer(),
+              GestureDetector(
+                onTap: onClear,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.delete_outline,
+                        size: 14,
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Remove',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Photo box — rounded rect container
+        GestureDetector(
+          onTap: onPick,
+          child: Container(
+            width: double.infinity,
+            height: 160,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: photo != null
+                  ? Colors.transparent
+                  : theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.35),
+              border: Border.all(
+                color: photo != null
+                    ? theme.colorScheme.outlineVariant
+                    : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: photo != null ? 1.0 : 1.5,
+                strokeAlign: BorderSide.strokeAlignInside,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: photo != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(photo.path),
+                          fit: BoxFit.cover,
+                        ),
+                        // Semi-transparent overlay with label at bottom
                         Positioned(
-                          top: 6,
-                          right: 6,
-                          child: GestureDetector(
-                            onTap: () => setState(() => _photo = null),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.6),
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.close,
-                                size: 16,
-                                color: Colors.white,
-                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.photo_camera_outlined,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Tap to change',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-
-                // Add photo button
-                GestureDetector(
-                  onTap: _pickPhoto,
-                  child: Container(
-                    width: 150,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
-                        width: 1.5,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      color: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.3),
-                    ),
-                    child: Column(
+                    )
+                  : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.add_a_photo_outlined,
-                          size: 40,
+                          size: 36,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(height: 8),
@@ -859,16 +977,24 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
+                        if (optional)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              '(Optional)',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.7),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
-                  ),
-                ),
-              ],
             ),
           ),
-          const SizedBox(height: 24),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

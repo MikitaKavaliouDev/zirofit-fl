@@ -84,8 +84,12 @@ class EventsNotifier extends StateNotifier<EventsState> {
         queryParams: queryParams,
       );
 
-      final List<dynamic> rawList = (data['data'] as List?) ?? [];
-      final hasMore = (data['hasMore'] as bool?) ?? false;
+      final Map<String, dynamic> responseData =
+          data['data'] as Map<String, dynamic>;
+      final List<dynamic> rawList = responseData['events'] as List? ?? [];
+      final Map<String, dynamic>? pagination =
+          responseData['pagination'] as Map<String, dynamic>?;
+      final hasMore = pagination?['hasMore'] as bool? ?? false;
 
       final events = rawList
           .map((e) => Event.fromJson(e as Map<String, dynamic>))
@@ -114,6 +118,24 @@ class EventsNotifier extends StateNotifier<EventsState> {
   /// Refreshes from page 1.
   Future<void> refresh() async {
     await fetchEvents(page: 1);
+  }
+
+  /// Fetches a single event by [eventId] from the detail endpoint.
+  /// Returns null on 404 or any error.
+  Future<Event?> fetchEventById(String eventId) async {
+    try {
+      final Map<String, dynamic> data = await _apiClient.get(
+        ApiConstants.eventDetail(eventId),
+      );
+      final Map<String, dynamic> responseData =
+          data['data'] as Map<String, dynamic>;
+      final Map<String, dynamic>? eventData =
+          responseData['event'] as Map<String, dynamic>?;
+      if (eventData == null) return null;
+      return Event.fromJson(eventData);
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Joins an event by [eventId].

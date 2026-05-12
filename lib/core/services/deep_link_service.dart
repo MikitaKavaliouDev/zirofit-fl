@@ -14,6 +14,9 @@ enum DeepLinkRouteType {
 
   /// zirofitapp://workout/{id}
   workout,
+
+  /// zirofitapp://stripe-return?success=true&account_id=acct_xxx
+  stripeReturn,
 }
 
 /// A parsed deep link route containing the route type and extracted parameters.
@@ -24,7 +27,13 @@ class DeepLinkRoute {
   /// Extracted query and path parameters as a string map.
   final Map<String, String> params;
 
-  const DeepLinkRoute({required this.type, required this.params});
+  /// The original URI that was parsed, if available.
+  ///
+  /// Used for forwarding the raw URI to downstream handlers (e.g.
+  /// [StripeConnectService.handleDeepLink]).
+  final Uri? rawUri;
+
+  const DeepLinkRoute({required this.type, required this.params, this.rawUri});
 
   /// Access token from auth callback URL (?access_token=xxx).
   String? get accessToken => params['access_token'];
@@ -37,6 +46,12 @@ class DeepLinkRoute {
 
   /// Workout ID from workout deep link (zirofitapp://workout/{id}).
   String? get workoutId => params['workout_id'];
+
+  /// Stripe account ID from stripe-return deep link (zirofitapp://stripe-return).
+  String? get stripeAccountId => params['account_id'];
+
+  /// Error message from stripe-return deep link (zirofitapp://stripe-return).
+  String? get stripeError => params['error'];
 
   @override
   bool operator ==(Object other) =>
@@ -139,6 +154,7 @@ class DeepLinkService {
         return DeepLinkRoute(
           type: DeepLinkRouteType.authCallback,
           params: {'access_token': token},
+          rawUri: uri,
         );
       }
       return null;
@@ -152,6 +168,7 @@ class DeepLinkService {
       return DeepLinkRoute(
         type: DeepLinkRouteType.eventDetail,
         params: {'event_id': id},
+        rawUri: uri,
       );
     }
 
@@ -163,6 +180,7 @@ class DeepLinkService {
       return DeepLinkRoute(
         type: DeepLinkRouteType.trainerProfile,
         params: {'trainer_id': id},
+        rawUri: uri,
       );
     }
 
@@ -174,6 +192,25 @@ class DeepLinkService {
       return DeepLinkRoute(
         type: DeepLinkRouteType.workout,
         params: {'workout_id': id},
+        rawUri: uri,
+      );
+    }
+
+    // zirofitapp://stripe-return?success=true&account_id=acct_xxx&state=xxx
+    if (host == 'stripe-return') {
+      return DeepLinkRoute(
+        type: DeepLinkRouteType.stripeReturn,
+        params: {
+          if (uri.queryParameters['success'] != null)
+            'success': uri.queryParameters['success']!,
+          if (uri.queryParameters['account_id'] != null)
+            'account_id': uri.queryParameters['account_id']!,
+          if (uri.queryParameters['state'] != null)
+            'state': uri.queryParameters['state']!,
+          if (uri.queryParameters['error'] != null)
+            'error': uri.queryParameters['error']!,
+        },
+        rawUri: uri,
       );
     }
 

@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:zirofit_fl/features/onboarding/providers/onboarding_provider.dart';
 
-/// A full multi-step onboarding wizard with 3 steps:
-///   1. Role Selection (Trainer / Client)
-///   2. Profile Setup (avatar, name, bio)
-///   3. Physical Stats (height, weight, experience level)
-///
-/// Uses [OnboardingProvider] for state management and GoRouter for navigation
-/// on successful completion.
+import 'package:zirofit_fl/features/onboarding/providers/onboarding_provider.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/onboarding_progress_indicator.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/onboarding_nav_buttons.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/welcome_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/map_location_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/avatar_photo_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/physical_stats_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/experience_level_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/fitness_goals_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/trainer_finder_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/permissions_step.dart';
+
+// =============================================================================
+// Onboarding Screen — 8-Step Wizard with PageView
+// =============================================================================
+
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -17,41 +26,33 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
   late final PageController _pageController;
 
-  // -- Step 2 controllers --
-  final _nameController = TextEditingController();
-  final _bioController = TextEditingController();
-  final _step2FormKey = GlobalKey<FormState>();
-  String? _avatarPath;
-
-  // -- Step 3 controllers --
-  final _heightController = TextEditingController();
-  final _weightController = TextEditingController();
-  final _step3FormKey = GlobalKey<FormState>();
-  String _experienceLevel = 'Beginner';
-
-  // -- Experience options --
-  static const _experienceOptions = ['Beginner', 'Intermediate', 'Advanced'];
+  // -- Celebration animation --
+  late final AnimationController _celebrationController;
+  late final Animation<double> _celebrationAnim;
 
   @override
   void initState() {
     super.initState();
-    // Sync the initial page with the provider state (important when the
-    // provider is pre-initialised, e.g. in tests).
-    _pageController = PageController(
-      initialPage: ref.read(onboardingProvider).currentStep,
+    _pageController = PageController(initialPage: 0);
+
+    _celebrationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _celebrationAnim = CurvedAnimation(
+      parent: _celebrationController,
+      curve: Curves.elasticOut,
     );
   }
 
   @override
   void dispose() {
+    _celebrationController.dispose();
     _pageController.dispose();
-    _nameController.dispose();
-    _bioController.dispose();
-    _heightController.dispose();
-    _weightController.dispose();
     super.dispose();
   }
 
@@ -60,6 +61,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // --------------------------------------------------------------------------
 
   void _goNext() {
+    HapticFeedback.lightImpact();
     ref.read(onboardingProvider.notifier).nextStep();
     _pageController.nextPage(
       duration: const Duration(milliseconds: 350),
@@ -68,6 +70,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _goBack() {
+    HapticFeedback.lightImpact();
     ref.read(onboardingProvider.notifier).previousStep();
     _pageController.previousPage(
       duration: const Duration(milliseconds: 350),
@@ -76,82 +79,73 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _onPageChanged(int page) {
-    final currentStep = ref.read(onboardingProvider).currentStep;
-    if (page > currentStep) {
+    final state = ref.read(onboardingProvider);
+    if (page > state.currentStep) {
       ref.read(onboardingProvider.notifier).nextStep();
-    } else if (page < currentStep) {
+    } else if (page < state.currentStep) {
       ref.read(onboardingProvider.notifier).previousStep();
     }
   }
 
   // --------------------------------------------------------------------------
-  // Step actions
+  // Validation
   // --------------------------------------------------------------------------
 
-  Future<void> _handleContinue() async {
-    final currentStep = ref.read(onboardingProvider).currentStep;
-
-    switch (currentStep) {
-      case 0:
-        _handleStep1Continue();
-      case 1:
-        _handleStep2Continue();
-      case 2:
-        await _handleStep3Submit();
+  bool _isNextEnabled() {
+    final state = ref.read(onboardingProvider);
+    switch (state.currentStep) {
+      case 1: // Map Location — optional
+        return true;
+      case 2: // Avatar Photo — optional
+        return true;
+      case 3: // Physical Stats — optional
+        return true;
+      case 4: // Experience Level — always has default
+        return true;
+      case 5: // Fitness Goals — at least 1 required
+        return state.hasFitnessGoals;
+      case 6: // Trainer Finder — optional
+        return true;
+      case 7: // Permissions — optional (can skip non-essential)
+        return true;
+      default:
+        return true;
     }
   }
 
-  void _handleStep1Continue() {
-    final role = ref.read(onboardingProvider).role;
-    if (role == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a role to continue')),
-      );
-      return;
+  // --------------------------------------------------------------------------
+  // Handle Continue / Submit
+  // --------------------------------------------------------------------------
+
+  Future<void> _handleNext() async {
+    final currentState = ref.read(onboardingProvider);
+    final isLastStep = currentState.currentStep >= currentState.totalSteps - 1;
+
+    if (isLastStep) {
+      await _handleSubmit();
+    } else {
+      _goNext();
     }
-    _goNext();
   }
 
-  void _handleStep2Continue() {
-    if (!_step2FormKey.currentState!.validate()) return;
-    ref.read(onboardingProvider.notifier).setProfile(
-          _nameController.text.trim(),
-          _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
-          _avatarPath,
-        );
-    _goNext();
-  }
-
-  Future<void> _handleStep3Submit() async {
-    if (!_step3FormKey.currentState!.validate()) return;
-
-    final height = double.tryParse(_heightController.text.trim());
-    final weight = double.tryParse(_weightController.text.trim());
-
-    // Double-check: validators ensure these are non-null at this point.
-    if (height == null || weight == null) return;
-
-    ref.read(onboardingProvider.notifier).setStats(
-          height,
-          weight,
-          _experienceLevel,
-        );
-
+  Future<void> _handleSubmit() async {
     final onboardingNotifier = ref.read(onboardingProvider.notifier);
-
     try {
       await onboardingNotifier.submit();
       if (!mounted) return;
 
+      // Celebration animation
+      HapticFeedback.heavyImpact();
+      _celebrationController.forward();
+
+      // Wait for animation, then navigate to educational onboarding
+      await Future.delayed(const Duration(milliseconds: 2000));
+      if (!mounted) return;
+
       final role = ref.read(onboardingProvider).role;
-      if (role == 'trainer') {
-        context.go('/trainer/dashboard');
-      } else {
-        context.go('/client/dashboard');
-      }
+      context.go('/onboarding/education', extra: role);
     } catch (_) {
-      // Error is already surfaced in the bottom-bar error banner via
-      // provider state so no extra SnackBar needed.
+      // Error surfaced in bottom bar via provider state
     }
   }
 
@@ -162,35 +156,60 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final onboardingState = ref.watch(onboardingProvider);
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final totalSteps = onboardingState.totalSteps;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // --- Step indicator dots + skip/back ---
-            _buildHeader(onboardingState, colorScheme),
+    return Stack(
+      children: [
+        Scaffold(
+          body: SafeArea(
+            child: Column(
+              children: [
+                // --- Header: Back + Progress + Dots ---
+                _buildHeader(onboardingState, colorScheme, totalSteps),
 
-            // --- PageView with the 3 steps ---
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                physics: const ClampingScrollPhysics(),
-                children: [
-                  _buildRoleStep(onboardingState, theme, colorScheme),
-                  _buildProfileStep(theme, colorScheme),
-                  _buildStatsStep(theme, colorScheme),
-                ],
-              ),
+                // --- Progress bar ---
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 32),
+                  child: OnboardingProgressIndicator(),
+                ),
+
+                const SizedBox(height: 8),
+
+                // --- PageView with 8 steps ---
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: _onPageChanged,
+                    physics: const ClampingScrollPhysics(),
+                    children: const [
+                      WelcomeStep(),
+                      MapLocationStep(),
+                      AvatarPhotoStep(),
+                      PhysicalStatsStep(),
+                      ExperienceLevelStep(),
+                      FitnessGoalsStep(),
+                      TrainerFinderStep(),
+                      PermissionsStep(),
+                    ],
+                  ),
+                ),
+
+                // --- Bottom navigation buttons ---
+                OnboardingNavButtons(
+                  onBack: _goBack,
+                  onNext: _handleNext,
+                  isNextEnabled: _isNextEnabled(),
+                ),
+              ],
             ),
-
-            // --- Bottom navigation buttons ---
-            _buildBottomBar(onboardingState, colorScheme),
-          ],
+          ),
         ),
-      ),
+
+        // --- Celebration overlay ---
+        if (_celebrationController.isAnimating)
+          _buildCelebrationOverlay(colorScheme),
+      ],
     );
   }
 
@@ -198,9 +217,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // Header
   // --------------------------------------------------------------------------
 
-  Widget _buildHeader(OnboardingState state, ColorScheme colorScheme) {
+  Widget _buildHeader(
+    OnboardingState state,
+    ColorScheme colorScheme,
+    int totalSteps,
+  ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(
         children: [
           // Back arrow (hidden on step 0)
@@ -215,26 +238,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const Spacer(),
 
           // Step indicator dots
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (i) {
-              final isActive = i == state.currentStep;
-              final isPast = i < state.currentStep;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: isActive ? 28 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: isActive
-                      ? colorScheme.primary
-                      : isPast
-                          ? colorScheme.primary.withValues(alpha: 0.35)
-                          : colorScheme.outlineVariant,
-                ),
-              );
-            }),
+          StepDotsIndicator(
+            totalSteps: totalSteps,
+            currentStep: state.currentStep,
           ),
 
           const Spacer(),
@@ -247,471 +253,60 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   // --------------------------------------------------------------------------
-  // Step 1 – Role Selection
+  // Celebration Overlay
   // --------------------------------------------------------------------------
 
-  Widget _buildRoleStep(
-    OnboardingState state,
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Icon(
-            Icons.fitness_center_rounded,
-            size: 56,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Welcome to Ziro Fit',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tell us about yourself to get started',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-
-          // Trainer card
-          _RoleCard(
-            icon: Icons.fitness_center_rounded,
-            title: "I'm a Trainer",
-            subtitle: 'Create workouts, manage clients, grow your business',
-            isSelected: state.role == 'trainer',
-            onTap: () => ref.read(onboardingProvider.notifier).setRole('trainer'),
-          ),
-          const SizedBox(height: 16),
-
-          // Client card
-          _RoleCard(
-            icon: Icons.person_outline_rounded,
-            title: "I'm a Client",
-            subtitle: 'Follow programs, track progress, reach your goals',
-            isSelected: state.role == 'client',
-            onTap: () => ref.read(onboardingProvider.notifier).setRole('client'),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Step 2 – Profile Setup
-  // --------------------------------------------------------------------------
-
-  Widget _buildProfileStep(ThemeData theme, ColorScheme colorScheme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 24),
-          Text(
-            'Set Up Your Profile',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add a photo and your name',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-
-          // Avatar picker
-          GestureDetector(
-            onTap: () {
-              // In a real app this would open image_picker (camera/gallery).
-              // For now demos and tests treat the tap as a visual affordance.
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Camera / gallery coming soon')),
-              );
-            },
-            child: Stack(
-              children: [
-                CircleAvatar(
-                  radius: 48,
-                  backgroundColor: colorScheme.primaryContainer,
-                  child: _avatarPath != null
-                      ? ClipOval(
-                          child: Image.asset(
-                            _avatarPath!,
-                            width: 96,
-                            height: 96,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Icon(
-                              Icons.person_rounded,
-                              size: 48,
-                              color: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        )
-                      : Icon(
-                          Icons.person_rounded,
-                          size: 48,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary,
+  Widget _buildCelebrationOverlay(ColorScheme colorScheme) {
+    return AnimatedBuilder(
+      animation: _celebrationAnim,
+      builder: (context, child) {
+        return Container(
+          color: colorScheme.primary.withValues(alpha: 0.95 * _celebrationAnim.value),
+          child: Center(
+            child: Transform.scale(
+              scale: _celebrationAnim.value,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Checkmark circle
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: theme.scaffoldBackgroundColor, width: 2),
+                      color: Colors.white,
                     ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      size: 20,
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 56,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'All Set!',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Name field
-          Form(
-            key: _step2FormKey,
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    if (value.trim().length < 2) {
-                      return 'Name must be at least 2 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Bio field (optional, max 150 chars)
-                TextFormField(
-                  controller: _bioController,
-                  maxLines: 3,
-                  maxLength: 150,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: 'Bio (optional)',
-                    prefixIcon: Icon(Icons.info_outline),
-                  ),
-                  validator: null, // optional
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Step 3 – Physical Stats
-  // --------------------------------------------------------------------------
-
-  Widget _buildStatsStep(ThemeData theme, ColorScheme colorScheme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 24),
-          Text(
-            'Your Physical Stats',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Help us personalize your experience',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-
-          Form(
-            key: _step3FormKey,
-            child: Column(
-              children: [
-                // Height
-                TextFormField(
-                  controller: _heightController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Height (cm)',
-                    prefixIcon: Icon(Icons.height_rounded),
-                    hintText: 'e.g. 175',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your height';
-                    }
-                    final parsed = double.tryParse(value.trim());
-                    if (parsed == null || parsed <= 0) {
-                      return 'Enter a valid height in cm';
-                    }
-                    if (parsed > 300) {
-                      return 'Height seems too high';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Weight
-                TextFormField(
-                  controller: _weightController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Weight (kg)',
-                    prefixIcon: Icon(Icons.monitor_weight_rounded),
-                    hintText: 'e.g. 70',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your weight';
-                    }
-                    final parsed = double.tryParse(value.trim());
-                    if (parsed == null || parsed <= 0) {
-                      return 'Enter a valid weight in kg';
-                    }
-                    if (parsed > 500) {
-                      return 'Weight seems too high';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Experience level dropdown
-                DropdownButtonFormField<String>(
-                  initialValue: _experienceLevel,
-                  decoration: const InputDecoration(
-                    labelText: 'Experience Level',
-                    prefixIcon: Icon(Icons.trending_up_rounded),
-                  ),
-                  items: _experienceOptions.map((level) {
-                    return DropdownMenuItem(
-                      value: level,
-                      child: Text(level),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _experienceLevel = value);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Bottom bar – Back / Continue buttons
-  // --------------------------------------------------------------------------
-
-  Widget _buildBottomBar(OnboardingState state, ColorScheme colorScheme) {
-    final isLastStep = state.currentStep == 2;
-    final buttonText = isLastStep ? 'Get Started' : 'Continue';
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Error banner
-            if (state.error != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline,
-                        color: Colors.red.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        state.error!,
-                        style: TextStyle(color: Colors.red.shade700),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Continue / Get Started button
-            ElevatedButton(
-              onPressed: state.isLoading ? null : _handleContinue,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-              ),
-              child: state.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(buttonText),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Role Card
-// =============================================================================
-
-class _RoleCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _RoleCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? colorScheme.primary.withValues(alpha: 0.15)
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                size: 32,
-                color: isSelected ? colorScheme.primary : Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  const SizedBox(height: 12),
                   Text(
-                    title,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? colorScheme.primary : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
+                    "You're ready to start your\nfitness journey",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      height: 1.4,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isSelected)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Icon(
-                  Icons.check_circle_rounded,
-                  color: colorScheme.primary,
-                  size: 24,
-                ),
-              ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

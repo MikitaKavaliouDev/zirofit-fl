@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   ApiConstants._();
 
+  /// Root website URL for legal links (Terms, Privacy).
+  static const String webUrl = 'https://ziro.fit';
+
   static const bool useLocal = bool.fromEnvironment(
     'LOCAL',
     defaultValue: false,

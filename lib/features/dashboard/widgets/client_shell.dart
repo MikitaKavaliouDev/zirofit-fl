@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_sheet_overlay.dart';
 
 class ClientShell extends ConsumerWidget {
   final Widget child;
@@ -16,6 +17,7 @@ class ClientShell extends ConsumerWidget {
     if (location.startsWith('/client/progress')) return 2;
     if (location.startsWith('/client/check-in')) return 3;
     if (location.startsWith('/client/explore')) return 4;
+    if (location.startsWith('/client/settings')) return 5;
     return 0;
   }
 
@@ -25,33 +27,53 @@ class ClientShell extends ConsumerWidget {
     final index = _selectedIndex(location);
     final overlayState = ref.watch(sessionOverlayProvider);
 
-    // Mini player visible when session is mini state
-    final showMiniPlayer = overlayState == SessionOverlayState.mini;
+    final position = ref.watch(workoutOverlayPositionProvider);
+    final screenSize = MediaQuery.of(context).size;
+    const double miniPlayerWidth = 200;
+    const double miniPlayerHeight = 72;
 
     return Scaffold(
       body: Stack(
         children: [
           child,
-          // Mini player above tab bar when in mini state
-          if (showMiniPlayer)
+
+          // Workout sheet overlay (full workout bottom sheet)
+          // Always mounted so AnimatedPositioned can animate transitions.
+          WorkoutSheetOverlay(
+              onFinishWorkout: () {
+                // After finish, just let the overlay hide itself
+              },
+              onCancelWorkout: () {
+                // After cancel, just let the overlay hide itself
+              },
+            ),
+
+          // Floating mini player (when minimized)
+          if (overlayState == SessionOverlayState.mini)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 80, // above nav bar
-              child: WorkoutMiniPlayer(
-                onExpand: () {
-                  ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
+              left: position.dx,
+              top: position.dy,
+              width: miniPlayerWidth,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  ref.read(workoutOverlayPositionProvider.notifier).state = Offset(
+                    (position.dx + details.delta.dx).clamp(0, screenSize.width - miniPlayerWidth),
+                    (position.dy + details.delta.dy).clamp(0, screenSize.height - miniPlayerHeight),
+                  );
                 },
+                child: WorkoutMiniPlayer(
+                  onExpand: () => ref.read(sessionOverlayProvider.notifier).showFull(),
+                  onClose: () => ref.read(sessionOverlayProvider.notifier).hide(),
+                ),
               ),
             ),
         ],
       ),
-      bottomNavigationBar: showMiniPlayer
-          ? null // Hide nav bar when mini player is shown (matches iOS)
-          : NavigationBar(
+      bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
-          if (i == 5) {
+          if (i == 6) {
+            // Mode switch - stay on client mode
             ref.read(modeSwitchProvider.notifier).switchMode();
             return;
           }
@@ -60,7 +82,13 @@ class ClientShell extends ConsumerWidget {
               context.go('/client/dashboard');
               break;
             case 1:
-              context.go('/client/workout');
+              // Workout tab: toggle overlay state
+              final tabOverlayState = ref.read(sessionOverlayProvider);
+              if (tabOverlayState == SessionOverlayState.hidden) {
+                ref.read(sessionOverlayProvider.notifier).showFull();
+              } else {
+                ref.read(sessionOverlayProvider.notifier).toggle();
+              }
               break;
             case 2:
               context.go('/client/progress');
@@ -70,6 +98,9 @@ class ClientShell extends ConsumerWidget {
               break;
             case 4:
               context.go('/client/explore');
+              break;
+            case 5:
+              context.go('/client/settings');
               break;
           }
         },
@@ -98,6 +129,11 @@ class ClientShell extends ConsumerWidget {
             icon: Icon(Icons.explore_outlined),
             selectedIcon: Icon(Icons.explore),
             label: 'Explore',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
           NavigationDestination(
             icon: Icon(Icons.swap_horiz),

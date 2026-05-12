@@ -21,40 +21,37 @@ private let liveActivityLogger = Logger(
 /// ```
 ///
 /// ## Supported Dynamic Island views
-/// - **Compact leading**: Timer / rest indicator icon
-/// - **Compact trailing**: Current exercise name
-/// - **Expanded (minimal)**: Exercise name + rest countdown
-/// - **Expanded (full)**: Full workout details including sets and elapsed time
+/// - **Compact leading**: Timer / workout mode icon
+/// - **Compact trailing**: Rest countdown or set progress
+/// - **Expanded (full)**: Exercise name, set info, elapsed time, controls
+/// - **Minimal**: Pinpoint icon in crowded Dynamic Island
+///
+/// ## ContentState Fields (from Dart MethodChannel)
+/// | Dart key               | Type      | Swift mapping            |
+/// |------------------------|-----------|--------------------------|
+/// | workoutStartDate       | int (ms)  | Date                     |
+/// | currentExercise        | String?   | currentExercise          |
+/// | currentExerciseIndex   | int       | currentExerciseIndex     |
+/// | totalExercisesCount    | int       | totalExercisesCount      |
+/// | currentSetIndex        | int       | currentSetIndex          |
+/// | totalSetsCount         | int       | totalSetsCount           |
+/// | setInfo                | String?   | setInfo                  |
+/// | currentReps            | double    | currentReps              |
+/// | currentWeight          | double    | currentWeight            |
+/// | isResting              | bool      | isResting                |
+/// | restSeconds            | int       | restEndDate (now + secs) |
+/// | totalRestSeconds       | int       | totalRestTime            |
+/// | restFormattedTime      | String    | restFormattedTime        |
+/// | nextExerciseName       | String?   | nextExerciseName         |
+/// | isWorkoutComplete      | bool      | isWorkoutComplete        |
+/// | isLastSet              | bool      | isLastSet                |
+/// | isPaused               | bool      | isPaused                 |
 @available(iOS 16.2, *)
 enum LiveActivityManager {
-    // MARK: - Activity Attributes
-
-    /// The attributes that define the workout Live Activity.
-    /// This is the type passed to ActivityKit when requesting a new activity.
-    struct WorkoutAttributes: ActivityAttributes {
-        /// Content state that can be updated during the activity's lifecycle.
-        public struct ContentState: Codable, Hashable {
-            /// Current exercise name (e.g., "Bench Press")
-            var exerciseName: String
-            /// Number of completed sets for current exercise
-            var setCount: Int
-            /// Total sets planned (0 if unknown)
-            var totalSets: Int
-            /// Remaining rest time in seconds (0 when not resting)
-            var restSeconds: Int
-            /// Total elapsed workout time in seconds
-            var elapsedSeconds: Int
-        }
-
-        /// Static metadata set when the activity is created
-        var activityId: String
-    }
-
     // MARK: - Private State
 
     /// Reference to the currently active Live Activity, if any.
     private static var currentActivity: Activity<WorkoutAttributes>? {
-        // Find an existing activity with matching ID, or return nil
         get {
             guard let activityId = UserDefaults.standard.string(forKey: "live_activity_id") else {
                 return nil
@@ -83,11 +80,8 @@ enum LiveActivityManager {
     /// The activity will appear in the Dynamic Island and on the Lock Screen.
     /// If an activity is already active, it will be updated instead.
     ///
-    /// - Parameter data: Dictionary containing the initial workout data
-    ///   - `activityId`: Unique session identifier
-    ///   - `exerciseName`: Name of the first exercise (optional)
-    ///   - `restSeconds`: Initial rest time (optional)
-    ///   - `elapsedSeconds`: Elapsed workout time in seconds
+    /// - Parameter data: Dictionary containing the initial workout data.
+    ///   See `ContentState Fields` table above for supported keys.
     /// - Returns: `true` if the activity was successfully started/updated.
     @available(iOS 16.2, *)
     static func startActivity(data: [String: Any]) -> Bool {
@@ -98,21 +92,18 @@ enum LiveActivityManager {
             return updateActivity(data: data, for: existing)
         }
 
-        let activityId = data["activityId"] as? String ?? UUID().uuidString
-        let exerciseName = data["exerciseName"] as? String ?? ""
-        let setCount = data["setCount"] as? Int ?? 0
-        let totalSets = data["totalSets"] as? Int ?? 0
-        let restSeconds = data["restSeconds"] as? Int ?? 0
-        let elapsedSeconds = data["elapsedSeconds"] as? Int ?? 0
+        let clientName = data["clientName"] as? String ?? "Workout"
+        let startTime = parseDate(from: data["startTime"])
+        let workoutModeRaw = data["workoutMode"] as? String ?? "personal"
+        let workoutMode = WorkoutAttributes.WorkoutMode(rawValue: workoutModeRaw) ?? .personal
 
-        let attributes = WorkoutAttributes(activityId: activityId)
-        let contentState = WorkoutAttributes.ContentState(
-            exerciseName: exerciseName,
-            setCount: setCount,
-            totalSets: totalSets,
-            restSeconds: restSeconds,
-            elapsedSeconds: elapsedSeconds
+        let attributes = WorkoutAttributes(
+            clientName: clientName,
+            startTime: startTime ?? Date(),
+            workoutMode: workoutMode
         )
+
+        let contentState = buildContentState(from: data)
 
         let content = ActivityContent<WorkoutAttributes.ContentState>(
             state: contentState,
@@ -126,18 +117,18 @@ enum LiveActivityManager {
                 pushType: nil
             )
             currentActivity = activity
-            liveActivityLogger.log("Started: \(activity.id)")
+            liveActivityLogger.log("Started LiveActivity: \(activity.id)")
             return true
         } catch {
-            liveActivityLogger.log("Failed to start: \(error.localizedDescription)")
+            liveActivityLogger.error("Failed to start LiveActivity: \(error.localizedDescription)")
             return false
         }
     }
 
     /// Updates the currently active Live Activity with new data.
     ///
-    /// - Parameter data: Dictionary with updated workout data
-    ///   - `exerciseName`, `setCount`, `totalSets`, `restSeconds`, `elapsedSeconds`
+    /// - Parameter data: Dictionary with updated workout data.
+    ///   See `ContentState Fields` table above for supported keys.
     /// - Returns: `true` if the activity was successfully updated.
     @available(iOS 16.2, *)
     static func updateActivity(data: [String: Any]) -> Bool {
@@ -153,22 +144,21 @@ enum LiveActivityManager {
     /// The activity will be removed from the Dynamic Island and Lock Screen.
     /// On iOS 16.2+, a brief dismissal animation is shown.
     ///
-    /// - Parameter data: Optional dictionary with summary data
-    ///   - `summary`: A text summary shown before dismissal
+    /// - Parameter data: Optional dictionary with summary data.
+    ///   - `summary`: A text summary shown before dismissal (optional).
     /// - Returns: `true` if the activity was successfully ended.
     @available(iOS 16.2, *)
     static func endActivity(data: [String: Any]) -> Bool {
         guard let activity = currentActivity else { return false }
 
-        let summary = data["summary"] as? String ?? "Workout Complete"
+        // Build a final "complete" state
+        var finalState = buildContentState(from: data)
+        finalState.isWorkoutComplete = true
 
-        let finalState = WorkoutAttributes.ContentState(
-            exerciseName: summary,
-            setCount: 0,
-            totalSets: 0,
-            restSeconds: 0,
-            elapsedSeconds: 0
-        )
+        // If a summary string was provided, put it in setInfo
+        if let summary = data["summary"] as? String {
+            finalState.setInfo = summary
+        }
 
         Task {
             await activity.end(
@@ -176,7 +166,7 @@ enum LiveActivityManager {
                 dismissalPolicy: .default
             )
             UserDefaults.standard.removeObject(forKey: "live_activity_id")
-            liveActivityLogger.log("Ended: \(activity.id)")
+            liveActivityLogger.log("Ended LiveActivity: \(activity.id)")
         }
 
         return true
@@ -184,34 +174,121 @@ enum LiveActivityManager {
 
     // MARK: - Private Helpers
 
+    /// Builds a `ContentState` from the method channel data dictionary.
+    ///
+    /// Handles type conversions:
+    /// - `workoutStartDate`: milliseconds since epoch → `Date`
+    /// - `restSeconds`: seconds → `restEndDate` (Date.now + seconds)
+    /// - `totalRestSeconds`: seconds → `totalRestTime` (TimeInterval)
+    @available(iOS 16.2, *)
+    private static func buildContentState(from data: [String: Any]) -> WorkoutAttributes
+        .ContentState
+    {
+        let workoutStartDate = parseDate(from: data["workoutStartDate"])
+        let restSeconds = data["restSeconds"] as? Int ?? 0
+        let totalRestSeconds = data["totalRestSeconds"] as? Int ?? 0
+
+        // Convert rest seconds to an absolute end date for system-driven countdown
+        let restEndDate: Date? = {
+            if restSeconds > 0 {
+                return Date().addingTimeInterval(TimeInterval(restSeconds))
+            }
+            return nil
+        }()
+
+        return WorkoutAttributes.ContentState(
+            workoutStartDate: workoutStartDate,
+            currentExercise: data["currentExercise"] as? String,
+            currentExerciseIndex: data["currentExerciseIndex"] as? Int ?? 0,
+            totalExercisesCount: data["totalExercisesCount"] as? Int ?? 0,
+            currentSetIndex: data["currentSetIndex"] as? Int ?? 0,
+            totalSetsCount: data["totalSetsCount"] as? Int ?? 0,
+            setInfo: data["setInfo"] as? String,
+            currentReps: data["currentReps"] as? Double ?? 0,
+            currentWeight: data["currentWeight"] as? Double ?? 0,
+            isResting: data["isResting"] as? Bool ?? false,
+            restEndDate: restEndDate,
+            totalRestTime: TimeInterval(totalRestSeconds),
+            restFormattedTime: data["restFormattedTime"] as? String ?? "00:00",
+            nextExerciseName: data["nextExerciseName"] as? String,
+            isWorkoutComplete: data["isWorkoutComplete"] as? Bool ?? false,
+            isLastSet: data["isLastSet"] as? Bool ?? false,
+            isPaused: data["isPaused"] as? Bool ?? false
+        )
+    }
+
     /// Updates an existing activity with new content state.
     @available(iOS 16.2, *)
     private static func updateActivity(
         data: [String: Any],
         for activity: Activity<WorkoutAttributes>
     ) -> Bool {
-        let exerciseName = data["exerciseName"] as? String ?? ""
-        let setCount = data["setCount"] as? Int ?? 0
-        let totalSets = data["totalSets"] as? Int ?? 0
-        let restSeconds = data["restSeconds"] as? Int ?? 0
-        let elapsedSeconds = data["elapsedSeconds"] as? Int ?? 0
+        // Merge new data with existing state (partial update support)
+        let existingState = activity.content.state
+        let workoutStartDate = parseDate(from: data["workoutStartDate"])
+            ?? existingState.workoutStartDate
+
+        let restSeconds = data["restSeconds"] as? Int
+        let totalRestSeconds = data["totalRestSeconds"] as? Int
+
+        let restEndDate: Date? = {
+            if let secs = restSeconds, secs > 0 {
+                return Date().addingTimeInterval(TimeInterval(secs))
+            }
+            return data.keys.contains("restSeconds") ? nil : existingState.restEndDate
+        }()
 
         let updatedState = WorkoutAttributes.ContentState(
-            exerciseName: exerciseName,
-            setCount: setCount,
-            totalSets: totalSets,
-            restSeconds: restSeconds,
-            elapsedSeconds: elapsedSeconds
+            workoutStartDate: workoutStartDate,
+            currentExercise: (data["currentExercise"] as? String) ?? existingState.currentExercise,
+            currentExerciseIndex: (data["currentExerciseIndex"] as? Int)
+                ?? existingState.currentExerciseIndex,
+            totalExercisesCount: (data["totalExercisesCount"] as? Int)
+                ?? existingState.totalExercisesCount,
+            currentSetIndex: (data["currentSetIndex"] as? Int) ?? existingState.currentSetIndex,
+            totalSetsCount: (data["totalSetsCount"] as? Int) ?? existingState.totalSetsCount,
+            setInfo: (data["setInfo"] as? String) ?? existingState.setInfo,
+            currentReps: (data["currentReps"] as? Double) ?? existingState.currentReps,
+            currentWeight: (data["currentWeight"] as? Double) ?? existingState.currentWeight,
+            isResting: (data["isResting"] as? Bool) ?? existingState.isResting,
+            restEndDate: restEndDate,
+            totalRestTime: TimeInterval(
+                totalRestSeconds ?? Int(existingState.totalRestTime)
+            ),
+            restFormattedTime: (data["restFormattedTime"] as? String)
+                ?? existingState.restFormattedTime,
+            nextExerciseName: (data["nextExerciseName"] as? String)
+                ?? existingState.nextExerciseName,
+            isWorkoutComplete: (data["isWorkoutComplete"] as? Bool)
+                ?? existingState.isWorkoutComplete,
+            isLastSet: (data["isLastSet"] as? Bool) ?? existingState.isLastSet,
+            isPaused: (data["isPaused"] as? Bool) ?? existingState.isPaused
         )
 
         Task {
             await activity.update(
                 ActivityContent(state: updatedState, staleDate: nil)
             )
-            liveActivityLogger.log("Updated: \(activity.id)")
+            liveActivityLogger.log("Updated LiveActivity: \(activity.id)")
         }
 
         return true
+    }
+
+    /// Parses a date from method channel arguments.
+    ///
+    /// Accepts:
+    /// - `Int` / `Double`: milliseconds since Unix epoch
+    /// - `nil`: returns `nil`
+    private static func parseDate(from value: Any?) -> Date? {
+        guard let value = value else { return nil }
+        if let ms = value as? Int {
+            return Date(timeIntervalSince1970: TimeInterval(ms) / 1000.0)
+        }
+        if let ms = value as? Double {
+            return Date(timeIntervalSince1970: ms / 1000.0)
+        }
+        return nil
     }
 }
 
@@ -231,40 +308,44 @@ class LiveActivityPluginHandler: NSObject {
 
         case "startActivity":
             guard let args = call.arguments as? [String: Any] else {
-                result(FlutterError(
-                    code: "INVALID_ARGS",
-                    message: "Expected dictionary arguments",
-                    details: nil
-                ))
+                result(
+                    FlutterError(
+                        code: "INVALID_ARGS",
+                        message: "Expected dictionary arguments",
+                        details: nil
+                    ))
                 return
             }
             if #available(iOS 16.2, *) {
                 result(LiveActivityManager.startActivity(data: args))
             } else {
-                result(FlutterError(
-                    code: "UNSUPPORTED",
-                    message: "Live Activities require iOS 16.2+",
-                    details: nil
-                ))
+                result(
+                    FlutterError(
+                        code: "UNSUPPORTED",
+                        message: "Live Activities require iOS 16.2+",
+                        details: nil
+                    ))
             }
 
         case "updateActivity":
             guard let args = call.arguments as? [String: Any] else {
-                result(FlutterError(
-                    code: "INVALID_ARGS",
-                    message: "Expected dictionary arguments",
-                    details: nil
-                ))
+                result(
+                    FlutterError(
+                        code: "INVALID_ARGS",
+                        message: "Expected dictionary arguments",
+                        details: nil
+                    ))
                 return
             }
             if #available(iOS 16.2, *) {
                 result(LiveActivityManager.updateActivity(data: args))
             } else {
-                result(FlutterError(
-                    code: "UNSUPPORTED",
-                    message: "Live Activities require iOS 16.2+",
-                    details: nil
-                ))
+                result(
+                    FlutterError(
+                        code: "UNSUPPORTED",
+                        message: "Live Activities require iOS 16.2+",
+                        details: nil
+                    ))
             }
 
         case "endActivity":
@@ -272,11 +353,12 @@ class LiveActivityPluginHandler: NSObject {
             if #available(iOS 16.2, *) {
                 result(LiveActivityManager.endActivity(data: args))
             } else {
-                result(FlutterError(
-                    code: "UNSUPPORTED",
-                    message: "Live Activities require iOS 16.2+",
-                    details: nil
-                ))
+                result(
+                    FlutterError(
+                        code: "UNSUPPORTED",
+                        message: "Live Activities require iOS 16.2+",
+                        details: nil
+                    ))
             }
 
         default:

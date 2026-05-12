@@ -73,6 +73,40 @@ class ProgramsNotifier extends StateNotifier<ProgramsState> {
     }
   }
 
+  /// Creates a new workout template with [name], optional [description],
+  /// and a list of [exerciseIds].
+  Future<bool> createTemplate({
+    required String name,
+    String? description,
+    required List<String> exerciseIds,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final body = <String, dynamic>{
+        'name': name,
+        'exercise_ids': exerciseIds,
+      };
+      if (description != null && description.isNotEmpty) {
+        body['description'] = description;
+      }
+
+      await _api.post<Map<String, dynamic>>(
+        ApiConstants.trainerWorkoutTemplates,
+        body: body,
+      );
+
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+      return false;
+    }
+  }
+
   /// Creates a new program with [name] and optional [description].
   Future<WorkoutProgram?> createProgram(
     String name,

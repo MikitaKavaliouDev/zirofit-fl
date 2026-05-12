@@ -5,10 +5,14 @@ import 'package:zirofit_fl/features/calendar/providers/calendar_provider.dart';
 import 'package:zirofit_fl/features/calendar/screens/create_session_screen.dart';
 import 'package:zirofit_fl/features/calendar/widgets/calendar_day_cell.dart';
 import 'package:zirofit_fl/features/calendar/widgets/session_card.dart';
+import 'package:zirofit_fl/features/calendar/widgets/calendar_date_strip.dart';
+import 'package:zirofit_fl/features/calendar/widgets/calendar_day_view.dart';
+import 'package:zirofit_fl/features/calendar/widgets/calendar_agenda_view.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 
-/// Calendar screen with month view grid and day details.
+/// Calendar screen with month grid, day view (swipeable), and agenda view.
+/// Mirrors iOS CalendarView.swift with 3-mode switching.
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
@@ -18,13 +22,11 @@ class CalendarScreen extends ConsumerStatefulWidget {
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   late DateTime _currentMonth;
-  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _currentMonth = DateTime.now();
-    _selectedDate = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadEvents();
     });
@@ -33,7 +35,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   void _loadEvents() {
     final startOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final endOfMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
-    ref.read(calendarProvider.notifier).fetchEvents(startOfMonth, endOfMonth);
+    // Extend range so date strip / day / agenda have enough data
+    final extendedStart = startOfMonth.subtract(const Duration(days: 31));
+    final extendedEnd = endOfMonth.add(const Duration(days: 31));
+    ref.read(calendarProvider.notifier).fetchEvents(extendedStart, extendedEnd);
   }
 
   void _previousMonth() {
@@ -51,54 +56,178 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   void _selectDate(DateTime date) {
-    setState(() {
-      _selectedDate = date;
-    });
     ref.read(calendarProvider.notifier).setSelectedDate(date);
   }
 
+  void _onDateStripChanged(DateTime date) {
+    _selectDate(date);
+  }
+
+  void _onDayViewDateChanged(DateTime date) {
+    _selectDate(date);
+  }
+
   void _navigateToCreateSession() {
+    final selectedDate = ref.read(calendarProvider).selectedDate;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreateSessionScreen(
-          initialDate: _selectedDate,
+          initialDate: selectedDate,
         ),
       ),
     );
+  }
+
+  void _showSessionDetails(CalendarEvent event) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _SessionDetailsSheet(event: event),
+    );
+  }
+
+  IconData _iconForMode(CalendarViewMode mode) {
+    switch (mode) {
+      case CalendarViewMode.month:
+        return Icons.calendar_month;
+      case CalendarViewMode.day:
+        return Icons.view_day;
+      case CalendarViewMode.agenda:
+        return Icons.list_alt;
+    }
+  }
+
+  String _appBarTitle(CalendarViewMode mode, CalendarState state) {
+    switch (mode) {
+      case CalendarViewMode.month:
+        return DateFormat('MMMM yyyy').format(_currentMonth);
+      case CalendarViewMode.day:
+        return DateFormat('EEEE, MMM d').format(state.selectedDate);
+      case CalendarViewMode.agenda:
+        return DateFormat('MMMM yyyy').format(state.selectedDate);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final calendarState = ref.watch(calendarProvider);
+    final viewMode = calendarState.viewMode;
+    final selectedDate = calendarState.selectedDate;
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
-          DateFormat('MMMM yyyy').format(_currentMonth),
-          style: theme.textTheme.headlineSmall,
+          _appBarTitle(viewMode, calendarState),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         actions: [
+          if (viewMode == CalendarViewMode.month) ...[
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: _previousMonth,
+              tooltip: 'Previous month',
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: _nextMonth,
+              tooltip: 'Next month',
+            ),
+          ],
+          // Filter icon placeholder (will be implemented separately)
           IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: _previousMonth,
-            tooltip: 'Previous month',
+            icon: const Icon(Icons.tune),
+            onPressed: () {},
+            tooltip: 'Filters',
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: _nextMonth,
-            tooltip: 'Next month',
+          // Mode switching popup menu
+          PopupMenuButton<CalendarViewMode>(
+            icon: Icon(_iconForMode(viewMode)),
+            tooltip: 'View mode',
+            onSelected: (mode) {
+              ref.read(calendarProvider.notifier).setViewMode(mode);
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: CalendarViewMode.month,
+                child: ListTile(
+                  leading: Icon(_iconForMode(CalendarViewMode.month)),
+                  title: const Text('Month'),
+                  trailing: viewMode == CalendarViewMode.month
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: CalendarViewMode.day,
+                child: ListTile(
+                  leading: Icon(_iconForMode(CalendarViewMode.day)),
+                  title: const Text('Day'),
+                  trailing: viewMode == CalendarViewMode.day
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: CalendarViewMode.agenda,
+                child: ListTile(
+                  leading: Icon(_iconForMode(CalendarViewMode.agenda)),
+                  title: const Text('Agenda'),
+                  trailing: viewMode == CalendarViewMode.agenda
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
-          // Month calendar grid
-          _buildCalendarGrid(theme, calendarState),
+          // CalendarDateStrip shown in Day + Agenda modes
+          AnimatedCrossFade(
+            firstChild: CalendarDateStrip(
+              days: calendarState.daysAroundSelected,
+              selectedDate: selectedDate,
+              onDateSelected: _onDateStripChanged,
+              events: calendarState.events,
+            ),
+            secondChild: const SizedBox(height: 100),
+            crossFadeState: viewMode == CalendarViewMode.month
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
           const Divider(height: 1),
-          // Selected day's sessions
+          // Content area
           Expanded(
-            child: _buildDaySessions(theme, calendarState),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.05),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: _buildContentForKey(viewMode, calendarState, theme),
+            ),
           ),
         ],
       ),
@@ -110,10 +239,101 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
+  /// Returns a widget with a [Key] based on [viewMode] so AnimatedSwitcher
+  /// correctly transitions between different view modes.
+  Widget _buildContentForKey(
+    CalendarViewMode viewMode,
+    CalendarState calendarState,
+    ThemeData theme,
+  ) {
+    switch (viewMode) {
+      case CalendarViewMode.month:
+        return _buildMonthContent(theme, calendarState);
+      case CalendarViewMode.day:
+        return CalendarDayView(
+          key: const ValueKey('day_view'),
+          events: calendarState.events,
+          selectedDate: calendarState.selectedDate,
+          onDateChanged: _onDayViewDateChanged,
+          onSessionTap: _showSessionDetails,
+          onStartWorkout: () {
+            ref.read(sessionOverlayProvider.notifier).state =
+                SessionOverlayState.full;
+            ref.read(activeWorkoutProvider.notifier).startWorkout();
+          },
+        );
+      case CalendarViewMode.agenda:
+        return CalendarAgendaView(
+          key: const ValueKey('agenda_view'),
+          events: calendarState.events,
+          selectedDate: calendarState.selectedDate,
+          onSessionTap: _showSessionDetails,
+          onStartWorkout: () {
+            ref.read(sessionOverlayProvider.notifier).state =
+                SessionOverlayState.full;
+            ref.read(activeWorkoutProvider.notifier).startWorkout();
+          },
+        );
+    }
+  }
+
+  Widget _buildMonthContent(ThemeData theme, CalendarState calendarState) {
+    if (calendarState.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (calendarState.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load sessions',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              calendarState.error!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.tonal(
+              onPressed: _loadEvents,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Month calendar grid
+        _buildCalendarGrid(theme, calendarState),
+        const Divider(height: 1),
+        // Selected day's sessions
+        Expanded(
+          child: _buildDaySessions(theme, calendarState),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCalendarGrid(ThemeData theme, CalendarState calendarState) {
-    final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+    final daysInMonth =
+        DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
     final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final firstWeekday = firstDayOfMonth.weekday % 7; // Sunday = 0
+    final selectedDate = calendarState.selectedDate;
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -158,9 +378,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   return const SizedBox();
                 }
 
-                final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+                final date =
+                    DateTime(_currentMonth.year, _currentMonth.month, day);
                 final eventsForDay = calendarState.getEventsForDate(date);
-                final isSelected = _isSameDay(date, _selectedDate);
+                final isSelected = _isSameDay(date, selectedDate);
                 final isToday = _isSameDay(date, DateTime.now());
 
                 return CalendarDayCell(
@@ -179,6 +400,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildDaySessions(ThemeData theme, CalendarState calendarState) {
+    final selectedDate = calendarState.selectedDate;
+
     if (calendarState.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -216,7 +439,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       );
     }
 
-    final selectedDateEvents = calendarState.getEventsForDate(_selectedDate);
+    final selectedDateEvents = calendarState.getEventsForDate(selectedDate);
 
     if (selectedDateEvents.isEmpty) {
       return Center(
@@ -230,7 +453,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No sessions on ${DateFormat('MMM d').format(_selectedDate)}',
+              'No sessions on ${DateFormat('MMM d').format(selectedDate)}',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -246,31 +469,24 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       );
     }
 
-     return ListView.builder(
-       padding: const EdgeInsets.all(16),
-       itemCount: selectedDateEvents.length,
-       itemBuilder: (context, index) {
-         final event = selectedDateEvents[index];
-         return Padding(
-           padding: const EdgeInsets.only(bottom: 12),
-           child: SessionCard(
-             event: event,
-             onTap: () => _showSessionDetails(event),
-              onStartWorkout: () {
-                ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
-                ref.read(activeWorkoutProvider.notifier).startWorkout();
-              },
-           ),
-         );
-       },
-     );
-  }
-
-  void _showSessionDetails(CalendarEvent event) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _SessionDetailsSheet(event: event),
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: selectedDateEvents.length,
+      itemBuilder: (context, index) {
+        final event = selectedDateEvents[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: SessionCard(
+            event: event,
+            onTap: () => _showSessionDetails(event),
+            onStartWorkout: () {
+              ref.read(sessionOverlayProvider.notifier).state =
+                  SessionOverlayState.full;
+              ref.read(activeWorkoutProvider.notifier).startWorkout();
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -313,7 +529,8 @@ class _SessionDetailsSheet extends ConsumerWidget {
           _DetailRow(
             icon: Icons.access_time,
             label: 'Time',
-            value: '${DateFormat('h:mm a').format(event.startTime)} - ${DateFormat('h:mm a').format(event.endTime)}',
+            value:
+                '${DateFormat('h:mm a').format(event.startTime)} - ${DateFormat('h:mm a').format(event.endTime)}',
           ),
           if (event.clientName != null) ...[
             const SizedBox(height: 12),

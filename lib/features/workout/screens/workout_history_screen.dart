@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_history_provider.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_calendar_sheet.dart';
 
 class WorkoutHistoryScreen extends ConsumerStatefulWidget {
   const WorkoutHistoryScreen({super.key});
@@ -53,6 +54,28 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
     });
   }
 
+  void _showCalendar() {
+    final state = ref.read(workoutHistoryProvider);
+    final completedDates = state.sessions.map((s) {
+      return DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
+    }).toSet();
+
+    WorkoutCalendarSheet.show(
+      context: context,
+      completedDates: completedDates,
+      onDateSelected: (date) {
+        final dayStart = DateTime(date.year, date.month, date.day);
+        ref.read(workoutHistoryProvider.notifier).setDateRange(
+              DateRange(
+                start: dayStart,
+                end: dayStart,
+                preset: DateRangePreset.custom,
+              ),
+            );
+      },
+    );
+  }
+
   Future<void> _showDateRangePicker() async {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
@@ -83,6 +106,13 @@ class _WorkoutHistoryScreenState extends ConsumerState<WorkoutHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Workout History'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Browse by date',
+            onPressed: _showCalendar,
+          ),
+        ],
       ),
       body: _buildBody(state, theme),
     );

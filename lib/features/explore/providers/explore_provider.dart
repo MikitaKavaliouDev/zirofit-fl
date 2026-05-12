@@ -9,6 +9,37 @@ import 'package:zirofit_fl/data/models/public_trainer_profile_data.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
 // ---------------------------------------------------------------------------
+// Discovery enums
+// ---------------------------------------------------------------------------
+
+/// Tab selection for the discovery segmented picker.
+enum DiscoveryType { specialists, events, all }
+
+/// Sort options for the filter sheet.
+enum DiscoverySortBy {
+  closest('Closest'),
+  rating('Rating'),
+  priceLow('Price: Low'),
+  priceHigh('Price: High');
+
+  final String label;
+  const DiscoverySortBy(this.label);
+
+  String get apiValue {
+    switch (this) {
+      case DiscoverySortBy.closest:
+        return 'distance';
+      case DiscoverySortBy.rating:
+        return 'rating';
+      case DiscoverySortBy.priceLow:
+        return 'price_asc';
+      case DiscoverySortBy.priceHigh:
+        return 'price_desc';
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // City model for city picker
 // ---------------------------------------------------------------------------
 
@@ -64,6 +95,19 @@ class ExploreState {
   final List<ExploreCity> cities;
   final List<ExploreEvent> upcomingEvents;
 
+  // Discovery filter fields
+  final DiscoveryType discoveryType;
+  final DiscoverySortBy? sortBy;
+  final List<String> selectedSpecialties;
+  final double? minRating;
+
+  /// Whether any non-default filter is active.
+  bool get hasActiveFilters =>
+      sortBy != null ||
+      selectedSpecialties.isNotEmpty ||
+      minRating != null ||
+      (locationFilter != null && locationFilter!.isNotEmpty);
+
   const ExploreState({
     this.trainers = const [],
     this.isLoading = false,
@@ -80,6 +124,10 @@ class ExploreState {
     this.currentPage = 1,
     this.cities = const [],
     this.upcomingEvents = const [],
+    this.discoveryType = DiscoveryType.all,
+    this.sortBy,
+    this.selectedSpecialties = const [],
+    this.minRating,
   });
 
   ExploreState copyWith({
@@ -102,6 +150,12 @@ class ExploreState {
     int? currentPage,
     List<ExploreCity>? cities,
     List<ExploreEvent>? upcomingEvents,
+    DiscoveryType? discoveryType,
+    DiscoverySortBy? sortBy,
+    bool clearSortBy = false,
+    List<String>? selectedSpecialties,
+    double? minRating,
+    bool clearMinRating = false,
   }) {
     return ExploreState(
       trainers: trainers ?? this.trainers,
@@ -124,6 +178,10 @@ class ExploreState {
       currentPage: currentPage ?? this.currentPage,
       cities: cities ?? this.cities,
       upcomingEvents: upcomingEvents ?? this.upcomingEvents,
+      discoveryType: discoveryType ?? this.discoveryType,
+      sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
+      selectedSpecialties: selectedSpecialties ?? this.selectedSpecialties,
+      minRating: clearMinRating ? null : (minRating ?? this.minRating),
     );
   }
 }
@@ -331,6 +389,49 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
     }
   }
 
+  /// Sets the active discovery tab.
+  void setDiscoveryType(DiscoveryType type) {
+    state = state.copyWith(discoveryType: type);
+    // Re-run search if there's an active query or filters
+    if (state.searchQuery != null && state.searchQuery!.isNotEmpty ||
+        state.hasActiveFilters) {
+      search(page: 1);
+    }
+  }
+
+  /// Sets the sort order and re-searches.
+  void setSortBy(DiscoverySortBy? sort) {
+    state = state.copyWith(
+      sortBy: sort,
+      clearSortBy: sort == null,
+    );
+    search(page: 1);
+  }
+
+  /// Applies all filter sheet values at once and re-searches.
+  void applyFilters({
+    DiscoverySortBy? sortBy,
+    String? location,
+    double? lat,
+    double? lon,
+    List<String>? specialties,
+    double? minRating,
+  }) {
+    state = state.copyWith(
+      sortBy: sortBy,
+      clearSortBy: sortBy == null,
+      locationFilter: location,
+      latitude: lat,
+      longitude: lon,
+      selectedSpecialties: specialties,
+      minRating: minRating,
+      clearMinRating: minRating == null,
+      currentPage: 1,
+      results: [],
+    );
+    search(page: 1);
+  }
+
   /// Searches trainers with optional filters.
   ///
   /// [query]      – free-text search query
@@ -376,6 +477,12 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       }
       if (state.longitude != null) {
         queryParams['lon'] = state.longitude;
+      }
+      if (state.sortBy != null) {
+        queryParams['sort_by'] = state.sortBy!.apiValue;
+      }
+      if (state.minRating != null) {
+        queryParams['min_rating'] = state.minRating!.toStringAsFixed(1);
       }
       queryParams['page'] = state.currentPage;
 
@@ -481,6 +588,11 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       clearLocationFilter: true,
       latitude: null,
       longitude: null,
+      sortBy: null,
+      clearSortBy: true,
+      selectedSpecialties: [],
+      minRating: null,
+      clearMinRating: true,
       hasMore: true,
       currentPage: 1,
     );
@@ -519,6 +631,24 @@ class ExploreNotifier extends StateNotifier<ExploreState> {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Creates a Stripe checkout session for the given [packageId].
+  ///
+  /// POST /checkout/session
+  /// Body: { packageId: <id> }
+  /// Returns the checkout URL to open in browser, or null on failure.
+  Future<String?> createCheckoutSession(String packageId) async {
+    try {
+      final response = await _api.post<Map<String, dynamic>>(
+        ApiConstants.createCheckoutSession,
+        body: {'packageId': packageId},
+      );
+      final data = response['data'] as Map<String, dynamic>?;
+      return data?['url'] as String?;
+    } catch (e) {
+      return null;
     }
   }
 

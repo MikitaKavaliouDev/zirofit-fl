@@ -1,6 +1,37 @@
 import 'package:zirofit_fl/core/utils/json_helpers.dart';
 import 'package:zirofit_fl/data/models/enums/event_status.dart';
 
+/// Trainer info nested inside an event.
+class EventTrainer {
+  final String? name;
+  final String? username;
+
+  const EventTrainer({this.name, this.username});
+
+  factory EventTrainer.fromJson(Map<String, dynamic> json) => EventTrainer(
+        name: json['name'] as String?,
+        username: json['username'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (name != null) 'name': name,
+        if (username != null) 'username': username,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventTrainer &&
+          name == other.name &&
+          username == other.username;
+
+  @override
+  int get hashCode => Object.hashAll([name, username]);
+
+  @override
+  String toString() => 'EventTrainer(name: $name, username: $username)';
+}
+
 class Event {
   final String id;
   final String trainerId;
@@ -24,6 +55,7 @@ class Event {
   final String? rejectionReason;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final EventTrainer? trainer;
 
   const Event({
     required this.id,
@@ -48,50 +80,48 @@ class Event {
     this.rejectionReason,
     required this.createdAt,
     required this.updatedAt,
+    this.trainer,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) => Event(
-        id: json['id'] as String,
-        trainerId: json['trainer_id'] as String,
-        title: json['title'] as String,
-        description: json['description'] as String?,
-        startTime:
-            dateTimeFromJson(json['start_time'] as int),
-        endTime:
-            dateTimeFromJson(json['end_time'] as int),
-        locationName: json['location_name'] as String?,
-        address: json['address'] as String?,
-        city: json['city'] as String?,
+        id: readString(json, 'id', 'id'),
+        trainerId: readString(json, 'trainer_id', 'trainerId'),
+        title: readString(json, 'title', 'title'),
+        description: readStringOrNull(json, 'description', 'description'),
+        startTime: readDateTime(json, 'start_time', 'startTime'),
+        endTime: readDateTime(json, 'end_time', 'endTime'),
+        locationName: readStringOrNull(json, 'location_name', 'locationName'),
+        address: readStringOrNull(json, 'address', 'address'),
+        city: readStringOrNull(json, 'city', 'city'),
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
         price: (json['price'] as num?)?.toDouble() ?? 0,
-        currency:
-            (json['currency'] as String?) ?? 'PLN',
+        currency: (json['currency'] as String?) ?? 'PLN',
         capacity: (json['capacity'] as int?) ?? 20,
         enrolledCount:
-            (json['enrolled_count'] as int?) ?? 0,
-        category: json['category'] as String?,
-        imageUrl: json['image_url'] as String?,
-        isPromoted:
-            (json['is_promoted'] as bool?) ?? false,
+            (json['enrolledCount'] as int?) ?? (json['enrolled_count'] as int?) ?? 0,
+        category: readStringOrNull(json, 'category', 'category'),
+        imageUrl: readStringOrNull(json, 'image_url', 'imageUrl'),
+        isPromoted: readBool(json, 'is_promoted', 'isPromoted'),
         status: EventStatus.fromJson(
             json['status'] as String? ?? 'PENDING'),
         rejectionReason:
-            json['rejection_reason'] as String?,
-        createdAt:
-            dateTimeFromJson(json['created_at'] as int),
-        updatedAt:
-            dateTimeFromJson(json['updated_at'] as int),
+            readStringOrNull(json, 'rejection_reason', 'rejectionReason'),
+        createdAt: readDateTime(json, 'created_at', 'createdAt'),
+        updatedAt: readDateTime(json, 'updated_at', 'updatedAt'),
+        trainer: json['trainer'] != null
+            ? EventTrainer.fromJson(json['trainer'] as Map<String, dynamic>)
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'trainer_id': trainerId,
+        'trainerId': trainerId,
         'title': title,
         'description': description,
-        'start_time': dateTimeToJson(startTime),
-        'end_time': dateTimeToJson(endTime),
-        'location_name': locationName,
+        'startTime': startTime.toIso8601String(),
+        'endTime': endTime.toIso8601String(),
+        'locationName': locationName,
         'address': address,
         'city': city,
         'latitude': latitude,
@@ -99,14 +129,15 @@ class Event {
         'price': price,
         'currency': currency,
         'capacity': capacity,
-        'enrolled_count': enrolledCount,
+        'enrolledCount': enrolledCount,
         'category': category,
-        'image_url': imageUrl,
-        'is_promoted': isPromoted,
+        'imageUrl': imageUrl,
+        'isPromoted': isPromoted,
         'status': status.toJson(),
-        'rejection_reason': rejectionReason,
-        'created_at': dateTimeToJson(createdAt),
-        'updated_at': dateTimeToJson(updatedAt),
+        'rejectionReason': rejectionReason,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+        if (trainer != null) 'trainer': trainer!.toJson(),
       };
 
   @override
@@ -120,7 +151,8 @@ class Event {
       'enrolledCount: $enrolledCount, category: $category, '
       'imageUrl: $imageUrl, isPromoted: $isPromoted, '
       'status: $status, rejectionReason: $rejectionReason, '
-      'createdAt: $createdAt, updatedAt: $updatedAt)';
+      'createdAt: $createdAt, updatedAt: $updatedAt, '
+      'trainer: $trainer)';
 
   @override
   bool operator ==(Object other) =>
@@ -147,7 +179,8 @@ class Event {
           status == other.status &&
           rejectionReason == other.rejectionReason &&
           createdAt == other.createdAt &&
-          updatedAt == other.updatedAt;
+          updatedAt == other.updatedAt &&
+          trainer == other.trainer;
 
   @override
   int get hashCode => Object.hashAll([
@@ -173,5 +206,6 @@ class Event {
         rejectionReason,
         createdAt,
         updatedAt,
+        trainer,
       ]);
 }

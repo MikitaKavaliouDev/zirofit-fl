@@ -16,6 +16,7 @@ import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
 import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
 import 'package:zirofit_fl/features/clients/widgets/trainer_details_bottom_sheet.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/recent_workout_row.dart';
 
 /// SharedPreferences key for the educational overlay.
 const _kEducationOverlayKey = 'dashboard_education_seen';
@@ -937,7 +938,7 @@ class _ClientDashboardScreenState
         else
           Column(
             children: recentSessions.map((session) {
-              return _RecentHistoryTile(
+              return RecentWorkoutRow(
                 session: session,
                 onTap: () {
                   Navigator.of(context).push(
@@ -1734,91 +1735,4 @@ class _DailyTargetCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Recent History Tile
-// ---------------------------------------------------------------------------
 
-class _RecentHistoryTile extends StatelessWidget {
-  final WorkoutSession session;
-  final VoidCallback? onTap;
-
-  const _RecentHistoryTile({required this.session, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dateFormat = DateFormat('MMM');
-    final dayFormat = DateFormat('d');
-    final durationText = session.endTime != null
-        ? '${session.endTime!.difference(session.startTime).inMinutes} min'
-        : 'In progress';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              // Date badge
-              Container(
-                width: 44,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      dateFormat.format(session.startTime),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                    ),
-                    Text(
-                      dayFormat.format(session.startTime),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.name ?? 'Workout',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      durationText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

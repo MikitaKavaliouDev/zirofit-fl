@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
+import 'package:zirofit_fl/core/providers/location_provider.dart';
 import 'package:zirofit_fl/features/explore/providers/explore_provider.dart';
 import 'package:zirofit_fl/features/explore/screens/public_trainer_profile_screen.dart';
 import 'package:zirofit_fl/features/explore/widgets/featured_trainers_section.dart';
@@ -38,7 +39,31 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       notifier.loadFeatured();
       notifier.loadMetadata();
       notifier.loadUpcomingEvents();
+
+      // Auto-detect user's city via LocationService (best-effort).
+      _detectUserCity(notifier);
     });
+  }
+
+  /// Attempts to auto-detect the user's city from their device location.
+  ///
+  /// If successful and no city filter is already set, updates the explore
+  /// state so the "Trainers Near You" section reflects the user's actual
+  /// location rather than a default.
+  Future<void> _detectUserCity(ExploreNotifier notifier) async {
+    final locService = ref.read(locationServiceProvider);
+    final position = await locService.requestLocation();
+    if (position != null && locService.currentCity != null && mounted) {
+      // Only auto-set if the user hasn't already chosen a city filter.
+      final state = ref.read(exploreProvider);
+      if (state.locationFilter == null || state.locationFilter!.isEmpty) {
+        notifier.setLocation(
+          locService.currentCity!,
+          position.latitude,
+          position.longitude,
+        );
+      }
+    }
   }
 
   @override
@@ -46,25 +71,71 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final state = ref.watch(exploreProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // Floating header
-          FloatingExploreHeader(
-            selectedCity: state.locationFilter,
-            onCityTap: () => _showCityPicker(),
-            onSearchTap: () {
-              context.push('/client/explore/discovery');
-            },
-            onMapTap: () {
-              context.push('/client/explore/map');
-            },
+    // Loading state
+    if (state.isLoading && state.trainers.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Error state
+    if (state.error != null && state.trainers.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              const SizedBox(height: 16),
+              Text('Failed to load', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(state.error!, style: theme.textTheme.bodySmall),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => ref.read(exploreProvider.notifier).fetchFeatured(),
+                child: const Text('Retry'),
+              ),
+            ],
           ),
-          // Content
-          Expanded(
-            child: _buildContent(state, theme),
-          ),
-        ],
+        ),
+      );
+    }
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        body: Column(
+          children: [
+            // Floating header
+            FloatingExploreHeader(
+              selectedCity: state.locationFilter,
+              onCityTap: () => _showCityPicker(),
+              onSearchTap: () {
+                context.push('/client/explore/discovery');
+              },
+              onMapTap: () {
+                context.push('/client/explore/map');
+              },
+            ),
+            // Tab bar
+            TabBar(
+              tabs: const [
+                Tab(text: 'Events'),
+                Tab(text: 'Trainers'),
+              ],
+              labelColor: theme.colorScheme.primary,
+            ),
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildEventsTab(state, theme),
+                  _buildTrainersTab(state, theme),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -82,46 +153,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     }
   }
 
-  Widget _buildContent(ExploreState state, ThemeData theme) {
-    if (state.isLoading && state.trainers.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state.error != null && state.trainers.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text('Failed to load', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(state.error!, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => ref.read(exploreProvider.notifier).fetchFeatured(),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
+  Widget _buildEventsTab(ExploreState state, ThemeData theme) {
     return RefreshIndicator(
       onRefresh: () => ref.read(exploreProvider.notifier).loadFeatured(),
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
-          // Featured Trainers
-          if (state.trainers.isNotEmpty) ...[
-            FeaturedTrainersSection(
-              trainers: state.trainers.take(5).toList(),
-              onTrainerTap: (trainer) => _openTrainerProfile(trainer),
-            ),
-            const SizedBox(height: 24),
-          ],
-
-          // Featured Events (placeholder - uses exploreProvider's featured events if available)
+          // Featured Events
           if (state.featuredEvents.isNotEmpty) ...[
             FeaturedEventsSection(
               events: state.featuredEvents.take(5).toList(),
@@ -142,6 +180,29 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
             const SizedBox(height: 24),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrainersTab(ExploreState state, ThemeData theme) {
+    if (state.trainers.isEmpty) {
+      return _buildEmptyTrainersState(theme);
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => ref.read(exploreProvider.notifier).loadFeatured(),
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        children: [
+          // Featured Trainers
+          if (state.trainers.isNotEmpty) ...[
+            FeaturedTrainersSection(
+              trainers: state.trainers.take(5).toList(),
+              onTrainerTap: (trainer) => _openTrainerProfile(trainer),
+            ),
+            const SizedBox(height: 24),
+          ],
 
           // Browse by Category
           if (state.specialties.isNotEmpty) ...[
@@ -158,6 +219,45 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           // Trainers Near You
           _buildNearbySection(state, theme),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyTrainersState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No trainers available',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'There are no trainers in your area yet. Check back later or try a different location.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => context.push('/client/explore/discovery'),
+              child: const Text('Browse All Trainers'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:zirofit_fl/data/models/event.dart';
 import 'package:zirofit_fl/features/events/providers/events_provider.dart';
 
 class EventDetailScreen extends ConsumerStatefulWidget {
@@ -14,12 +15,40 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   bool _isJoining = false;
+  Event? _fetchedEvent;
+  bool _isLoadingEvent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentState = ref.read(eventsProvider);
+    if (!currentState.events.any((e) => e.id == widget.eventId)) {
+      _isLoadingEvent = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(eventsProvider.notifier).fetchEventById(widget.eventId).then((event) {
+          if (mounted) {
+            setState(() {
+              _fetchedEvent = event;
+              _isLoadingEvent = false;
+            });
+          }
+        });
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(eventsProvider);
-    final event = state.events.where((e) => e.id == widget.eventId).firstOrNull;
+    final event = state.events.where((e) => e.id == widget.eventId).firstOrNull ?? _fetchedEvent;
     final theme = Theme.of(context);
+
+    if (_isLoadingEvent && event == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Event Details')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     if (event == null) {
       return Scaffold(
@@ -41,6 +70,24 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Hero image
+            if (event.imageUrl != null && event.imageUrl!.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  event.imageUrl!,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 200,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: const Center(child: Icon(Icons.broken_image, size: 48)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Category badge
             if (event.category != null) ...[
               Container(
@@ -71,6 +118,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               Text(
                 event.description!,
                 style: theme.textTheme.bodyLarge,
+              ),
+            ],
+            // Trainer
+            if (event.trainer?.name != null && event.trainer!.name!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _InfoRow(
+                icon: Icons.person,
+                text: event.trainer!.name!,
               ),
             ],
             const SizedBox(height: 24),
@@ -125,16 +180,34 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   : 'Free',
             ),
             const SizedBox(height: 8),
-            // Capacity
-            _InfoRow(
-              icon: Icons.people,
-              text: '${event.enrolledCount} / ${event.capacity} enrolled',
+            // Capacity with progress bar
+            Row(
+              children: [
+                Icon(Icons.people, size: 20, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Text(
+                  '${event.enrolledCount} / ${event.capacity} enrolled',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
             ),
             const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: event.capacity > 0 ? event.enrolledCount / event.capacity : 0,
+                minHeight: 8,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  spotsLeft > 0 ? theme.colorScheme.primary : Colors.red,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
             // Spots left
             Text(
               spotsLeft > 0 ? '$spotsLeft spots remaining' : 'Event is full',
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: spotsLeft > 0 ? Colors.green : Colors.red,
                 fontWeight: FontWeight.w600,
               ),

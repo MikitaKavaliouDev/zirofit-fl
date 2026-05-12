@@ -1,4 +1,133 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// =============================================================================
+// Theme Mode Enum
+// =============================================================================
+
+/// Mirrors iOS [AppTheme] enum: system / light / dark.
+/// Use [toThemeMode] to convert to Flutter's [ThemeMode].
+enum AppThemeMode {
+  system,
+  light,
+  dark;
+
+  /// Display title matching iOS: "System", "Light", "Dark".
+  String get title {
+    switch (this) {
+      case AppThemeMode.system:
+        return 'System';
+      case AppThemeMode.light:
+        return 'Light';
+      case AppThemeMode.dark:
+        return 'Dark';
+    }
+  }
+
+  /// Convert to Flutter's [ThemeMode].
+  ThemeMode toThemeMode() {
+    switch (this) {
+      case AppThemeMode.system:
+        return ThemeMode.system;
+      case AppThemeMode.light:
+        return ThemeMode.light;
+      case AppThemeMode.dark:
+        return ThemeMode.dark;
+    }
+  }
+
+  /// Parse from a stored string (e.g. SharedPreferences).
+  static AppThemeMode fromString(String value) {
+    return AppThemeMode.values.firstWhere(
+      (m) => m.name == value,
+      orElse: () => AppThemeMode.system,
+    );
+  }
+}
+
+// =============================================================================
+// Theme Manager
+// =============================================================================
+
+/// Persists the user's theme preference via SharedPreferences (iOS parity).
+class ThemeManager {
+  static const _kThemeModeKey = 'app_theme_mode';
+
+  AppThemeMode _currentTheme = AppThemeMode.system;
+
+  /// Currently selected theme mode.
+  AppThemeMode get currentTheme => _currentTheme;
+
+  /// Load the persisted theme mode from SharedPreferences.
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_kThemeModeKey);
+    _currentTheme =
+        stored != null ? AppThemeMode.fromString(stored) : AppThemeMode.system;
+  }
+
+  /// Persist and apply a new theme mode.
+  Future<void> setTheme(AppThemeMode mode) async {
+    _currentTheme = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kThemeModeKey, mode.name);
+  }
+
+  /// Convenience: resolve to a Flutter [ThemeMode] from the current selection.
+  ThemeMode get themeMode => _currentTheme.toThemeMode();
+}
+
+// =============================================================================
+// BuildContext Extensions
+// =============================================================================
+
+/// Shortcut extensions on [BuildContext] for common theme queries.
+extension ThemeContextExtensions on BuildContext {
+  /// Whether the app is currently in dark mode.
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+
+  /// Shortcut to [Theme.of(this).colorScheme].
+  ColorScheme get colorScheme => Theme.of(this).colorScheme;
+
+  /// Shortcut to [Theme.of(this).textTheme].
+  TextTheme get textTheme => Theme.of(this).textTheme;
+}
+
+// =============================================================================
+// Theme Color Constants
+// =============================================================================
+
+/// Theme-aware color constants exposed via [BuildContext].
+class _AppThemeColors {
+  final BuildContext context;
+  _AppThemeColors(this.context);
+
+  bool get _isDark => context.isDarkMode;
+
+  Color get textPrimary =>
+      _isDark ? Colors.white : const Color(0xFF1F2937);
+
+  Color get backgroundPrimary =>
+      _isDark ? const Color(0xFF12121E) : Colors.white;
+
+  Color get backgroundSecondary =>
+      _isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF3F4F6);
+
+  Color get backgroundTertiary =>
+      _isDark ? const Color(0xFF2A2A3E) : const Color(0xFFE5E7EB);
+
+  Color get accent =>
+      _isDark ? const Color(0xFF34D399) : const Color(0xFF10B981);
+}
+
+/// Extension to access theme color constants.
+extension ThemeColorsExtension on BuildContext {
+  _AppThemeColors get themeColors => _AppThemeColors(this);
+}
+
+// =============================================================================
+// Centralized Theme Definitions
+// =============================================================================
 
 /// Centralized theme definitions for the Ziro Fit app.
 class AppTheme {

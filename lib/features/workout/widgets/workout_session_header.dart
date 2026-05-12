@@ -5,10 +5,12 @@ import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dar
 
 class WorkoutSessionHeader extends ConsumerWidget {
   final VoidCallback onShowRestTimer;
+  final VoidCallback? onMinimize;
 
   const WorkoutSessionHeader({
     super.key,
     required this.onShowRestTimer,
+    this.onMinimize,
   });
 
   @override
@@ -33,13 +35,23 @@ class WorkoutSessionHeader extends ConsumerWidget {
         ),
         
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          padding: const EdgeInsets.fromLTRB(12, 10, 20, 20),
           child: Row(
             children: [
+              // Minimize button
+              if (onMinimize != null)
+                IconButton(
+                  onPressed: onMinimize,
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              
+              if (onMinimize == null && state.isTrainerLed) const SizedBox(width: 8),
+
               // Client/Session Info
               if (state.isTrainerLed) ...[
                 CircleAvatar(
-                  radius: 28,
+                  radius: 24,
                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   child: Icon(Icons.person, color: theme.colorScheme.onSurfaceVariant),
                 ),

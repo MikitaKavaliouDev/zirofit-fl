@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/trainer_dashboard_provider.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/dashboard_prompt_card.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/dashboard_skeleton.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/quick_add_session_dialog.dart';
 import 'package:zirofit_fl/features/clients/widgets/add_client_sheet.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
@@ -56,7 +57,7 @@ class _TrainerDashboardScreenState
     TrainerDashboardState dashboardState,
   ) {
     if (dashboardState.isLoading && dashboardState.data == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const DashboardSkeleton();
     }
 
     if (dashboardState.hasError && dashboardState.data == null) {

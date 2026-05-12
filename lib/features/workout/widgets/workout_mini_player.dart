@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 
@@ -124,7 +126,8 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     }
 
     if (_dragAccumulator >= 80) {
-      // Threshold reached: expand
+      // Threshold reached: expand with haptic feedback
+      HapticFeedback.mediumImpact();
       _dragAccumulator = 0;
       _isDragging = false;
       widget.onExpand?.call();
@@ -134,6 +137,14 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
   void _handleDragEnd(DragEndDetails details) {
     _dragAccumulator = 0;
     _isDragging = false;
+  }
+
+  void _handleClose() {
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else {
+      ref.read(sessionOverlayProvider.notifier).hide();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -184,9 +195,9 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -221,6 +232,15 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                               strokeWidth: 2,
                               backgroundColor: Colors.transparent,
                               color: const Color(0xFFFF6B00),
+                            ),
+                            // "REST" label inside ring
+                            Text(
+                              'REST',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: const Color(0xFFFF6B00),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 9,
+                              ),
                             ),
                           ],
                         ),
@@ -259,31 +279,26 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              Icon(
-                                Icons.timer_outlined,
-                                size: 12,
-                                color: theme.colorScheme.onSurfaceVariant,
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
                               Text(
                                 _formatElapsed(_elapsedSeconds),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
+                                  fontFeatures: [FontFeature.tabularFigures()],
                                 ),
                               ),
                               if (isRestRunning && restSeconds > 0) ...[
                                 const SizedBox(width: 8),
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
                                 Text(
-                                  '${restSeconds}s',
+                                  'Rest ${restSeconds}s',
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: theme.colorScheme.primary,
                                     fontWeight: FontWeight.bold,
@@ -328,6 +343,25 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                       onPressed: widget.onExpand,
                     ),
                   ],
+                ),
+              ),
+              // Close button (top-right corner)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: _handleClose,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  tooltip: 'Close mini player',
                 ),
               ),
             ],

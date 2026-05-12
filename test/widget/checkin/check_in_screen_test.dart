@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/check_in.dart';
 import 'package:zirofit_fl/features/checkin/providers/check_in_provider.dart';
@@ -11,7 +12,7 @@ class Fake extends CheckInNotifier {
   final CheckInState _s;
   Fake(this._s) : super(apiClient: ApiClient.instance) { super.state = _s; }
   @override CheckInState get state => _s;
-  @override Future<void> submitCheckIn({required DateTime date, required double weight, double? waistCm, double? sleepHours, int? energyLevel, int? stressLevel, int? hungerLevel, int? digestionLevel, String? nutritionCompliance, String? clientNotes, dynamic photo}) async {}
+  @override Future<void> submitCheckIn({required DateTime date, required double weight, double? waistCm, double? sleepHours, int? energyLevel, int? stressLevel, int? hungerLevel, int? digestionLevel, String? nutritionCompliance, String? clientNotes, XFile? frontPhoto, XFile? sidePhoto, XFile? backPhoto}) async {}
   @override Future<void> fetchLastCheckIn() async {}
   @override void reset() {}
   @override void clearError() {}

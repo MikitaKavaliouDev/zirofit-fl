@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
+import 'package:zirofit_fl/features/workout/widgets/workout_sheet_overlay.dart';
 
 class TrainerShell extends ConsumerWidget {
   final Widget child;
@@ -28,32 +29,45 @@ class TrainerShell extends ConsumerWidget {
 
     final showMiniPlayer = overlayState == SessionOverlayState.mini;
 
+    final screenSize = MediaQuery.of(context).size;
+    const miniPlayerWidth = 200.0;
+    const miniPlayerHeight = 60.0;
+    final position = ref.watch(workoutOverlayPositionProvider);
+
     return Scaffold(
       body: Stack(
         children: [
           child,
-          // Mini player above tab bar when in mini state
+
+          // Workout sheet overlay (full workout bottom sheet)
+          // Always mounted so AnimatedPositioned can animate transitions.
+          WorkoutSheetOverlay(
+              onFinishWorkout: () { /* let overlay self-manage */ },
+              onCancelWorkout: () { /* let overlay self-manage */ },
+            ),
+
+          // Floating mini player (when minimized)
           if (showMiniPlayer)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 80, // above nav bar
-              child: WorkoutMiniPlayer(
-                onExpand: () {
-                  ref.read(sessionOverlayProvider.notifier).state = SessionOverlayState.full;
-                  // Navigate to workout screen when expanding
-                  context.push('/workout/active');
+              left: position.dx,
+              top: position.dy,
+              width: miniPlayerWidth,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  ref.read(workoutOverlayPositionProvider.notifier).state = Offset(
+                    (position.dx + details.delta.dx).clamp(0, screenSize.width - miniPlayerWidth),
+                    (position.dy + details.delta.dy).clamp(0, screenSize.height - miniPlayerHeight),
+                  );
                 },
-                onClose: () {
-                  // Minimize: just keep mini state, stay on current screen
-                },
+                child: WorkoutMiniPlayer(
+                  onExpand: () => ref.read(sessionOverlayProvider.notifier).showFull(),
+                  onClose: () => ref.read(sessionOverlayProvider.notifier).hide(),
+                ),
               ),
             ),
         ],
       ),
-      bottomNavigationBar: showMiniPlayer
-          ? null // Hide nav bar when mini player shown (matches iOS)
-          : NavigationBar(
+      bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) {
           if (i == 6) {

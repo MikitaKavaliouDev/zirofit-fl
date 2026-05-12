@@ -10,7 +10,9 @@ import 'core/providers/fcm_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/deep_link_service.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/location_service.dart';
 import 'core/services/notification_routing.dart';
+import 'core/services/stripe_connect_service.dart';
 import 'core/utils/provider_state_logger.dart';
 import 'data/models/profile.dart';
 import 'data/sync/sync_provider.dart';
@@ -49,10 +51,10 @@ class AppBootstrap {
     final authState = container.read(authProvider);
     if (authState.role == 'client') {
       final modeNotifier = container.read(modeSwitchProvider.notifier);
-      await modeNotifier.setMode(ModeState.personal);
+      await modeNotifier.setMode(AppMode.personal);
     } else if (authState.role == 'trainer') {
       final modeNotifier = container.read(modeSwitchProvider.notifier);
-      await modeNotifier.setMode(ModeState.trainer);
+      await modeNotifier.setMode(AppMode.trainer);
     }
 
     // Log initial provider states after auth initialization
@@ -119,6 +121,12 @@ class AppBootstrap {
           if (workoutId != null) {
             router.go('/workout/$workoutId');
           }
+
+        case DeepLinkRouteType.stripeReturn:
+          // Forward the raw URI to StripeConnectService for processing.
+          if (route.rawUri != null) {
+            StripeConnectService().handleDeepLink(route.rawUri!);
+          }
       }
     });
 
@@ -151,6 +159,15 @@ class AppBootstrap {
     } catch (_) {
       // FCM initialization may fail on platforms without Google Play
       // Services (emulator, web, etc.). Non-fatal.
+    }
+
+    // 7. Initialize location service — request position early so it's ready
+    //    when screens need it. Best-effort, never blocks startup.
+    try {
+      final locationService = LocationService();
+      locationService.requestLocation();
+    } catch (_) {
+      // Location initialization is best-effort.
     }
   }
 

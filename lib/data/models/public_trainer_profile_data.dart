@@ -15,6 +15,7 @@ class PublicTrainerProfileData {
   final List<TransformationPhoto> transformations;
   final List<Testimonial> testimonials;
   final List<SocialLink> socialLinks;
+  final String? connectStatus;
 
   const PublicTrainerProfileData({
     required this.profile,
@@ -23,6 +24,7 @@ class PublicTrainerProfileData {
     this.transformations = const [],
     this.testimonials = const [],
     this.socialLinks = const [],
+    this.connectStatus,
   });
 
   factory PublicTrainerProfileData.fromJson(Map<String, dynamic> json) {
@@ -79,6 +81,14 @@ class PublicTrainerProfileData {
       socialLinks = [];
     }
 
+    final String? connectStatus;
+    final rawConnectStatus = json['connect_status'];
+    if (rawConnectStatus is String) {
+      connectStatus = rawConnectStatus;
+    } else {
+      connectStatus = null;
+    }
+
     return PublicTrainerProfileData(
       profile: profile,
       packages: packages,
@@ -86,6 +96,7 @@ class PublicTrainerProfileData {
       transformations: transformations,
       testimonials: testimonials,
       socialLinks: socialLinks,
+      connectStatus: connectStatus,
     );
   }
 
@@ -96,5 +107,6 @@ class PublicTrainerProfileData {
         'transformations': transformations.map((e) => e.toJson()).toList(),
         'testimonials': testimonials.map((e) => e.toJson()).toList(),
         'social_links': socialLinks.map((e) => e.toJson()).toList(),
+        if (connectStatus != null) 'connect_status': connectStatus,
       };
 }

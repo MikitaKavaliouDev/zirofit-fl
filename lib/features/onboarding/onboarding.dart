@@ -1,0 +1,13 @@
+export 'screens/educational_onboarding_screen.dart';
+export 'screens/onboarding_screen.dart';
+export 'widgets/onboarding_progress_indicator.dart';
+export 'widgets/onboarding_nav_buttons.dart';
+export 'widgets/steps/welcome_step.dart';
+export 'widgets/steps/map_location_step.dart';
+export 'widgets/steps/avatar_photo_step.dart';
+export 'widgets/steps/physical_stats_step.dart';
+export 'widgets/steps/experience_level_step.dart';
+export 'widgets/steps/fitness_goals_step.dart';
+export 'widgets/steps/trainer_finder_step.dart';
+export 'widgets/steps/permissions_step.dart';
+export 'providers/onboarding_provider.dart';

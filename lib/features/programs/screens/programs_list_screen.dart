@@ -46,8 +46,37 @@ class _ProgramsListScreenState extends ConsumerState<ProgramsListScreen> {
       ),
       body: _buildBody(state, theme),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/trainer/programs/create'),
+        onPressed: () => _showCreateOptions(context),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showCreateOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.fitness_center),
+              title: const Text('New Program'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                context.push('/trainer/programs/create');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.description),
+              title: const Text('New Template'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                context.push('/trainer/programs/create-template');
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

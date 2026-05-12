@@ -2,13 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/client_model.dart';
-import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/clients/providers/client_list_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
 import 'package:zirofit_fl/features/workout/services/voice_log_service.dart';
@@ -26,8 +27,19 @@ import 'package:zirofit_fl/features/workout/widgets/workout_session_controls.dar
 
 class EnhancedActiveWorkoutScreen extends ConsumerStatefulWidget {
   final String? templateId;
+  final bool isOverlay;
+  final VoidCallback? onMinimize;
+  final void Function(WorkoutSession, List<ClientExerciseLog>)? onFinish;
+  final VoidCallback? onCancel;
 
-  const EnhancedActiveWorkoutScreen({super.key, this.templateId});
+  const EnhancedActiveWorkoutScreen({
+    super.key,
+    this.templateId,
+    this.isOverlay = false,
+    this.onMinimize,
+    this.onFinish,
+    this.onCancel,
+  });
 
   @override
   ConsumerState<EnhancedActiveWorkoutScreen> createState() =>
@@ -229,103 +241,133 @@ class _EnhancedActiveWorkoutScreenState
       }
     });
 
-    return Scaffold(
-      body: ValueListenableBuilder<double>(
-        valueListenable: _dragOffset,
-        builder: (context, offset, child) {
-          return Transform.translate(
-            offset: Offset(0, offset),
-            child: child,
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const SizedBox(height: 12),
-                  // Header with Drag Gesture
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onVerticalDragUpdate: (details) {
-                      if (details.delta.dy > 0 || _dragOffset.value > 0) {
-                        _dragOffset.value += details.delta.dy;
-                      }
-                    },
-                    onVerticalDragEnd: (details) {
-                      if (_dragOffset.value > 120 || details.primaryVelocity! > 500) {
-                        _minimize();
-                      } else {
-                        _resetDrag();
-                      }
-                    },
-                    child: WorkoutSessionHeader(
-                      onShowRestTimer: () => _showRestTimer(context),
-                    ),
-                  ),
-
-                  // Main content
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        _buildMainContent(state, theme),
-                        
-                        // Error banner overlay
-                        if (state.error != null)
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: _buildErrorBanner(theme, state.error!),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              // Bottom Controls
-              if (state.hasActiveSession)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: _inputState.isActive ? 0 : 1,
-                    child: WorkoutSessionControls(
-                      isRecording: _voiceLogService.isListening,
-                      onVoicePressed: () => _onVoiceInput(context),
-                      onFinishPressed: () => _onFinishWorkout(context),
-                      onCancelPressed: () => _onCancelWorkout(context),
-                    ),
+    final bodyWidget = ValueListenableBuilder<double>(
+      valueListenable: _dragOffset,
+      builder: (context, offset, child) {
+        return Transform.translate(
+          offset: Offset(0, offset),
+          child: child,
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                const SizedBox(height: 12),
+                // Header with Drag Gesture
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: (details) {
+                    if (details.delta.dy > 0 || _dragOffset.value > 0) {
+                      _dragOffset.value += details.delta.dy;
+                    }
+                  },
+                  onVerticalDragEnd: (details) {
+                    if (_dragOffset.value > 120 || details.primaryVelocity! > 500) {
+                      _minimize();
+                    } else {
+                      _resetDrag();
+                    }
+                  },
+                  child: WorkoutSessionHeader(
+                    onShowRestTimer: () => _showRestTimer(context),
+                    onMinimize: _minimize,
                   ),
                 ),
 
-              // Input overlay (keyboard/plate/RPE)
-              if (_inputState.isActive) _buildInputOverlay(theme),
-            ],
-          ),
+                // Main content
+                Expanded(
+                  child: Stack(
+                    children: [
+                      _buildMainContent(state, theme),
+                      
+                      // Error banner overlay
+                      if (state.error != null)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: _buildErrorBanner(theme, state.error!),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Bottom Controls
+            if (state.hasActiveSession)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _inputState.isActive ? 0 : 1,
+                  child: WorkoutSessionControls(
+                    isRecording: _voiceLogService.isListening,
+                    onVoicePressed: () => _onVoiceInput(context),
+                    onFinishPressed: () => _onFinishWorkout(context),
+                    onCancelPressed: () => _onCancelWorkout(context),
+                  ),
+                ),
+              ),
+
+            // Input overlay (keyboard/plate/RPE)
+            if (_inputState.isActive) _buildInputOverlay(theme),
+          ],
         ),
       ),
+    );
+
+    if (widget.isOverlay) {
+      return bodyWidget;
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: bodyWidget,
     );
   }
 
   void _minimize() {
     HapticFeedback.mediumImpact();
     _minimizeController.forward(from: _dragOffset.value / MediaQuery.of(context).size.height);
-    Navigator.of(context).pop(); // Minimal implementation for now
+    
+    // Set overlay state to mini so the mini-player shows up in the shells
+    ref.read(sessionOverlayProvider.notifier).showMini();
+    
+    if (widget.onMinimize != null) {
+      widget.onMinimize!();
+      return;
+    }
+    
+    // Delay navigation slightly to allow the slide-down animation to be visible
+    Timer(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        // Navigate to dashboard based on user role
+        final auth = ref.read(authProvider);
+        if (auth.isTrainer) {
+          context.go('/trainer/dashboard');
+        } else if (auth.isAdmin) {
+          context.go('/admin/dashboard');
+        } else {
+          context.go('/client/dashboard');
+        }
+      }
+    });
   }
 
   void _resetDrag() {
@@ -563,8 +605,13 @@ class _EnhancedActiveWorkoutScreenState
       final notifier = ref.read(activeWorkoutProvider.notifier);
       final finishedSession = await notifier.finishWorkout();
       if (finishedSession != null && mounted) {
+        ref.read(sessionOverlayProvider.notifier).hide();
         _voiceService.announceWorkoutComplete();
-        _navigateToSummary(context, finishedSession, currentLogs);
+        if (widget.onFinish != null) {
+          widget.onFinish!(finishedSession, currentLogs);
+        } else {
+          _navigateToSummary(context, finishedSession, currentLogs);
+        }
       }
     }
   }
@@ -596,7 +643,12 @@ class _EnhancedActiveWorkoutScreenState
     if (confirmed == true && mounted) {
       final notifier = ref.read(activeWorkoutProvider.notifier);
       await notifier.cancelWorkout();
-      if (mounted) Navigator.of(context).pop();
+      ref.read(sessionOverlayProvider.notifier).hide();
+      if (widget.onCancel != null) {
+        widget.onCancel!();
+      } else if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 

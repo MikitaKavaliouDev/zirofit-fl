@@ -1,34 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:zirofit_fl/data/models/event.dart';
 import 'package:zirofit_fl/features/events/providers/client_events_provider.dart';
 import 'package:zirofit_fl/features/events/providers/events_provider.dart';
 
-class ClientEventDetailScreen extends ConsumerWidget {
+class ClientEventDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
 
   const ClientEventDetailScreen({super.key, required this.eventId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClientEventDetailScreen> createState() =>
+      _ClientEventDetailScreenState();
+}
+
+class _ClientEventDetailScreenState
+    extends ConsumerState<ClientEventDetailScreen> {
+  Event? _fetchedEvent;
+  bool _isFetching = false;
+  bool _fetchFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final eventsState = ref.read(eventsProvider);
+    final exists = eventsState.events.any((e) => e.id == widget.eventId);
+    if (!exists) {
+      _isFetching = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _fetchEvent();
+      });
+    }
+  }
+
+  Future<void> _fetchEvent() async {
+    final event =
+        await ref.read(eventsProvider.notifier).fetchEventById(widget.eventId);
+    if (!mounted) return;
+    setState(() {
+      _isFetching = false;
+      if (event != null) {
+        _fetchedEvent = event;
+      } else {
+        _fetchFailed = true;
+      }
+    });
+  }
+
+  Event? _resolveEvent(EventsState eventsState) {
+    final fromList =
+        eventsState.events.where((e) => e.id == widget.eventId).firstOrNull;
+    if (fromList != null) return fromList;
+    return _fetchedEvent;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final eventsState = ref.watch(eventsProvider);
     final clientState = ref.watch(clientEventsProvider);
     final theme = Theme.of(context);
 
-    final event = eventsState.events.where((e) => e.id == eventId).firstOrNull;
+    final event = _resolveEvent(eventsState);
 
     if (event == null) {
+      // Loading state while fetching single event from API
+      if (_isFetching) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Event Details')),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
+      // Error state if fetch failed
+      if (_fetchFailed) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Event Details')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline,
+                    size: 48, color: theme.colorScheme.error),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to load event details.',
+                  style: theme.textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: _fetchEvent,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      // Not found (fallback)
       return Scaffold(
         appBar: AppBar(title: const Text('Event Details')),
         body: const Center(child: Text('Event not found')),
       );
     }
 
-    final isBooked = clientState.bookedEvents.any((e) => e.id == eventId);
+    final isBooked = clientState.bookedEvents.any((e) => e.id == widget.eventId);
     final isLoading = clientState.isLoading;
     final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
     final timeFormat = DateFormat('HH:mm');
     final spotsLeft = event.capacity - event.enrolledCount;
+    final capacityRatio = event.capacity > 0
+        ? event.enrolledCount / event.capacity
+        : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -39,6 +122,24 @@ class ClientEventDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Hero image
+            if (event.imageUrl != null && event.imageUrl!.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  event.imageUrl!,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 200,
+                    color: theme.colorScheme.surfaceVariant,
+                    child: const Center(child: Icon(Icons.broken_image)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Category badge
             if (event.category != null) ...[
               Container(
@@ -70,6 +171,16 @@ class ClientEventDetailScreen extends ConsumerWidget {
               Text(
                 event.description!,
                 style: theme.textTheme.bodyLarge,
+              ),
+            ],
+            // Trainer name
+            if (event.trainer != null) ...[
+              const SizedBox(height: 12),
+              _InfoRow(
+                icon: Icons.person,
+                text: event.trainer!.name ??
+                    event.trainer!.username ??
+                    'Unknown Trainer',
               ),
             ],
             const SizedBox(height: 24),
@@ -132,12 +243,39 @@ class ClientEventDetailScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             // Spots left
             Text(
-              spotsLeft > 0 ? '$spotsLeft spots remaining' : 'Event is full',
+              spotsLeft <= 0
+                  ? 'Event is full'
+                  : capacityRatio > 0.8
+                      ? 'Almost full - $spotsLeft spots remaining'
+                      : '$spotsLeft spots remaining',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: spotsLeft > 0 ? Colors.green : Colors.red,
+                color: spotsLeft <= 0
+                    ? Colors.red
+                    : capacityRatio > 0.8
+                        ? Colors.orange
+                        : Colors.green,
                 fontWeight: FontWeight.w600,
               ),
             ),
+            // Capacity progress bar
+            if (event.capacity > 0) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: capacityRatio.clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: theme.colorScheme.surfaceVariant,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    capacityRatio >= 0.8
+                        ? Colors.red
+                        : capacityRatio >= 0.6
+                            ? Colors.orange
+                            : Colors.green,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 32),
             // Error message
             if (clientState.error != null) ...[
@@ -163,7 +301,8 @@ class ClientEventDetailScreen extends ConsumerWidget {
                 width: double.infinity,
                 height: 48,
                 child: FilledButton.tonalIcon(
-                  onPressed: isLoading ? null : () => _cancelBooking(context, ref),
+                  onPressed:
+                      isLoading ? null : () => _cancelBooking(context, ref),
                   icon: isLoading
                       ? const SizedBox(
                           width: 20,
@@ -235,7 +374,7 @@ class ClientEventDetailScreen extends ConsumerWidget {
 
   Future<void> _joinEvent(BuildContext context, WidgetRef ref) async {
     final success =
-        await ref.read(clientEventsProvider.notifier).joinEvent(eventId);
+        await ref.read(clientEventsProvider.notifier).joinEvent(widget.eventId);
     if (context.mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -253,7 +392,7 @@ class ClientEventDetailScreen extends ConsumerWidget {
 
   Future<void> _cancelBooking(BuildContext context, WidgetRef ref) async {
     final notifier = ref.read(clientEventsProvider.notifier);
-    final bookingId = notifier.getBookingId(eventId);
+    final bookingId = notifier.getBookingId(widget.eventId);
 
     if (bookingId == null) {
       if (context.mounted) {

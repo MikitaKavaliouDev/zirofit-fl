@@ -389,10 +389,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // -- Complete Onboarding --
 
-  Future<void> completeOnboarding() async {
+  Future<void> completeOnboarding({String? role}) async {
     try {
       await _apiClient.post(ApiConstants.completeOnboarding);
-      state = state.copyWith(hasCompletedOnboarding: true);
+      state = state.copyWith(
+        hasCompletedOnboarding: true,
+        role: role ?? state.role,
+      );
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
       rethrow;

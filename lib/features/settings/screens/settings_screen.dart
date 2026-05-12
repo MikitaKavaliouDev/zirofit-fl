@@ -50,6 +50,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(settingsProvider);
+    final authState = ref.watch(authProvider);
+    final isTrainer = authState.isTrainer;
 
     return Scaffold(
       appBar: AppBar(
@@ -90,50 +92,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
 
                     // Check-in Defaults Section
-                    const _SectionHeader(
-                      icon: Icons.checklist,
-                      title: 'Check-in Defaults',
-                    ),
-                    const SizedBox(height: 12),
-                    _CheckInDayCard(
-                      day: state.defaultCheckInDay,
-                      isSaving: state.isSaving,
-                      onSaved: (day) {
-                        ref
-                            .read(settingsProvider.notifier)
-                            .saveCheckInDefaults(day, state.defaultCheckInHour);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _CheckInHourCard(
-                      hour: state.defaultCheckInHour,
-                      isSaving: state.isSaving,
-                      onSaved: (hour) {
-                        ref
-                            .read(settingsProvider.notifier)
-                            .saveCheckInDefaults(state.defaultCheckInDay, hour);
-                      },
-                    ),
-                    const SizedBox(height: 24),
+                    if (isTrainer) ...[
+                      const _SectionHeader(
+                        icon: Icons.checklist,
+                        title: 'Check-in Defaults',
+                      ),
+                      const SizedBox(height: 12),
+                      _CheckInDayCard(
+                        day: state.defaultCheckInDay,
+                        isSaving: state.isSaving,
+                        onSaved: (day) {
+                          ref
+                              .read(settingsProvider.notifier)
+                              .saveCheckInDefaults(day, state.defaultCheckInHour);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _CheckInHourCard(
+                        hour: state.defaultCheckInHour,
+                        isSaving: state.isSaving,
+                        onSaved: (hour) {
+                          ref
+                              .read(settingsProvider.notifier)
+                              .saveCheckInDefaults(state.defaultCheckInDay, hour);
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     // Assessment Templates Section
-                    const _SectionHeader(
-                      icon: Icons.assignment,
-                      title: 'Assessment Templates',
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.assignment_outlined),
-                        title: const Text('Manage Templates'),
-                        subtitle: const Text(
-                          'Create and manage assessment templates for clients',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/trainer/assessments'),
+                    if (isTrainer) ...[
+                      const _SectionHeader(
+                        icon: Icons.assignment,
+                        title: 'Assessment Templates',
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 12),
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.assignment_outlined),
+                          title: const Text('Manage Templates'),
+                          subtitle: const Text(
+                            'Create and manage assessment templates for clients',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.push('/trainer/assessments'),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     // Weight Unit Section
                     const _SectionHeader(
@@ -152,23 +158,134 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Data Sharing Section
+                    // Dashboard Prompts Section
                     const _SectionHeader(
-                      icon: Icons.share,
-                      title: 'Data & Privacy',
+                      icon: Icons.dashboard_outlined,
+                      title: 'Dashboard',
                     ),
                     const SizedBox(height: 12),
                     Card(
                       child: ListTile(
-                        leading: const Icon(Icons.sync_alt),
-                        title: const Text('Data Sharing'),
+                        leading: const Icon(Icons.toggle_on_outlined),
+                        title: const Text('Dashboard Prompts'),
                         subtitle: const Text(
-                          'Choose what data to share with your trainer',
+                          'Show or hide coach and check-in banners',
                         ),
                         trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/settings/data-sharing'),
+                        onTap: () =>
+                            context.push('/settings/dashboard-prompts'),
                       ),
                     ),
+                    const SizedBox(height: 24),
+
+                    // Privacy & Security Section
+                    const _SectionHeader(
+                      icon: Icons.shield_outlined,
+                      title: 'Privacy & Security',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.privacy_tip_outlined),
+                        title: const Text('Privacy & Security'),
+                        subtitle: const Text(
+                          'Data access, sharing duration, trainer connection, '
+                          'and account security',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () =>
+                            context.push('/settings/privacy-security'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.security_outlined),
+                        title: const Text('Permissions'),
+                        subtitle: const Text(
+                          'Manage camera, photos, and location access',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/permissions'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Experimental Features Section
+                    const _SectionHeader(
+                      icon: Icons.science_outlined,
+                      title: 'Experimental Features',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.science_outlined),
+                        title: const Text('Experimental Features'),
+                        subtitle: const Text(
+                          'Try upcoming features before they\'re released',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/experimental-features'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Profile Section
+                    const _SectionHeader(
+                      icon: Icons.person_outline,
+                      title: 'Profile',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.person),
+                        title: const Text('Profile Settings'),
+                        subtitle: const Text(
+                          'Edit your name, bio, photo, and more',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/profile'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // App Mode Section
+                    const _SectionHeader(
+                      icon: Icons.swap_horiz_rounded,
+                      title: 'App Mode',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.swap_horiz_rounded),
+                        title: const Text('Custom App Mode'),
+                        subtitle: const Text(
+                          'Enable manual Personal/Professional switching',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/custom-app-mode'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Billing Section
+                    const _SectionHeader(
+                      icon: Icons.account_balance,
+                      title: 'Billing',
+                    ),
+                    const SizedBox(height: 12),
+                    if (isTrainer)
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.payments_outlined),
+                          title: const Text('Payouts'),
+                          subtitle: const Text(
+                            'View payout history, manage your bank account',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.push('/trainer/settings/payouts'),
+                        ),
+                      ),
                     const SizedBox(height: 24),
 
                     // Account Section
@@ -183,6 +300,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         title: const Text('Change Password'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => context.push('/auth/update-password'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.card_membership_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: const Text('Subscription & Billing'),
+                        subtitle: const Text(
+                          'Manage your plan, billing, and invoices',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/subscription'),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -206,6 +338,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                         subtitle: const Text('Permanently remove your account and data'),
                         onTap: () => context.push('/delete-account'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Acknowledgements Section
+                    const _SectionHeader(
+                      icon: Icons.favorite,
+                      title: 'About',
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.auto_awesome),
+                        title: const Text('Acknowledgements'),
+                        subtitle: const Text(
+                          'Open source libraries and data attribution',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings/acknowledgements'),
                       ),
                     ),
                   ],

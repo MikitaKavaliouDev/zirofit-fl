@@ -125,19 +125,21 @@ class _EventListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final timeFormat = DateFormat('h:mm a');
+    final hostName = event.trainer?.name ?? event.hostName;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Time column
               SizedBox(
-                width: 60,
+                width: 55,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -158,54 +160,154 @@ class _EventListTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
+              // Event image
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 60,
+                  height: 60,
+                  child: event.imageUrl != null && event.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          event.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _eventPlaceholder(theme),
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return _eventPlaceholder(theme);
+                          },
+                        )
+                      : _eventPlaceholder(theme),
+                ),
+              ),
+              const SizedBox(width: 12),
               // Event details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title
                     Text(
                       event.title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (event.trainerId != null) ...[
+                    // Host name
+                    if (hostName != null && hostName.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Trainer ID: ${event.trainerId}',
+                        'by $hostName',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    // Price
+                    if (event.priceDisplay != null &&
+                        event.priceDisplay!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        event.priceDisplay!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ],
-                    if (event.category != null) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(4),
+                    // Location
+                    if (event.locationName != null &&
+                        event.locationName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              event.locationName!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 10,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    // Category tag + capacity
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (event.category != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              event.category!,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontSize: 9,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        const Spacer(),
+                        // Capacity indicator
+                        Icon(
+                          Icons.people_outline,
+                          size: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        child: Text(
-                          event.category!,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                        const SizedBox(width: 2),
+                        Text(
+                          '${event.enrolledCount}/${event.capacity}',
+                          style: theme.textTheme.labelSmall?.copyWith(
                             fontSize: 10,
-                            color: theme.colorScheme.onPrimaryContainer,
+                            color: event.isNearCapacity
+                                ? Colors.orange.shade700
+                                : theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ],
                 ),
               ),
+              const SizedBox(width: 4),
               // Chevron
               Icon(
                 Icons.chevron_right,
+                size: 18,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _eventPlaceholder(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Icon(
+        Icons.event,
+        size: 24,
+        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }

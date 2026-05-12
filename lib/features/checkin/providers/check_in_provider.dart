@@ -50,7 +50,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         super(const CheckInState());
 
   /// POST /api/client/check-in
-  /// Submits a weekly check-in with optional progress photo.
+  /// Submits a weekly check-in with optional progress photos (Front/Side/Back).
   Future<void> submitCheckIn({
     required DateTime date,
     required double weight,
@@ -62,7 +62,9 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     int? digestionLevel,
     String? nutritionCompliance,
     String? clientNotes,
-    XFile? photo,
+    XFile? frontPhoto,
+    XFile? sidePhoto,
+    XFile? backPhoto,
   }) async {
     state = state.copyWith(isSubmitting: true, clearError: true);
 
@@ -87,15 +89,31 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 
       CheckIn? created;
 
-      if (photo != null) {
-        // Multipart upload when a photo is attached
-        final formData = FormData.fromMap({
-          ...body,
-          'photo': await MultipartFile.fromFile(
-            photo.path,
-            filename: photo.name,
-          ),
-        });
+      if (frontPhoto != null || sidePhoto != null || backPhoto != null) {
+        // Multipart upload when one or more photos are attached
+        final map = <String, dynamic>{...body};
+        final f = frontPhoto;
+        final s = sidePhoto;
+        final b = backPhoto;
+        if (f != null) {
+          map['photo1'] = await MultipartFile.fromFile(
+            f.path,
+            filename: f.name,
+          );
+        }
+        if (s != null) {
+          map['photo2'] = await MultipartFile.fromFile(
+            s.path,
+            filename: s.name,
+          );
+        }
+        if (b != null) {
+          map['photo3'] = await MultipartFile.fromFile(
+            b.path,
+            filename: b.name,
+          );
+        }
+        final formData = FormData.fromMap(map);
         final dioResponse = await _api.dio.post(
           ApiConstants.clientCheckIn,
           data: formData,

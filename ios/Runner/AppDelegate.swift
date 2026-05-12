@@ -22,11 +22,3 @@ import UIKit
         channel.setMethodCallHandler(handler.handle)
     }
 }
-
-        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    }
-
-    func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-        GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    }
-}

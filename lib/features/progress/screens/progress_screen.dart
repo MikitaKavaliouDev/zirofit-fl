@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/progress/providers/analytics_provider.dart';
 
 import 'package:zirofit_fl/data/models/client_analytics.dart';
@@ -401,6 +402,8 @@ class _PersonalAnalyticsScreenState
       case AnalyticsWidgetType.prs:
         return PersonalRecordsList(
           prs: analytics?.recentPRs ?? [],
+          onTapExercise: (exerciseName) =>
+              context.push('/movement/$exerciseName'),
         );
 
       case AnalyticsWidgetType.heatMap:

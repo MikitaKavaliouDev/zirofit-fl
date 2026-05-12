@@ -9,18 +9,49 @@ import 'live_activity_data.dart';
 /// Communicates with the native iOS layer via MethodChannel to start, update,
 /// and end Live Activities using Apple's ActivityKit framework.
 ///
+/// ## Architecture
+/// ```
+/// Dart (this service)  →  MethodChannel  →  Swift LiveActivityManager  →  ActivityKit
+/// ```
+///
 /// ## Supported view modes
-/// - **Compact leading/trailing**: Shows exercise name + rest timer
-/// - **Expanded**: Shows full workout details (sets, elapsed time, rest)
-/// - **Minimal**: Pinpoint view in Dynamic Island
+/// - **Compact leading/trailing**: Exercise icon + timer or rest countdown
+/// - **Expanded**: Full workout details with weight/reps steppers + complete button
+/// - **Minimal**: Pinpoint view in crowded Dynamic Island
+/// - **Lock Screen / Banner**: Full-width workout status with controls
 ///
 /// ## Usage
 /// ```dart
 /// final liveActivity = LiveActivityService();
-/// await liveActivity.startWorkout(session);
-/// await liveActivity.updateExercise('Bench Press', setCount: 3);
-/// await liveActivity.updateRestTimer(45);
-/// await liveActivity.endWorkout();
+///
+/// // Start a new Live Activity
+/// await liveActivity.startActivity(
+///   LiveActivityData(
+///     clientName: 'Personal Workout',
+///     startTime: DateTime.now(),
+///     workoutMode: 'personal',
+///     currentExercise: 'Bench Press',
+///     currentExerciseIndex: 1,
+///     totalExercisesCount: 8,
+///     currentSetIndex: 1,
+///     totalSetsCount: 4,
+///     currentReps: 10,
+///     currentWeight: 80.0,
+///   ),
+/// );
+///
+/// // Update during workout
+/// await liveActivity.updateActivity(
+///   LiveActivityData(currentSetIndex: 2),
+/// );
+///
+/// // Start rest timer
+/// await liveActivity.updateActivity(
+///   LiveActivityData(isResting: true, restSeconds: 90, totalRestSeconds: 90),
+/// );
+///
+/// // End workout
+/// await liveActivity.endActivity(summary: '45 min · 12 sets · 4500 kg');
 /// ```
 class LiveActivityService {
   static const MethodChannel _channel = MethodChannel(
@@ -30,6 +61,8 @@ class LiveActivityService {
   static const LiveActivityService _instance = LiveActivityService._internal();
   factory LiveActivityService() => _instance;
   const LiveActivityService._internal();
+
+  // MARK: - Feature Support
 
   /// Whether Live Activities are supported on this device (iOS 16.1+).
   Future<bool> get isSupported async {
@@ -44,23 +77,21 @@ class LiveActivityService {
     }
   }
 
-  /// Starts a new Live Activity when a workout begins.
-  ///
-  /// Creates an ActivityKit activity on iOS that appears in the Dynamic Island
-  /// and on the Lock Screen. The activity shows:
-  /// - **Compact**: Current exercise name (trailing) and rest indicator (leading)
-  /// - **Expanded**: Full workout details
-  ///
-  /// If an activity is already active, it will be updated rather than replaced.
-  Future<bool> startWorkout(WorkoutSession session) async {
-    try {
-      final data = LiveActivityData(
-        activityId: session.id,
-        exerciseName: session.name ?? 'Workout',
-        elapsedSeconds:
-            DateTime.now().difference(session.startTime).inSeconds,
-      );
+  // MARK: - Start Activity
 
+  /// Starts a new Live Activity with the given [data].
+  ///
+  /// The [data] should include at minimum:
+  /// - `clientName`, `startTime`, `workoutMode` (static attributes)
+  /// - `currentExercise`, `currentExerciseIndex`, `totalExercisesCount`
+  /// - `currentSetIndex`, `totalSetsCount`
+  ///
+  /// If a Live Activity is already active, it will be updated instead of
+  /// replaced (native side handles this automatically).
+  ///
+  /// Returns `true` if the activity was successfully started/updated.
+  Future<bool> startActivity(LiveActivityData data) async {
+    try {
       final result = await _channel.invokeMethod<bool>(
         'startActivity',
         data.toJson(),
@@ -71,60 +102,51 @@ class LiveActivityService {
       debugPrint('[LiveActivity] Not supported on this platform');
       return false;
     } catch (e) {
-      debugPrint('[LiveActivity] startWorkout error: $e');
+      debugPrint('[LiveActivity] startActivity error: $e');
       return false;
     }
   }
 
-  /// Updates the Live Activity with the current exercise and set progress.
+  /// Convenience method: starts a Live Activity from a [WorkoutSession].
   ///
-  /// The Dynamic Island compact view shows the exercise name on the trailing
-  /// side. The expanded view shows exercise name, set count, and elapsed time.
-  Future<bool> updateExercise({
-    required String exerciseName,
-    int setCount = 0,
-    int totalSets = 0,
-  }) async {
-    try {
-      final result = await _channel.invokeMethod<bool>(
-        'updateActivity',
-        LiveActivityData(
-          exerciseName: exerciseName,
-          setCount: setCount,
-          totalSets: totalSets,
-        ).toJson(),
-      );
-      return result ?? false;
-    } on MissingPluginException {
-      return false;
-    } catch (e) {
-      debugPrint('[LiveActivity] updateExercise error: $e');
-      return false;
-    }
+  /// Maps the session's fields to the `LiveActivityData` model. If a more
+  /// detailed setup is needed (exercise index, sets, etc.), use
+  /// [startActivity] directly with a fully populated `LiveActivityData`.
+  Future<bool> startWorkout(WorkoutSession session) async {
+    final data = LiveActivityData(
+      clientName: session.name ?? 'Workout',
+      startTime: session.startTime,
+      workoutMode: session.isTrainerLed ? 'trainer' : 'personal',
+      workoutStartDate: session.startTime,
+      currentExercise: session.name ?? 'Workout',
+      currentExerciseIndex: 1,
+      totalExercisesCount: 1,
+      currentSetIndex: 1,
+      totalSetsCount: 1,
+    );
+    return startActivity(data);
   }
 
-  /// Updates the Live Activity with the current rest timer countdown.
+  // MARK: - Update Activity
+
+  /// Updates the current Live Activity with new [data].
   ///
-  /// The Dynamic Island shows the remaining rest time in the compact view.
-  /// When rest reaches 0, the activity returns to showing just the exercise.
-  Future<bool> updateRestTimer(int secondsRemaining) async {
-    try {
-      final result = await _channel.invokeMethod<bool>(
-        'updateActivity',
-        LiveActivityData(
-          restSeconds: secondsRemaining,
-        ).toJson(),
-      );
-      return result ?? false;
-    } on MissingPluginException {
-      return false;
-    } catch (e) {
-      debugPrint('[LiveActivity] updateRestTimer error: $e');
-      return false;
-    }
-  }
-
-  /// Updates both exercise info and rest timer in one call.
+  /// Only the fields present in [data] will be sent to the native side.
+  /// Fields with null values are omitted, so partial updates are natural:
+  ///
+  /// ```dart
+  /// // Update just the set index
+  /// await liveActivity.updateActivity(
+  ///   LiveActivityData(currentSetIndex: 3),
+  /// );
+  ///
+  /// // Update rest timer
+  /// await liveActivity.updateActivity(
+  ///   LiveActivityData(isResting: true, restSeconds: 90),
+  /// );
+  /// ```
+  ///
+  /// Returns `true` if the activity was successfully updated.
   Future<bool> updateActivity(LiveActivityData data) async {
     try {
       final result = await _channel.invokeMethod<bool>(
@@ -140,12 +162,82 @@ class LiveActivityService {
     }
   }
 
-  /// Ends the Live Activity when the workout completes.
+  /// Convenience method: updates just the exercise info.
   ///
-  /// The Live Activity will be removed from the Dynamic Island and Lock Screen.
-  /// On iOS 16.2+, the activity can show a "completed" state briefly before
-  /// being dismissed.
-  Future<bool> endWorkout({String? summary}) async {
+  /// Shorthand for:
+  /// ```dart
+  /// updateActivity(LiveActivityData(
+  ///   currentExercise: exerciseName,
+  ///   currentSetIndex: setCount,
+  ///   totalSetsCount: totalSets,
+  /// ));
+  /// ```
+  Future<bool> updateExercise({
+    required String exerciseName,
+    int setCount = 0,
+    int totalSets = 0,
+    int exerciseIndex = 0,
+    int totalExercises = 0,
+    double reps = 0,
+    double weight = 0,
+  }) async {
+    return updateActivity(
+      LiveActivityData(
+        currentExercise: exerciseName,
+        currentSetIndex: setCount,
+        totalSetsCount: totalSets,
+        currentExerciseIndex: exerciseIndex,
+        totalExercisesCount: totalExercises,
+        currentReps: reps,
+        currentWeight: weight,
+      ),
+    );
+  }
+
+  /// Convenience method: updates just the rest timer.
+  ///
+  /// Sets [isResting] to `true` automatically when [secondsRemaining] > 0.
+  /// Pass [secondsRemaining] = 0 to clear the rest timer.
+  Future<bool> updateRestTimer(int secondsRemaining) async {
+    return updateActivity(
+      LiveActivityData(
+        isResting: secondsRemaining > 0,
+        restSeconds: secondsRemaining,
+        restFormattedTime: _formatTime(secondsRemaining),
+      ),
+    );
+  }
+
+  /// Sets the rest timer with full rest tracking info.
+  ///
+  /// Unlike [updateRestTimer], this also sets [totalRestSeconds] for the
+  /// progress bar display and [nextExerciseName] to show what's coming next.
+  Future<bool> setRestTimer({
+    required int secondsRemaining,
+    int totalSeconds = 0,
+    String? nextExerciseName,
+  }) async {
+    return updateActivity(
+      LiveActivityData(
+        isResting: secondsRemaining > 0,
+        restSeconds: secondsRemaining,
+        totalRestSeconds: totalSeconds > 0 ? totalSeconds : secondsRemaining,
+        restFormattedTime: _formatTime(secondsRemaining),
+        nextExerciseName: nextExerciseName,
+      ),
+    );
+  }
+
+  // MARK: - End Activity
+
+  /// Ends the Live Activity for the workout.
+  ///
+  /// The activity will be removed from the Dynamic Island and Lock Screen.
+  /// On iOS 16.2+, a brief dismissal animation is shown.
+  ///
+  /// An optional [summary] string can be provided to show a brief message
+  /// before the activity is dismissed (e.g. "Workout Complete · 12 sets").
+  Future<bool> endActivity({String? summary}) async {
     try {
       final args = <String, dynamic>{};
       if (summary != null) {
@@ -161,34 +253,38 @@ class LiveActivityService {
     } on MissingPluginException {
       return false;
     } catch (e) {
-      debugPrint('[LiveActivity] endWorkout error: $e');
+      debugPrint('[LiveActivity] endActivity error: $e');
       return false;
     }
   }
 
-  /// Ends the Live Activity with the final workout summary data.
+  /// Convenience method: ends the Live Activity with workout summary data.
+  ///
+  /// Builds a summary string from the provided stats before dismissing.
   Future<bool> endWithSummary({
     required Duration duration,
     int totalSets = 0,
     double totalVolume = 0,
   }) async {
-    try {
-      final args = <String, dynamic>{
-        'summary':
-            '${duration.inMinutes} min · $totalSets sets · ${totalVolume.toStringAsFixed(0)} kg',
-      };
+    final parts = <String>[
+      '${duration.inMinutes} min',
+      if (totalSets > 0) '$totalSets sets',
+      if (totalVolume > 0) '${totalVolume.toStringAsFixed(0)} kg',
+    ];
 
-      final result = await _channel.invokeMethod<bool>(
-        'endActivity',
-        args,
-      );
-      debugPrint('[LiveActivity] Ended with summary: $result');
-      return result ?? false;
-    } on MissingPluginException {
-      return false;
-    } catch (e) {
-      debugPrint('[LiveActivity] endWithSummary error: $e');
-      return false;
-    }
+    return endActivity(summary: parts.join(' · '));
+  }
+
+  /// Alias for [endActivity] for backward compatibility.
+  Future<bool> endWorkout({String? summary}) => endActivity(summary: summary);
+
+  // MARK: - Private Helpers
+
+  /// Formats seconds as "MM:SS" for display.
+  String _formatTime(int totalSeconds) {
+    if (totalSeconds <= 0) return '00:00';
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }

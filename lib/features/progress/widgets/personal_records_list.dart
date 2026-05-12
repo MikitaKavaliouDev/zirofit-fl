@@ -7,8 +7,13 @@ import 'package:zirofit_fl/data/models/client_analytics.dart';
 /// Mirrors iOS Personal Records widget.
 class PersonalRecordsList extends StatelessWidget {
   final List<AnalyticsPersonalRecord> prs;
+  final ValueChanged<String>? onTapExercise;
 
-  const PersonalRecordsList({super.key, required this.prs});
+  const PersonalRecordsList({
+    super.key,
+    required this.prs,
+    this.onTapExercise,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,55 +37,61 @@ class PersonalRecordsList extends StatelessWidget {
 
         return Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            GestureDetector(
+              onTap: onTapExercise != null
+                  ? () => onTapExercise!(pr.exercise)
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pr.exercise,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            DateFormat.yMMMd().format(pr.date),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          pr.exercise,
+                          '${pr.value.toStringAsFixed(1)} kg',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            color: Colors.orange,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          DateFormat.yMMMd().format(pr.date),
+                          'PR',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: Colors.grey,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${pr.value.toStringAsFixed(1)} kg',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
-                      ),
-                      Text(
-                        'PR',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: Colors.grey.shade400,
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
+                ),
               ),
             ),
             if (!isLast) Divider(height: 1, color: Colors.grey.shade200),

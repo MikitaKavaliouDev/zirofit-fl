@@ -13,6 +13,8 @@ import 'package:zirofit_fl/features/auth/screens/forgot_password_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/auth_callback_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/login_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/register_screen.dart';
+import 'package:zirofit_fl/features/auth/screens/email_verification_screen.dart';
+import 'package:zirofit_fl/features/auth/screens/update_password_screen.dart';
 import 'package:zirofit_fl/features/calendar/screens/calendar_screen.dart';
 import 'package:zirofit_fl/features/checkin/screens/check_in_history_screen.dart';
 import 'package:zirofit_fl/features/checkin/screens/check_in_screen.dart';
@@ -26,10 +28,13 @@ import 'package:zirofit_fl/features/dashboard/screens/daily_target_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/trainer_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/client_shell.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/trainer_shell.dart';
+import 'package:zirofit_fl/features/onboarding/screens/educational_onboarding_screen.dart';
 import 'package:zirofit_fl/features/onboarding/screens/onboarding_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/create_program_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/create_template_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/program_detail_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/programs_list_screen.dart';
+import 'package:zirofit_fl/features/progress/screens/movement_detail_screen.dart';
 import 'package:zirofit_fl/features/progress/screens/progress_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/edit_profile_text_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/trainer_profile_screen.dart';
@@ -42,7 +47,16 @@ import 'package:zirofit_fl/features/trainer/screens/trainer_social_links_screen.
 import 'package:zirofit_fl/features/trainer/screens/custom_exercises_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/trainer_assessments_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/data_sharing_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/payouts_settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/permissions_settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/custom_app_mode_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/experimental_features_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/profile_settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/subscription_settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/privacy_security_settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/acknowledgements_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/dashboard_prompts_screen.dart';
 import 'package:zirofit_fl/features/events/screens/client_event_detail_screen.dart';
 import 'package:zirofit_fl/features/exercises/screens/exercise_list_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/enhanced_active_workout_screen.dart';
@@ -67,7 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isLoggedIn = authState.status == AuthStatus.authenticated;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
-      final isOnboarding = state.matchedLocation == '/onboarding';
+      final isOnboarding = state.matchedLocation.startsWith('/onboarding');
       final isUpdatePassword = state.matchedLocation == '/auth/update-password';
 
       // Not logged in → auth routes only
@@ -94,7 +108,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         // Allow shared routes and sub-routes of the expected prefix
         if (!location.startsWith(expectedPrefix) &&
             !location.startsWith('/auth') &&
-            location != '/onboarding' &&
+            !location.startsWith('/onboarding') &&
             location != '/exercises' &&
             location != '/ai-coach' &&
             !location.startsWith('/events/') &&
@@ -127,11 +141,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           queryParams: state.uri.queryParameters,
         ),
       ),
+      GoRoute(
+        path: '/auth/email-verification',
+        builder: (_, state) => EmailVerificationScreen(
+          email: state.extra as String,
+        ),
+      ),
+      GoRoute(
+        path: '/auth/update-password',
+        builder: (_, _) => const UpdatePasswordScreen(),
+      ),
 
       // -- Onboarding --
       GoRoute(
         path: '/onboarding',
         builder: (_, _) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/education',
+        builder: (_, state) => EducationalOnboardingScreen(
+          role: state.extra as String?,
+        ),
       ),
 
       // -- Exercise library (standalone, can be navigated from any role) --
@@ -152,10 +182,42 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const DeleteAccountScreen(),
       ),
 
-      // -- Data Sharing (standalone, accessible to clients from settings) --
+      // -- Settings sub-routes (standalone, accessible from any role) --
+      GoRoute(
+        path: '/settings/privacy-security',
+        builder: (_, _) => const PrivacySecuritySettingsScreen(),
+      ),
       GoRoute(
         path: '/settings/data-sharing',
         builder: (_, _) => const DataSharingScreen(),
+      ),
+      GoRoute(
+        path: '/settings/permissions',
+        builder: (_, _) => const PermissionsSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/profile',
+        builder: (_, _) => const ProfileSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/custom-app-mode',
+        builder: (_, _) => const CustomAppModeScreen(),
+      ),
+      GoRoute(
+        path: '/settings/subscription',
+        builder: (_, _) => const SubscriptionSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/experimental-features',
+        builder: (_, _) => const ExperimentalFeaturesScreen(),
+      ),
+      GoRoute(
+        path: '/settings/acknowledgements',
+        builder: (_, _) => const AcknowledgementsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/dashboard-prompts',
+        builder: (_, _) => const DashboardPromptsScreen(),
       ),
 
       // -- Admin routes --
@@ -232,6 +294,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'create',
                 builder: (_, _) => const CreateProgramScreen(),
+              ),
+              GoRoute(
+                path: 'create-template',
+                builder: (_, _) => const CreateTemplateScreen(),
               ),
               GoRoute(
                 path: ':id',
@@ -313,6 +379,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/trainer/settings',
             builder: (_, _) => const SettingsScreen(),
+            routes: [
+              GoRoute(
+                path: 'payouts',
+                builder: (_, _) => const PayoutsSettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),
@@ -364,6 +436,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const NotificationsScreen(),
           ),
           GoRoute(
+            path: '/client/settings',
+            builder: (_, _) => const SettingsScreen(),
+          ),
+          GoRoute(
             path: '/client/explore',
             builder: (_, _) => const ExploreScreen(),
           ),
@@ -396,7 +472,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // -- Deep link routes (top-level, auth handled by redirect above) --
+      // -- Deep link & shared routes (top-level, auth handled by redirect above) --
       GoRoute(
         path: '/events/:id',
         builder: (_, state) => ClientEventDetailScreen(
@@ -407,6 +483,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/workout/:id',
         builder: (_, state) => EnhancedActiveWorkoutScreen(
           templateId: state.pathParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: '/movement/:exerciseName',
+        builder: (_, state) => MovementDetailScreen(
+          exerciseName: state.pathParameters['exerciseName']!,
         ),
       ),
       GoRoute(
