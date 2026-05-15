@@ -82,6 +82,10 @@ class ApiConstants {
   static const String clients = '/clients';
   static const String exercises = '/exercises';
   static const String clientDashboard = '/client/dashboard';
+  static const String widgetConfig = '/client/widget-config';
+
+  // Client Daily Targets
+  static const String dailyTargets = '/client/daily-targets';
 
   // Client Analytics
   static const String clientAnalytics = '/client/analytics';
@@ -137,13 +141,28 @@ class ApiConstants {
   static const String trainerPrograms = '/trainer/programs';
   static const String trainerWorkoutTemplates = '/trainer/workout-templates';
   static const String clientPrograms = '/client/programs';
+  static const String clientProgramTemplates = '/client/programs/templates';
+  static String clientTemplateExercises(String tId) =>
+      '/client/programs/templates/$tId/exercises';
+  static String clientTemplateExerciseStep(String tId, String stepId) =>
+      '/client/programs/templates/$tId/exercises/$stepId';
+  static String clientTemplateRest(String tId) =>
+      '/client/programs/templates/$tId/rest';
+  static String clientTemplateCopy(String tId) =>
+      '/client/programs/templates/$tId/copy';
   static const String clientActiveProgram = '/client/program/active';
 
   // Nutrition / Recipes
   static const String trainerRecipes = '/trainer/recipes';
   static String trainerRecipe(String id) => '/trainer/recipes/$id';
+  static const String trainerProgramTemplates =
+      '/trainer/programs/templates';
   static String templateExercises(String tId) =>
       '/trainer/programs/templates/$tId/exercises';
+  static String templateExerciseStep(String tId, String stepId) =>
+      '/trainer/programs/templates/$tId/exercises/$stepId';
+  static String templateRest(String tId) =>
+      '/trainer/programs/templates/$tId/rest';
   static String templateCopy(String tId) =>
       '/trainer/programs/templates/$tId/copy';
   static String programAssign(String programId) =>
@@ -246,6 +265,9 @@ class ApiConstants {
   static const String domainAdd = '/domain/add';
   static const String domainVerify = '/domain/verify';
 
+  // Preferences
+  static const String userPreferences = '/users/preferences';
+
   // Client Data Sharing
   static const String clientSharing = '/client/sharing';
 
@@ -258,4 +280,8 @@ class ApiConstants {
 
   // Client Connect Requests
   static String clientConnectTrainer(String trainerId) => '/client/trainers/$trainerId/connect';
+
+  // Fitness Goals
+  static const String fitnessGoals = '/client/fitness-goals';
+  static String fitnessGoal(String id) => '/client/fitness-goals/$id';
 }

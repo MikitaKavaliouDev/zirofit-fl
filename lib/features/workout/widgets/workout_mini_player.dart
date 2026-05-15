@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
@@ -46,9 +43,6 @@ class WorkoutMiniPlayer extends ConsumerStatefulWidget {
 
 class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     with SingleTickerProviderStateMixin {
-  Timer? _elapsedTimer;
-  DateTime? _workoutStartTime;
-  int _elapsedSeconds = 0;
   double _dragAccumulator = 0;
   bool _isDragging = false;
 
@@ -61,39 +55,16 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _startElapsedTimer();
   }
 
   @override
   void dispose() {
-    _elapsedTimer?.cancel();
     _springController.dispose();
     super.dispose();
   }
 
-  void _startElapsedTimer() {
-    final session = ref.read(activeWorkoutProvider).session;
-    _syncStartTime(session);
-
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_workoutStartTime != null) {
-        setState(() {
-          _elapsedSeconds =
-              DateTime.now().difference(_workoutStartTime!).inSeconds;
-        });
-      }
-    });
-  }
-
-  void _syncStartTime(WorkoutSession? session) {
-    if (session != null && _workoutStartTime == null) {
-      _workoutStartTime = session.startTime;
-      _elapsedSeconds =
-          DateTime.now().difference(session.startTime).inSeconds;
-    }
-  }
-
-  String _formatElapsed(int totalSeconds) {
+  String _formatElapsed(Duration duration) {
+    final totalSeconds = duration.inSeconds;
     final hours = totalSeconds ~/ 3600;
     final minutes = (totalSeconds % 3600) ~/ 60;
     final seconds = totalSeconds % 60;
@@ -150,7 +121,7 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final workoutState = ref.watch(activeWorkoutProvider);
-    final timerState = ref.watch(workoutTimerProvider);
+    final timerData = ref.watch(workoutTimerProvider);
     final enhancementState = ref.watch(workoutEnhancementProvider);
 
     // Don't render if there's no active session
@@ -161,7 +132,7 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     final session = workoutState.session!;
     final restSeconds = workoutState.restSeconds;
     final isRestRunning = workoutState.isRestRunning;
-    final isPaused = timerState == WorkoutTimerState.paused;
+    final isPaused = timerData.isPaused;
 
     // Find the most recent exercise name
     final lastLog =
@@ -284,7 +255,7 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                _formatElapsed(_elapsedSeconds),
+                                _formatElapsed(timerData.elapsed),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   fontFeatures: [FontFeature.tabularFigures()],

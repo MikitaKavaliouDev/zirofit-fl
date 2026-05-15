@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:zirofit_fl/core/constants/api_constants.dart';
+import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart' show apiClientProvider;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -57,13 +61,49 @@ const _kCheckInBannerDismissed = 'checkInBannerDismissed';
 /// The raw stored value indicates whether a banner has been *dismissed*.
 /// UI consumers typically invert the value to display a "shown" state.
 class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
-  DashboardPromptsNotifier() : super(const DashboardPromptsState());
+  final ApiClient? _apiClient;
+
+  DashboardPromptsNotifier({ApiClient? apiClient})
+      : _apiClient = apiClient,
+        super(const DashboardPromptsState());
 
   /// Loads both persisted values from SharedPreferences.
   Future<void> loadPreferences() async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
+      // Try API first
+      if (_apiClient != null) {
+        try {
+          final response = await _apiClient!.get<Map<String, dynamic>>(
+            ApiConstants.userPreferences,
+          );
+          final data = response['data'] ?? response;
+          if (data is Map<String, dynamic>) {
+            state = DashboardPromptsState(
+              coachBannerDismissed:
+                  data['coach_banner_dismissed'] as bool? ?? false,
+              checkInBannerDismissed:
+                  data['check_in_banner_dismissed'] as bool? ?? false,
+              isLoading: false,
+            );
+
+            // Persist API response to SharedPrefs
+            final prefs = await SharedPreferences.getInstance();
+            await Future.wait([
+              prefs.setBool(
+                  _kCoachBannerDismissed, state.coachBannerDismissed),
+              prefs.setBool(
+                  _kCheckInBannerDismissed, state.checkInBannerDismissed),
+            ]);
+            return;
+          }
+        } catch (_) {
+          // API failed, fall through to SharedPrefs
+        }
+      }
+
+      // Fallback: existing SharedPrefs loading code
       final prefs = await SharedPreferences.getInstance();
 
       state = DashboardPromptsState(
@@ -88,6 +128,15 @@ class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'coach_banner_dismissed': dismissed},
+        );
+      } catch (_) {}
+    }
   }
 
   /// Sets whether the "Weekly Check-in" banner is dismissed.
@@ -100,6 +149,15 @@ class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
       await prefs.setBool(_kCheckInBannerDismissed, dismissed);
     } catch (e) {
       state = state.copyWith(error: e.toString());
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'check_in_banner_dismissed': dismissed},
+        );
+      } catch (_) {}
     }
   }
 
@@ -122,5 +180,6 @@ class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
 
 final dashboardPromptsProvider = StateNotifierProvider<
     DashboardPromptsNotifier, DashboardPromptsState>((ref) {
-  return DashboardPromptsNotifier();
+  final apiClient = ref.watch(apiClientProvider);
+  return DashboardPromptsNotifier(apiClient: apiClient);
 });

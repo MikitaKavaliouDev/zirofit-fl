@@ -680,61 +680,10 @@ void main() {
     test('initial state has empty programs, templates, no active program', () {
       final state = notifier.state;
       expect(state.programs, isEmpty);
-      expect(state.templates, isEmpty);
-      expect(state.activeProgram, isNull);
+      expect(state.library?.personalTemplates ?? [], isEmpty);
+      expect(state.activeProgramResponse?.program, isNull);
       expect(state.isLoading, false);
       expect(state.error, isNull);
-    });
-
-    // -----------------------------------------------------------------
-    // fetchTemplates
-    // -----------------------------------------------------------------
-
-    test('fetchTemplates transitions loading → populated templates', () async {
-      // Arrange
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.trainerWorkoutTemplates,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{
-            'data': [
-              _templateJson(id: 'tmpl-1', name: 'Full Body', order: 1),
-              _templateJson(id: 'tmpl-2', name: 'Upper Body', order: 2),
-              _templateJson(id: 'tmpl-3', name: 'Lower Body', order: 3),
-            ],
-          });
-
-      // Act
-      final future = notifier.fetchTemplates();
-
-      // Intermediate: loading
-      expect(notifier.state.isLoading, isTrue);
-
-      await future;
-
-      // Assert
-      final state = notifier.state;
-      expect(state.templates, hasLength(3));
-      expect(state.templates[0].id, 'tmpl-1');
-      expect(state.templates[0].name, 'Full Body');
-      expect(state.templates[0].programId, 'prog-1');
-      expect(state.templates[0].order, 1);
-      expect(state.templates[1].name, 'Upper Body');
-      expect(state.templates[2].name, 'Lower Body');
-      expect(state.isLoading, false);
-      expect(state.error, isNull);
-    });
-
-    test('fetchTemplates handles empty templates list', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.trainerWorkoutTemplates,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{'data': []});
-
-      await notifier.fetchTemplates();
-
-      expect(notifier.state.templates, isEmpty);
-      expect(notifier.state.isLoading, false);
-      expect(notifier.state.error, isNull);
     });
 
     // -----------------------------------------------------------------
@@ -806,9 +755,9 @@ void main() {
 
       // Assert
       final state = notifier.state;
-      expect(state.activeProgram, isNotNull);
-      expect(state.activeProgram!.id, 'prog-1');
-      expect(state.activeProgram!.name, 'Beginner Full Body');
+      expect(state.activeProgramResponse?.program, isNotNull);
+      expect(state.activeProgramResponse!.program.id, 'prog-1');
+      expect(state.activeProgramResponse!.program.name, 'Beginner Full Body');
       expect(state.isLoading, false);
       expect(state.error, isNull);
 
@@ -820,27 +769,12 @@ void main() {
     });
 
     // -----------------------------------------------------------------
-    // Full flow: fetch templates + programs → activate → verify
+    // Full flow: fetch programs → activate → verify
     // -----------------------------------------------------------------
 
-    test('full flow: fetchTemplates → fetchPrograms → setActiveProgram → '
+    test('full flow: fetchPrograms → setActiveProgram → '
         'routine appears in list', () async {
-      // Step 1: Fetch templates
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.trainerWorkoutTemplates,
-            queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => <String, dynamic>{
-            'data': [
-              _templateJson(id: 'tmpl-1', name: 'Full Body', order: 1),
-              _templateJson(id: 'tmpl-2', name: 'Upper Body', order: 2),
-            ],
-          });
-
-      await notifier.fetchTemplates();
-      expect(notifier.state.templates, hasLength(2));
-      expect(notifier.state.isLoading, false);
-
-      // Step 2: Fetch programs (initially empty)
+      // Step 1: Fetch programs (initially empty)
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.clientPrograms,
             queryParams: any(named: 'queryParams'),
@@ -849,7 +783,7 @@ void main() {
       await notifier.fetchPrograms();
       expect(notifier.state.programs, isEmpty);
 
-      // Step 3: Activate a program (save routine)
+      // Step 2: Activate a program (save routine)
       when(() => mockApiClient.put<Map<String, dynamic>>(
             ApiConstants.clientActiveProgram,
             body: any(named: 'body'),
@@ -858,10 +792,10 @@ void main() {
           });
 
       await notifier.setActiveProgram('prog-1');
-      expect(notifier.state.activeProgram, isNotNull);
-      expect(notifier.state.activeProgram!.id, 'prog-1');
+      expect(notifier.state.activeProgramResponse?.program, isNotNull);
+      expect(notifier.state.activeProgramResponse!.program.id, 'prog-1');
 
-      // Step 4: Fetch programs again — should include the saved one
+      // Step 3: Fetch programs again — should include the saved one
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.clientPrograms,
             queryParams: any(named: 'queryParams'),
@@ -905,28 +839,6 @@ void main() {
       expect(state.programs, isEmpty);
     });
 
-    test('fetchTemplates sets error on failure', () async {
-      when(() => mockApiClient.get<Map<String, dynamic>>(
-            ApiConstants.trainerWorkoutTemplates,
-            queryParams: any(named: 'queryParams'),
-          )).thenThrow(DioException(
-        requestOptions:
-            RequestOptions(path: ApiConstants.trainerWorkoutTemplates),
-        response: Response(
-          requestOptions:
-              RequestOptions(path: ApiConstants.trainerWorkoutTemplates),
-          statusCode: 500,
-          data: {'error': {'message': 'Template load failed'}},
-        ),
-        type: DioExceptionType.badResponse,
-      ));
-
-      await notifier.fetchTemplates();
-
-      expect(notifier.state.error, 'Template load failed');
-      expect(notifier.state.templates, isEmpty);
-    });
-
     test('setActiveProgram sets error on failure', () async {
       when(() => mockApiClient.put<Map<String, dynamic>>(
             ApiConstants.clientActiveProgram,
@@ -944,7 +856,7 @@ void main() {
       await notifier.setActiveProgram('prog-1');
 
       expect(notifier.state.error, 'Activation failed');
-      expect(notifier.state.activeProgram, isNull);
+      expect(notifier.state.activeProgramResponse?.program, isNull);
       expect(notifier.state.isLoading, false);
     });
 
@@ -956,7 +868,7 @@ void main() {
 
       await notifier.setActiveProgram('prog-1');
 
-      expect(notifier.state.activeProgram, isNull);
+      expect(notifier.state.activeProgramResponse?.program, isNull);
       expect(notifier.state.isLoading, false);
     });
 
@@ -973,7 +885,7 @@ void main() {
             'data': _programJson(),
           });
       await notifier.setActiveProgram('prog-1');
-      expect(notifier.state.activeProgram, isNotNull);
+      expect(notifier.state.activeProgramResponse?.program, isNotNull);
 
       // Then clear
       when(() => mockApiClient.put<Map<String, dynamic>>(
@@ -983,7 +895,7 @@ void main() {
 
       await notifier.clearActiveProgram();
 
-      expect(notifier.state.activeProgram, isNull);
+      expect(notifier.state.activeProgramResponse?.program, isNull);
       expect(notifier.state.isLoading, false);
     });
   });

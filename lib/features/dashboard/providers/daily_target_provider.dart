@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
+import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
 // ---------------------------------------------------------------------------
 // DailyTarget model
@@ -286,16 +289,27 @@ class DailyTargetState {
 // ---------------------------------------------------------------------------
 
 class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
-  DailyTargetNotifier() : super(const DailyTargetState());
+  final ApiClient? _apiClient;
+
+  DailyTargetNotifier({ApiClient? apiClient})
+      : _apiClient = apiClient,
+        super(const DailyTargetState());
 
   static const _storageKey = 'daily_targets';
   static const _challengeKey = 'daily_challenge';
 
-  /// Loads daily targets from SharedPreferences for a given [date].
+  /// Loads daily targets — tries API first, falls back to SharedPreferences.
   Future<void> loadTargets(DateTime date) async {
     state = state.copyWith(isLoading: true);
 
     try {
+      // --- Try API first ---------------------------------------------------
+      if (_apiClient != null) {
+        final loaded = await _tryLoadFromApi(date);
+        if (loaded) return;
+      }
+
+      // --- Fallback: load from SharedPreferences ---------------------------
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getString(_storageKey);
 
@@ -337,8 +351,77 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
     }
   }
 
+  /// Tries to load targets from the API.
+  /// Returns `true` if the API call succeeded and state was updated.
+  Future<bool> _tryLoadFromApi(DateTime date) async {
+    try {
+      final dateStr = date.toIso8601String().split('T')[0];
+      final response = await _apiClient!.get<Map<String, dynamic>>(
+        ApiConstants.dailyTargets,
+        queryParams: {'date': dateStr},
+      );
+
+      final List<dynamic>? rawTargets = response['targets'] as List<dynamic>?;
+      if (rawTargets == null) return false;
+
+      final apiTargets = rawTargets
+          .map((e) => DailyTarget.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      // Cache API data back to SharedPreferences as local fallback
+      final prefs = await SharedPreferences.getInstance();
+      final allTargets = await _loadAllTargets(prefs);
+      for (final t in apiTargets) {
+        final idx = allTargets.indexWhere((at) => at.id == t.id);
+        if (idx != -1) {
+          allTargets[idx] = t;
+        } else {
+          allTargets.add(t);
+        }
+      }
+      await _saveAllTargets(prefs, allTargets);
+
+      final streak = (response['streak'] as num?)?.toInt() ??
+          _calculateStreak(allTargets, date);
+
+      DailyChallenge? challenge;
+      if (response['challenge'] != null) {
+        try {
+          challenge = DailyChallenge.fromJson(
+            response['challenge'] as Map<String, dynamic>,
+          );
+        } catch (_) {
+          // Malformed challenge from API — ignore
+        }
+      }
+      challenge ??= await _loadChallenge(prefs);
+
+      state = state.copyWith(
+        targets: apiTargets..sort((a, b) => a.order.compareTo(b.order)),
+        isLoading: false,
+        streak: streak,
+        challenge: challenge,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Adds a new daily target.
   Future<void> addTarget(DailyTarget target) async {
+    // Best-effort API call
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.post(
+          ApiConstants.dailyTargets,
+          body: target.toJson(),
+        );
+      } catch (_) {
+        // API unavailable — proceed with local-only save
+      }
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final allTargets = await _loadAllTargets(prefs);
 
@@ -356,6 +439,18 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
 
   /// Updates the current progress value for a target by [id].
   Future<void> updateProgress(String id, double value) async {
+    // Best-effort API call
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          '${ApiConstants.dailyTargets}/$id',
+          body: {'current_value': value},
+        );
+      } catch (_) {
+        // API unavailable — proceed with local-only save
+      }
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final allTargets = await _loadAllTargets(prefs);
 
@@ -376,6 +471,18 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
 
   /// Toggles the completed state of a target by [id].
   Future<void> toggleCompleted(String id) async {
+    // Best-effort API call
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          '${ApiConstants.dailyTargets}/$id',
+          body: {'toggle_completed': true}, // server flips the completed state
+        );
+      } catch (_) {
+        // API unavailable — proceed with local-only save
+      }
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final allTargets = await _loadAllTargets(prefs);
 
@@ -397,6 +504,15 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
 
   /// Removes a target by [id].
   Future<void> removeTarget(String id) async {
+    // Best-effort API call
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.delete('${ApiConstants.dailyTargets}/$id');
+      } catch (_) {
+        // API unavailable — proceed with local-only remove
+      }
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final allTargets = await _loadAllTargets(prefs);
 
@@ -572,5 +688,6 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
 
 final dailyTargetProvider =
     StateNotifierProvider<DailyTargetNotifier, DailyTargetState>((ref) {
-  return DailyTargetNotifier();
+  final apiClient = ref.watch(apiClientProvider);
+  return DailyTargetNotifier(apiClient: apiClient);
 });

@@ -26,16 +26,14 @@ class FakeClientProgramsNotifier extends ClientProgramsNotifier {
   ClientProgramsState get state => _state;
 
   @override
-  Future<void> setActiveProgram(String programId) async {
+  Future<bool> setActiveProgram(String programId) async {
     setActiveProgramCalled = true;
     capturedProgramId = programId;
+    return true;
   }
 
   @override
   Future<void> fetchPrograms() async {}
-
-  @override
-  Future<void> fetchTemplates() async {}
 
   @override
   Future<void> clearActiveProgram() async {}

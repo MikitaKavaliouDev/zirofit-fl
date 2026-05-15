@@ -55,8 +55,8 @@ class FloatingControlsBar extends ConsumerWidget {
                     // Pause/Resume Button - Center
                     Consumer(
                       builder: (context, ref, child) {
-                        final timerState = ref.watch(workoutTimerProvider);
-                        final isPaused = timerState == WorkoutTimerState.paused;
+                        final timerData = ref.watch(workoutTimerProvider);
+                        final isPaused = timerData.isPaused;
                         
                         return GestureDetector(
                           onTap: () {

@@ -6337,6 +6337,1132 @@ class TrainerProfilesCompanion extends UpdateCompanion<TrainerProfile> {
   }
 }
 
+class $TemplateExercisesTable extends TemplateExercises
+    with TableInfo<$TemplateExercisesTable, TemplateExercise> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TemplateExercisesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _templateIdMeta = const VerificationMeta(
+    'templateId',
+  );
+  @override
+  late final GeneratedColumn<String> templateId = GeneratedColumn<String>(
+    'template_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exerciseIdMeta = const VerificationMeta(
+    'exerciseId',
+  );
+  @override
+  late final GeneratedColumn<String> exerciseId = GeneratedColumn<String>(
+    'exercise_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetRepsMeta = const VerificationMeta(
+    'targetReps',
+  );
+  @override
+  late final GeneratedColumn<String> targetReps = GeneratedColumn<String>(
+    'target_reps',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetRirMeta = const VerificationMeta(
+    'targetRir',
+  );
+  @override
+  late final GeneratedColumn<String> targetRir = GeneratedColumn<String>(
+    'target_rir',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tempoMeta = const VerificationMeta('tempo');
+  @override
+  late final GeneratedColumn<String> tempo = GeneratedColumn<String>(
+    'tempo',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _enableRpeMeta = const VerificationMeta(
+    'enableRpe',
+  );
+  @override
+  late final GeneratedColumn<int> enableRpe = GeneratedColumn<int>(
+    'enable_rpe',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _durationSecondsMeta = const VerificationMeta(
+    'durationSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> durationSeconds = GeneratedColumn<int>(
+    'duration_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _orderMeta = const VerificationMeta('order');
+  @override
+  late final GeneratedColumn<int> order = GeneratedColumn<int>(
+    'order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _supersetGroupIdMeta = const VerificationMeta(
+    'supersetGroupId',
+  );
+  @override
+  late final GeneratedColumn<String> supersetGroupId = GeneratedColumn<String>(
+    'superset_group_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supersetOrderMeta = const VerificationMeta(
+    'supersetOrder',
+  );
+  @override
+  late final GeneratedColumn<int> supersetOrder = GeneratedColumn<int>(
+    'superset_order',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetSetsMeta = const VerificationMeta(
+    'targetSets',
+  );
+  @override
+  late final GeneratedColumn<int> targetSets = GeneratedColumn<int>(
+    'target_sets',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetRestMeta = const VerificationMeta(
+    'targetRest',
+  );
+  @override
+  late final GeneratedColumn<int> targetRest = GeneratedColumn<int>(
+    'target_rest',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _exerciseCategoryMeta = const VerificationMeta(
+    'exerciseCategory',
+  );
+  @override
+  late final GeneratedColumn<String> exerciseCategory = GeneratedColumn<String>(
+    'exercise_category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<BigInt> createdAt = GeneratedColumn<BigInt>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<BigInt> updatedAt = GeneratedColumn<BigInt>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<BigInt> deletedAt = GeneratedColumn<BigInt>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.bigInt,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<int> syncStatus = GeneratedColumn<int>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    templateId,
+    type,
+    exerciseId,
+    targetReps,
+    targetRir,
+    tempo,
+    enableRpe,
+    durationSeconds,
+    notes,
+    order,
+    supersetGroupId,
+    supersetOrder,
+    targetSets,
+    targetRest,
+    exerciseCategory,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'template_exercises';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TemplateExercise> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('template_id')) {
+      context.handle(
+        _templateIdMeta,
+        templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_templateIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    }
+    if (data.containsKey('exercise_id')) {
+      context.handle(
+        _exerciseIdMeta,
+        exerciseId.isAcceptableOrUnknown(data['exercise_id']!, _exerciseIdMeta),
+      );
+    }
+    if (data.containsKey('target_reps')) {
+      context.handle(
+        _targetRepsMeta,
+        targetReps.isAcceptableOrUnknown(data['target_reps']!, _targetRepsMeta),
+      );
+    }
+    if (data.containsKey('target_rir')) {
+      context.handle(
+        _targetRirMeta,
+        targetRir.isAcceptableOrUnknown(data['target_rir']!, _targetRirMeta),
+      );
+    }
+    if (data.containsKey('tempo')) {
+      context.handle(
+        _tempoMeta,
+        tempo.isAcceptableOrUnknown(data['tempo']!, _tempoMeta),
+      );
+    }
+    if (data.containsKey('enable_rpe')) {
+      context.handle(
+        _enableRpeMeta,
+        enableRpe.isAcceptableOrUnknown(data['enable_rpe']!, _enableRpeMeta),
+      );
+    }
+    if (data.containsKey('duration_seconds')) {
+      context.handle(
+        _durationSecondsMeta,
+        durationSeconds.isAcceptableOrUnknown(
+          data['duration_seconds']!,
+          _durationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('order')) {
+      context.handle(
+        _orderMeta,
+        order.isAcceptableOrUnknown(data['order']!, _orderMeta),
+      );
+    }
+    if (data.containsKey('superset_group_id')) {
+      context.handle(
+        _supersetGroupIdMeta,
+        supersetGroupId.isAcceptableOrUnknown(
+          data['superset_group_id']!,
+          _supersetGroupIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('superset_order')) {
+      context.handle(
+        _supersetOrderMeta,
+        supersetOrder.isAcceptableOrUnknown(
+          data['superset_order']!,
+          _supersetOrderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('target_sets')) {
+      context.handle(
+        _targetSetsMeta,
+        targetSets.isAcceptableOrUnknown(data['target_sets']!, _targetSetsMeta),
+      );
+    }
+    if (data.containsKey('target_rest')) {
+      context.handle(
+        _targetRestMeta,
+        targetRest.isAcceptableOrUnknown(data['target_rest']!, _targetRestMeta),
+      );
+    }
+    if (data.containsKey('exercise_category')) {
+      context.handle(
+        _exerciseCategoryMeta,
+        exerciseCategory.isAcceptableOrUnknown(
+          data['exercise_category']!,
+          _exerciseCategoryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TemplateExercise map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TemplateExercise(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      templateId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}template_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      ),
+      exerciseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exercise_id'],
+      ),
+      targetReps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_reps'],
+      ),
+      targetRir: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_rir'],
+      ),
+      tempo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tempo'],
+      ),
+      enableRpe: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}enable_rpe'],
+      )!,
+      durationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_seconds'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      order: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}order'],
+      )!,
+      supersetGroupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}superset_group_id'],
+      ),
+      supersetOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}superset_order'],
+      ),
+      targetSets: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_sets'],
+      ),
+      targetRest: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_rest'],
+      ),
+      exerciseCategory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exercise_category'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.bigInt,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $TemplateExercisesTable createAlias(String alias) {
+    return $TemplateExercisesTable(attachedDatabase, alias);
+  }
+}
+
+class TemplateExercise extends DataClass
+    implements Insertable<TemplateExercise> {
+  final String id;
+  final String templateId;
+  final String? type;
+  final String? exerciseId;
+  final String? targetReps;
+  final String? targetRir;
+  final String? tempo;
+  final int enableRpe;
+  final int? durationSeconds;
+  final String? notes;
+  final int order;
+  final String? supersetGroupId;
+  final int? supersetOrder;
+  final int? targetSets;
+  final int? targetRest;
+  final String? exerciseCategory;
+  final BigInt createdAt;
+  final BigInt updatedAt;
+  final BigInt? deletedAt;
+  final int syncStatus;
+  const TemplateExercise({
+    required this.id,
+    required this.templateId,
+    this.type,
+    this.exerciseId,
+    this.targetReps,
+    this.targetRir,
+    this.tempo,
+    required this.enableRpe,
+    this.durationSeconds,
+    this.notes,
+    required this.order,
+    this.supersetGroupId,
+    this.supersetOrder,
+    this.targetSets,
+    this.targetRest,
+    this.exerciseCategory,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['template_id'] = Variable<String>(templateId);
+    if (!nullToAbsent || type != null) {
+      map['type'] = Variable<String>(type);
+    }
+    if (!nullToAbsent || exerciseId != null) {
+      map['exercise_id'] = Variable<String>(exerciseId);
+    }
+    if (!nullToAbsent || targetReps != null) {
+      map['target_reps'] = Variable<String>(targetReps);
+    }
+    if (!nullToAbsent || targetRir != null) {
+      map['target_rir'] = Variable<String>(targetRir);
+    }
+    if (!nullToAbsent || tempo != null) {
+      map['tempo'] = Variable<String>(tempo);
+    }
+    map['enable_rpe'] = Variable<int>(enableRpe);
+    if (!nullToAbsent || durationSeconds != null) {
+      map['duration_seconds'] = Variable<int>(durationSeconds);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['order'] = Variable<int>(order);
+    if (!nullToAbsent || supersetGroupId != null) {
+      map['superset_group_id'] = Variable<String>(supersetGroupId);
+    }
+    if (!nullToAbsent || supersetOrder != null) {
+      map['superset_order'] = Variable<int>(supersetOrder);
+    }
+    if (!nullToAbsent || targetSets != null) {
+      map['target_sets'] = Variable<int>(targetSets);
+    }
+    if (!nullToAbsent || targetRest != null) {
+      map['target_rest'] = Variable<int>(targetRest);
+    }
+    if (!nullToAbsent || exerciseCategory != null) {
+      map['exercise_category'] = Variable<String>(exerciseCategory);
+    }
+    map['created_at'] = Variable<BigInt>(createdAt);
+    map['updated_at'] = Variable<BigInt>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<BigInt>(deletedAt);
+    }
+    map['sync_status'] = Variable<int>(syncStatus);
+    return map;
+  }
+
+  TemplateExercisesCompanion toCompanion(bool nullToAbsent) {
+    return TemplateExercisesCompanion(
+      id: Value(id),
+      templateId: Value(templateId),
+      type: type == null && nullToAbsent ? const Value.absent() : Value(type),
+      exerciseId: exerciseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exerciseId),
+      targetReps: targetReps == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetReps),
+      targetRir: targetRir == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetRir),
+      tempo: tempo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tempo),
+      enableRpe: Value(enableRpe),
+      durationSeconds: durationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationSeconds),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      order: Value(order),
+      supersetGroupId: supersetGroupId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supersetGroupId),
+      supersetOrder: supersetOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supersetOrder),
+      targetSets: targetSets == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetSets),
+      targetRest: targetRest == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetRest),
+      exerciseCategory: exerciseCategory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exerciseCategory),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory TemplateExercise.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TemplateExercise(
+      id: serializer.fromJson<String>(json['id']),
+      templateId: serializer.fromJson<String>(json['templateId']),
+      type: serializer.fromJson<String?>(json['type']),
+      exerciseId: serializer.fromJson<String?>(json['exerciseId']),
+      targetReps: serializer.fromJson<String?>(json['targetReps']),
+      targetRir: serializer.fromJson<String?>(json['targetRir']),
+      tempo: serializer.fromJson<String?>(json['tempo']),
+      enableRpe: serializer.fromJson<int>(json['enableRpe']),
+      durationSeconds: serializer.fromJson<int?>(json['durationSeconds']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      order: serializer.fromJson<int>(json['order']),
+      supersetGroupId: serializer.fromJson<String?>(json['supersetGroupId']),
+      supersetOrder: serializer.fromJson<int?>(json['supersetOrder']),
+      targetSets: serializer.fromJson<int?>(json['targetSets']),
+      targetRest: serializer.fromJson<int?>(json['targetRest']),
+      exerciseCategory: serializer.fromJson<String?>(json['exerciseCategory']),
+      createdAt: serializer.fromJson<BigInt>(json['createdAt']),
+      updatedAt: serializer.fromJson<BigInt>(json['updatedAt']),
+      deletedAt: serializer.fromJson<BigInt?>(json['deletedAt']),
+      syncStatus: serializer.fromJson<int>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'templateId': serializer.toJson<String>(templateId),
+      'type': serializer.toJson<String?>(type),
+      'exerciseId': serializer.toJson<String?>(exerciseId),
+      'targetReps': serializer.toJson<String?>(targetReps),
+      'targetRir': serializer.toJson<String?>(targetRir),
+      'tempo': serializer.toJson<String?>(tempo),
+      'enableRpe': serializer.toJson<int>(enableRpe),
+      'durationSeconds': serializer.toJson<int?>(durationSeconds),
+      'notes': serializer.toJson<String?>(notes),
+      'order': serializer.toJson<int>(order),
+      'supersetGroupId': serializer.toJson<String?>(supersetGroupId),
+      'supersetOrder': serializer.toJson<int?>(supersetOrder),
+      'targetSets': serializer.toJson<int?>(targetSets),
+      'targetRest': serializer.toJson<int?>(targetRest),
+      'exerciseCategory': serializer.toJson<String?>(exerciseCategory),
+      'createdAt': serializer.toJson<BigInt>(createdAt),
+      'updatedAt': serializer.toJson<BigInt>(updatedAt),
+      'deletedAt': serializer.toJson<BigInt?>(deletedAt),
+      'syncStatus': serializer.toJson<int>(syncStatus),
+    };
+  }
+
+  TemplateExercise copyWith({
+    String? id,
+    String? templateId,
+    Value<String?> type = const Value.absent(),
+    Value<String?> exerciseId = const Value.absent(),
+    Value<String?> targetReps = const Value.absent(),
+    Value<String?> targetRir = const Value.absent(),
+    Value<String?> tempo = const Value.absent(),
+    int? enableRpe,
+    Value<int?> durationSeconds = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    int? order,
+    Value<String?> supersetGroupId = const Value.absent(),
+    Value<int?> supersetOrder = const Value.absent(),
+    Value<int?> targetSets = const Value.absent(),
+    Value<int?> targetRest = const Value.absent(),
+    Value<String?> exerciseCategory = const Value.absent(),
+    BigInt? createdAt,
+    BigInt? updatedAt,
+    Value<BigInt?> deletedAt = const Value.absent(),
+    int? syncStatus,
+  }) => TemplateExercise(
+    id: id ?? this.id,
+    templateId: templateId ?? this.templateId,
+    type: type.present ? type.value : this.type,
+    exerciseId: exerciseId.present ? exerciseId.value : this.exerciseId,
+    targetReps: targetReps.present ? targetReps.value : this.targetReps,
+    targetRir: targetRir.present ? targetRir.value : this.targetRir,
+    tempo: tempo.present ? tempo.value : this.tempo,
+    enableRpe: enableRpe ?? this.enableRpe,
+    durationSeconds: durationSeconds.present
+        ? durationSeconds.value
+        : this.durationSeconds,
+    notes: notes.present ? notes.value : this.notes,
+    order: order ?? this.order,
+    supersetGroupId: supersetGroupId.present
+        ? supersetGroupId.value
+        : this.supersetGroupId,
+    supersetOrder: supersetOrder.present
+        ? supersetOrder.value
+        : this.supersetOrder,
+    targetSets: targetSets.present ? targetSets.value : this.targetSets,
+    targetRest: targetRest.present ? targetRest.value : this.targetRest,
+    exerciseCategory: exerciseCategory.present
+        ? exerciseCategory.value
+        : this.exerciseCategory,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  TemplateExercise copyWithCompanion(TemplateExercisesCompanion data) {
+    return TemplateExercise(
+      id: data.id.present ? data.id.value : this.id,
+      templateId: data.templateId.present
+          ? data.templateId.value
+          : this.templateId,
+      type: data.type.present ? data.type.value : this.type,
+      exerciseId: data.exerciseId.present
+          ? data.exerciseId.value
+          : this.exerciseId,
+      targetReps: data.targetReps.present
+          ? data.targetReps.value
+          : this.targetReps,
+      targetRir: data.targetRir.present ? data.targetRir.value : this.targetRir,
+      tempo: data.tempo.present ? data.tempo.value : this.tempo,
+      enableRpe: data.enableRpe.present ? data.enableRpe.value : this.enableRpe,
+      durationSeconds: data.durationSeconds.present
+          ? data.durationSeconds.value
+          : this.durationSeconds,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      order: data.order.present ? data.order.value : this.order,
+      supersetGroupId: data.supersetGroupId.present
+          ? data.supersetGroupId.value
+          : this.supersetGroupId,
+      supersetOrder: data.supersetOrder.present
+          ? data.supersetOrder.value
+          : this.supersetOrder,
+      targetSets: data.targetSets.present
+          ? data.targetSets.value
+          : this.targetSets,
+      targetRest: data.targetRest.present
+          ? data.targetRest.value
+          : this.targetRest,
+      exerciseCategory: data.exerciseCategory.present
+          ? data.exerciseCategory.value
+          : this.exerciseCategory,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TemplateExercise(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('type: $type, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('targetReps: $targetReps, ')
+          ..write('targetRir: $targetRir, ')
+          ..write('tempo: $tempo, ')
+          ..write('enableRpe: $enableRpe, ')
+          ..write('durationSeconds: $durationSeconds, ')
+          ..write('notes: $notes, ')
+          ..write('order: $order, ')
+          ..write('supersetGroupId: $supersetGroupId, ')
+          ..write('supersetOrder: $supersetOrder, ')
+          ..write('targetSets: $targetSets, ')
+          ..write('targetRest: $targetRest, ')
+          ..write('exerciseCategory: $exerciseCategory, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    templateId,
+    type,
+    exerciseId,
+    targetReps,
+    targetRir,
+    tempo,
+    enableRpe,
+    durationSeconds,
+    notes,
+    order,
+    supersetGroupId,
+    supersetOrder,
+    targetSets,
+    targetRest,
+    exerciseCategory,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TemplateExercise &&
+          other.id == this.id &&
+          other.templateId == this.templateId &&
+          other.type == this.type &&
+          other.exerciseId == this.exerciseId &&
+          other.targetReps == this.targetReps &&
+          other.targetRir == this.targetRir &&
+          other.tempo == this.tempo &&
+          other.enableRpe == this.enableRpe &&
+          other.durationSeconds == this.durationSeconds &&
+          other.notes == this.notes &&
+          other.order == this.order &&
+          other.supersetGroupId == this.supersetGroupId &&
+          other.supersetOrder == this.supersetOrder &&
+          other.targetSets == this.targetSets &&
+          other.targetRest == this.targetRest &&
+          other.exerciseCategory == this.exerciseCategory &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class TemplateExercisesCompanion extends UpdateCompanion<TemplateExercise> {
+  final Value<String> id;
+  final Value<String> templateId;
+  final Value<String?> type;
+  final Value<String?> exerciseId;
+  final Value<String?> targetReps;
+  final Value<String?> targetRir;
+  final Value<String?> tempo;
+  final Value<int> enableRpe;
+  final Value<int?> durationSeconds;
+  final Value<String?> notes;
+  final Value<int> order;
+  final Value<String?> supersetGroupId;
+  final Value<int?> supersetOrder;
+  final Value<int?> targetSets;
+  final Value<int?> targetRest;
+  final Value<String?> exerciseCategory;
+  final Value<BigInt> createdAt;
+  final Value<BigInt> updatedAt;
+  final Value<BigInt?> deletedAt;
+  final Value<int> syncStatus;
+  final Value<int> rowid;
+  const TemplateExercisesCompanion({
+    this.id = const Value.absent(),
+    this.templateId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.exerciseId = const Value.absent(),
+    this.targetReps = const Value.absent(),
+    this.targetRir = const Value.absent(),
+    this.tempo = const Value.absent(),
+    this.enableRpe = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.order = const Value.absent(),
+    this.supersetGroupId = const Value.absent(),
+    this.supersetOrder = const Value.absent(),
+    this.targetSets = const Value.absent(),
+    this.targetRest = const Value.absent(),
+    this.exerciseCategory = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TemplateExercisesCompanion.insert({
+    required String id,
+    required String templateId,
+    this.type = const Value.absent(),
+    this.exerciseId = const Value.absent(),
+    this.targetReps = const Value.absent(),
+    this.targetRir = const Value.absent(),
+    this.tempo = const Value.absent(),
+    this.enableRpe = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.order = const Value.absent(),
+    this.supersetGroupId = const Value.absent(),
+    this.supersetOrder = const Value.absent(),
+    this.targetSets = const Value.absent(),
+    this.targetRest = const Value.absent(),
+    this.exerciseCategory = const Value.absent(),
+    required BigInt createdAt,
+    required BigInt updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       templateId = Value(templateId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<TemplateExercise> custom({
+    Expression<String>? id,
+    Expression<String>? templateId,
+    Expression<String>? type,
+    Expression<String>? exerciseId,
+    Expression<String>? targetReps,
+    Expression<String>? targetRir,
+    Expression<String>? tempo,
+    Expression<int>? enableRpe,
+    Expression<int>? durationSeconds,
+    Expression<String>? notes,
+    Expression<int>? order,
+    Expression<String>? supersetGroupId,
+    Expression<int>? supersetOrder,
+    Expression<int>? targetSets,
+    Expression<int>? targetRest,
+    Expression<String>? exerciseCategory,
+    Expression<BigInt>? createdAt,
+    Expression<BigInt>? updatedAt,
+    Expression<BigInt>? deletedAt,
+    Expression<int>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (templateId != null) 'template_id': templateId,
+      if (type != null) 'type': type,
+      if (exerciseId != null) 'exercise_id': exerciseId,
+      if (targetReps != null) 'target_reps': targetReps,
+      if (targetRir != null) 'target_rir': targetRir,
+      if (tempo != null) 'tempo': tempo,
+      if (enableRpe != null) 'enable_rpe': enableRpe,
+      if (durationSeconds != null) 'duration_seconds': durationSeconds,
+      if (notes != null) 'notes': notes,
+      if (order != null) 'order': order,
+      if (supersetGroupId != null) 'superset_group_id': supersetGroupId,
+      if (supersetOrder != null) 'superset_order': supersetOrder,
+      if (targetSets != null) 'target_sets': targetSets,
+      if (targetRest != null) 'target_rest': targetRest,
+      if (exerciseCategory != null) 'exercise_category': exerciseCategory,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TemplateExercisesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? templateId,
+    Value<String?>? type,
+    Value<String?>? exerciseId,
+    Value<String?>? targetReps,
+    Value<String?>? targetRir,
+    Value<String?>? tempo,
+    Value<int>? enableRpe,
+    Value<int?>? durationSeconds,
+    Value<String?>? notes,
+    Value<int>? order,
+    Value<String?>? supersetGroupId,
+    Value<int?>? supersetOrder,
+    Value<int?>? targetSets,
+    Value<int?>? targetRest,
+    Value<String?>? exerciseCategory,
+    Value<BigInt>? createdAt,
+    Value<BigInt>? updatedAt,
+    Value<BigInt?>? deletedAt,
+    Value<int>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return TemplateExercisesCompanion(
+      id: id ?? this.id,
+      templateId: templateId ?? this.templateId,
+      type: type ?? this.type,
+      exerciseId: exerciseId ?? this.exerciseId,
+      targetReps: targetReps ?? this.targetReps,
+      targetRir: targetRir ?? this.targetRir,
+      tempo: tempo ?? this.tempo,
+      enableRpe: enableRpe ?? this.enableRpe,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      notes: notes ?? this.notes,
+      order: order ?? this.order,
+      supersetGroupId: supersetGroupId ?? this.supersetGroupId,
+      supersetOrder: supersetOrder ?? this.supersetOrder,
+      targetSets: targetSets ?? this.targetSets,
+      targetRest: targetRest ?? this.targetRest,
+      exerciseCategory: exerciseCategory ?? this.exerciseCategory,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (templateId.present) {
+      map['template_id'] = Variable<String>(templateId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (exerciseId.present) {
+      map['exercise_id'] = Variable<String>(exerciseId.value);
+    }
+    if (targetReps.present) {
+      map['target_reps'] = Variable<String>(targetReps.value);
+    }
+    if (targetRir.present) {
+      map['target_rir'] = Variable<String>(targetRir.value);
+    }
+    if (tempo.present) {
+      map['tempo'] = Variable<String>(tempo.value);
+    }
+    if (enableRpe.present) {
+      map['enable_rpe'] = Variable<int>(enableRpe.value);
+    }
+    if (durationSeconds.present) {
+      map['duration_seconds'] = Variable<int>(durationSeconds.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (order.present) {
+      map['order'] = Variable<int>(order.value);
+    }
+    if (supersetGroupId.present) {
+      map['superset_group_id'] = Variable<String>(supersetGroupId.value);
+    }
+    if (supersetOrder.present) {
+      map['superset_order'] = Variable<int>(supersetOrder.value);
+    }
+    if (targetSets.present) {
+      map['target_sets'] = Variable<int>(targetSets.value);
+    }
+    if (targetRest.present) {
+      map['target_rest'] = Variable<int>(targetRest.value);
+    }
+    if (exerciseCategory.present) {
+      map['exercise_category'] = Variable<String>(exerciseCategory.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<BigInt>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<BigInt>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<BigInt>(deletedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<int>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TemplateExercisesCompanion(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('type: $type, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('targetReps: $targetReps, ')
+          ..write('targetRir: $targetRir, ')
+          ..write('tempo: $tempo, ')
+          ..write('enableRpe: $enableRpe, ')
+          ..write('durationSeconds: $durationSeconds, ')
+          ..write('notes: $notes, ')
+          ..write('order: $order, ')
+          ..write('supersetGroupId: $supersetGroupId, ')
+          ..write('supersetOrder: $supersetOrder, ')
+          ..write('targetSets: $targetSets, ')
+          ..write('targetRest: $targetRest, ')
+          ..write('exerciseCategory: $exerciseCategory, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $WorkoutSessionsTable extends WorkoutSessions
     with TableInfo<$WorkoutSessionsTable, WorkoutSession> {
   @override
@@ -16615,6 +17741,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TrainerProfilesTable trainerProfiles = $TrainerProfilesTable(
     this,
   );
+  late final $TemplateExercisesTable templateExercises =
+      $TemplateExercisesTable(this);
   late final $WorkoutSessionsTable workoutSessions = $WorkoutSessionsTable(
     this,
   );
@@ -16653,6 +17781,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     clients,
     profiles,
     trainerProfiles,
+    templateExercises,
     workoutSessions,
     exercises,
     workoutTemplates,
@@ -19398,6 +20527,524 @@ typedef $$TrainerProfilesTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $TrainerProfilesTable, TrainerProfile>,
       ),
       TrainerProfile,
+      PrefetchHooks Function()
+    >;
+typedef $$TemplateExercisesTableCreateCompanionBuilder =
+    TemplateExercisesCompanion Function({
+      required String id,
+      required String templateId,
+      Value<String?> type,
+      Value<String?> exerciseId,
+      Value<String?> targetReps,
+      Value<String?> targetRir,
+      Value<String?> tempo,
+      Value<int> enableRpe,
+      Value<int?> durationSeconds,
+      Value<String?> notes,
+      Value<int> order,
+      Value<String?> supersetGroupId,
+      Value<int?> supersetOrder,
+      Value<int?> targetSets,
+      Value<int?> targetRest,
+      Value<String?> exerciseCategory,
+      required BigInt createdAt,
+      required BigInt updatedAt,
+      Value<BigInt?> deletedAt,
+      Value<int> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$TemplateExercisesTableUpdateCompanionBuilder =
+    TemplateExercisesCompanion Function({
+      Value<String> id,
+      Value<String> templateId,
+      Value<String?> type,
+      Value<String?> exerciseId,
+      Value<String?> targetReps,
+      Value<String?> targetRir,
+      Value<String?> tempo,
+      Value<int> enableRpe,
+      Value<int?> durationSeconds,
+      Value<String?> notes,
+      Value<int> order,
+      Value<String?> supersetGroupId,
+      Value<int?> supersetOrder,
+      Value<int?> targetSets,
+      Value<int?> targetRest,
+      Value<String?> exerciseCategory,
+      Value<BigInt> createdAt,
+      Value<BigInt> updatedAt,
+      Value<BigInt?> deletedAt,
+      Value<int> syncStatus,
+      Value<int> rowid,
+    });
+
+class $$TemplateExercisesTableFilterComposer
+    extends Composer<_$AppDatabase, $TemplateExercisesTable> {
+  $$TemplateExercisesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get templateId => $composableBuilder(
+    column: $table.templateId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exerciseId => $composableBuilder(
+    column: $table.exerciseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetReps => $composableBuilder(
+    column: $table.targetReps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetRir => $composableBuilder(
+    column: $table.targetRir,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tempo => $composableBuilder(
+    column: $table.tempo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get enableRpe => $composableBuilder(
+    column: $table.enableRpe,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get order => $composableBuilder(
+    column: $table.order,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supersetGroupId => $composableBuilder(
+    column: $table.supersetGroupId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get supersetOrder => $composableBuilder(
+    column: $table.supersetOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetSets => $composableBuilder(
+    column: $table.targetSets,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetRest => $composableBuilder(
+    column: $table.targetRest,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exerciseCategory => $composableBuilder(
+    column: $table.exerciseCategory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<BigInt> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TemplateExercisesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TemplateExercisesTable> {
+  $$TemplateExercisesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get templateId => $composableBuilder(
+    column: $table.templateId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get exerciseId => $composableBuilder(
+    column: $table.exerciseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetReps => $composableBuilder(
+    column: $table.targetReps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetRir => $composableBuilder(
+    column: $table.targetRir,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tempo => $composableBuilder(
+    column: $table.tempo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get enableRpe => $composableBuilder(
+    column: $table.enableRpe,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get order => $composableBuilder(
+    column: $table.order,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supersetGroupId => $composableBuilder(
+    column: $table.supersetGroupId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get supersetOrder => $composableBuilder(
+    column: $table.supersetOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetSets => $composableBuilder(
+    column: $table.targetSets,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetRest => $composableBuilder(
+    column: $table.targetRest,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get exerciseCategory => $composableBuilder(
+    column: $table.exerciseCategory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<BigInt> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TemplateExercisesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TemplateExercisesTable> {
+  $$TemplateExercisesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get templateId => $composableBuilder(
+    column: $table.templateId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get exerciseId => $composableBuilder(
+    column: $table.exerciseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetReps => $composableBuilder(
+    column: $table.targetReps,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetRir =>
+      $composableBuilder(column: $table.targetRir, builder: (column) => column);
+
+  GeneratedColumn<String> get tempo =>
+      $composableBuilder(column: $table.tempo, builder: (column) => column);
+
+  GeneratedColumn<int> get enableRpe =>
+      $composableBuilder(column: $table.enableRpe, builder: (column) => column);
+
+  GeneratedColumn<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<int> get order =>
+      $composableBuilder(column: $table.order, builder: (column) => column);
+
+  GeneratedColumn<String> get supersetGroupId => $composableBuilder(
+    column: $table.supersetGroupId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get supersetOrder => $composableBuilder(
+    column: $table.supersetOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get targetSets => $composableBuilder(
+    column: $table.targetSets,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get targetRest => $composableBuilder(
+    column: $table.targetRest,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get exerciseCategory => $composableBuilder(
+    column: $table.exerciseCategory,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<BigInt> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<BigInt> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+}
+
+class $$TemplateExercisesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TemplateExercisesTable,
+          TemplateExercise,
+          $$TemplateExercisesTableFilterComposer,
+          $$TemplateExercisesTableOrderingComposer,
+          $$TemplateExercisesTableAnnotationComposer,
+          $$TemplateExercisesTableCreateCompanionBuilder,
+          $$TemplateExercisesTableUpdateCompanionBuilder,
+          (
+            TemplateExercise,
+            BaseReferences<
+              _$AppDatabase,
+              $TemplateExercisesTable,
+              TemplateExercise
+            >,
+          ),
+          TemplateExercise,
+          PrefetchHooks Function()
+        > {
+  $$TemplateExercisesTableTableManager(
+    _$AppDatabase db,
+    $TemplateExercisesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TemplateExercisesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TemplateExercisesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TemplateExercisesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> templateId = const Value.absent(),
+                Value<String?> type = const Value.absent(),
+                Value<String?> exerciseId = const Value.absent(),
+                Value<String?> targetReps = const Value.absent(),
+                Value<String?> targetRir = const Value.absent(),
+                Value<String?> tempo = const Value.absent(),
+                Value<int> enableRpe = const Value.absent(),
+                Value<int?> durationSeconds = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> order = const Value.absent(),
+                Value<String?> supersetGroupId = const Value.absent(),
+                Value<int?> supersetOrder = const Value.absent(),
+                Value<int?> targetSets = const Value.absent(),
+                Value<int?> targetRest = const Value.absent(),
+                Value<String?> exerciseCategory = const Value.absent(),
+                Value<BigInt> createdAt = const Value.absent(),
+                Value<BigInt> updatedAt = const Value.absent(),
+                Value<BigInt?> deletedAt = const Value.absent(),
+                Value<int> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TemplateExercisesCompanion(
+                id: id,
+                templateId: templateId,
+                type: type,
+                exerciseId: exerciseId,
+                targetReps: targetReps,
+                targetRir: targetRir,
+                tempo: tempo,
+                enableRpe: enableRpe,
+                durationSeconds: durationSeconds,
+                notes: notes,
+                order: order,
+                supersetGroupId: supersetGroupId,
+                supersetOrder: supersetOrder,
+                targetSets: targetSets,
+                targetRest: targetRest,
+                exerciseCategory: exerciseCategory,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String templateId,
+                Value<String?> type = const Value.absent(),
+                Value<String?> exerciseId = const Value.absent(),
+                Value<String?> targetReps = const Value.absent(),
+                Value<String?> targetRir = const Value.absent(),
+                Value<String?> tempo = const Value.absent(),
+                Value<int> enableRpe = const Value.absent(),
+                Value<int?> durationSeconds = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<int> order = const Value.absent(),
+                Value<String?> supersetGroupId = const Value.absent(),
+                Value<int?> supersetOrder = const Value.absent(),
+                Value<int?> targetSets = const Value.absent(),
+                Value<int?> targetRest = const Value.absent(),
+                Value<String?> exerciseCategory = const Value.absent(),
+                required BigInt createdAt,
+                required BigInt updatedAt,
+                Value<BigInt?> deletedAt = const Value.absent(),
+                Value<int> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TemplateExercisesCompanion.insert(
+                id: id,
+                templateId: templateId,
+                type: type,
+                exerciseId: exerciseId,
+                targetReps: targetReps,
+                targetRir: targetRir,
+                tempo: tempo,
+                enableRpe: enableRpe,
+                durationSeconds: durationSeconds,
+                notes: notes,
+                order: order,
+                supersetGroupId: supersetGroupId,
+                supersetOrder: supersetOrder,
+                targetSets: targetSets,
+                targetRest: targetRest,
+                exerciseCategory: exerciseCategory,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TemplateExercisesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TemplateExercisesTable,
+      TemplateExercise,
+      $$TemplateExercisesTableFilterComposer,
+      $$TemplateExercisesTableOrderingComposer,
+      $$TemplateExercisesTableAnnotationComposer,
+      $$TemplateExercisesTableCreateCompanionBuilder,
+      $$TemplateExercisesTableUpdateCompanionBuilder,
+      (
+        TemplateExercise,
+        BaseReferences<
+          _$AppDatabase,
+          $TemplateExercisesTable,
+          TemplateExercise
+        >,
+      ),
+      TemplateExercise,
       PrefetchHooks Function()
     >;
 typedef $$WorkoutSessionsTableCreateCompanionBuilder =
@@ -24318,6 +25965,8 @@ class $AppDatabaseManager {
       $$ProfilesTableTableManager(_db, _db.profiles);
   $$TrainerProfilesTableTableManager get trainerProfiles =>
       $$TrainerProfilesTableTableManager(_db, _db.trainerProfiles);
+  $$TemplateExercisesTableTableManager get templateExercises =>
+      $$TemplateExercisesTableTableManager(_db, _db.templateExercises);
   $$WorkoutSessionsTableTableManager get workoutSessions =>
       $$WorkoutSessionsTableTableManager(_db, _db.workoutSessions);
   $$ExercisesTableTableManager get exercises =>

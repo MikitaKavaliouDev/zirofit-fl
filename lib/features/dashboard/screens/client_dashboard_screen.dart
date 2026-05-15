@@ -14,8 +14,7 @@ import 'package:zirofit_fl/features/programs/screens/my_routines_screen.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_history_provider.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
-import 'package:zirofit_fl/data/models/workout_program.dart';
-import 'package:zirofit_fl/data/models/workout_template.dart';
+import 'package:zirofit_fl/data/models/active_program_response.dart';
 import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
 import 'package:zirofit_fl/features/clients/widgets/trainer_details_bottom_sheet.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/recent_workout_row.dart';
@@ -183,11 +182,15 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 2. Quick Weight Log
+              // 2. Quick Actions
+              _buildQuickActions(theme, data),
+              const SizedBox(height: 24),
+
+              // 3. Quick Weight Log
               const QuickWeightLogWidget(),
               const SizedBox(height: 16),
 
-              // 3. Coach Card / Find a Coach
+              // 4. Coach Card / Find a Coach
               if (data.trainerName != null) ...[
                 _buildCoachCard(theme, data.trainerName!),
                 const SizedBox(height: 16),
@@ -196,7 +199,7 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 4. Check-In Banner (enhanced)
+              // 5. Check-In Banner (enhanced)
               if (!_checkInBannerDismissed) ...[
                 if (data.checkInStatus.isCompleted)
                   _buildCheckInCompleteBanner(theme)
@@ -207,26 +210,21 @@ class _ClientDashboardScreenState
                 const SizedBox(height: 16),
               ],
 
-              // 5. Active Routine / Program
-              if (programsState.activeProgram != null) ...[
+              // 6. Active Routine / Program
+              if (programsState.activeProgramResponse != null) ...[
                 _buildActiveProgramCard(
                   theme,
-                  programsState.activeProgram!,
-                  programsState.templates,
+                  programsState.activeProgramResponse!,
                 ),
                 const SizedBox(height: 16),
               ],
 
-              // 6. Upcoming Sessions (horizontal scroll)
+              // 7. Upcoming Sessions (horizontal scroll)
               _buildUpcomingSessions(theme, data.upcomingSessions),
               const SizedBox(height: 24),
 
-              // 7. Daily Targets
+              // 8. Daily Targets
               _buildDailyTargets(theme, dailyTargetState),
-              const SizedBox(height: 24),
-
-              // 8. Quick Actions
-              _buildQuickActions(theme, data),
               const SizedBox(height: 24),
 
               // 9. Last Workout
@@ -622,9 +620,10 @@ class _ClientDashboardScreenState
 
   Widget _buildActiveProgramCard(
     ThemeData theme,
-    WorkoutProgram program,
-    List<WorkoutTemplate> templates,
+    ActiveProgramResponse activeResponse,
   ) {
+    final program = activeResponse.program;
+    final templates = activeResponse.templates;
     return Card(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -681,8 +680,8 @@ class _ClientDashboardScreenState
                   separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final template = templates[index];
-                    return _TemplateChip(
-                      template: template,
+                    return _ActiveTemplateChip(
+                      name: template.name,
                       onTap: () {
                         context.go('/client/workout');
                       },
@@ -1576,15 +1575,15 @@ class _UpcomingSessionCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Template Chip (small horizontal chip for active program)
+// Active program template chip
 // ---------------------------------------------------------------------------
 
-class _TemplateChip extends StatelessWidget {
-  final WorkoutTemplate template;
+class _ActiveTemplateChip extends StatelessWidget {
+  final String name;
   final VoidCallback onTap;
 
-  const _TemplateChip({
-    required this.template,
+  const _ActiveTemplateChip({
+    required this.name,
     required this.onTap,
   });
 
@@ -1612,7 +1611,7 @@ class _TemplateChip extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              template.name,
+              name,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

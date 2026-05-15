@@ -21,6 +21,8 @@ class WorkoutProgram {
     this.deletedAt,
   });
 
+
+
   factory WorkoutProgram.fromJson(Map<String, dynamic> json) => WorkoutProgram(
     id: json['id'] as String,
     name: json['name'] as String,

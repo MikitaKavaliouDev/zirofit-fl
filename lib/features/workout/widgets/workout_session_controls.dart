@@ -21,7 +21,7 @@ class WorkoutSessionControls extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activeWorkoutProvider);
-    final timerState = ref.watch(workoutTimerProvider);
+    final timerData = ref.watch(workoutTimerProvider);
     final theme = Theme.of(context);
 
     final bool isBlank = state.logs.isEmpty;
@@ -56,7 +56,7 @@ class WorkoutSessionControls extends ConsumerWidget {
               // Pause/Resume Button
               Expanded(
                 child: _WorkoutPauseResumeButton(
-                  isRunning: timerState == WorkoutTimerState.running,
+                  isRunning: timerData.isRunning,
                   onPressed: () {
                     HapticFeedback.mediumImpact();
                     ref.read(workoutTimerProvider.notifier).togglePause();

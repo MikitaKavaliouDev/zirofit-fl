@@ -16,8 +16,7 @@ class WorkoutSessionHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activeWorkoutProvider);
-    final timerState = ref.watch(workoutTimerProvider);
-    final timerNotifier = ref.watch(workoutTimerProvider.notifier);
+    final timerData = ref.watch(workoutTimerProvider);
     final theme = Theme.of(context);
 
     return Column(
@@ -107,8 +106,8 @@ class WorkoutSessionHeader extends ConsumerWidget {
               GestureDetector(
                 onTap: onShowRestTimer,
                 child: _WorkoutTimerDisplay(
-                  formattedTime: timerNotifier.formattedTime,
-                  isRunning: timerState == WorkoutTimerState.running,
+                  formattedTime: timerData.formattedTime,
+                  isRunning: timerData.isRunning,
                   isResting: state.isRestRunning,
                   restSeconds: state.restSeconds,
                 ),

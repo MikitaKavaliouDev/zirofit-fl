@@ -55,7 +55,12 @@ String? _computeRedirect(AuthState authState, String matchedLocation) {
         !matchedLocation.startsWith('/auth') &&
         matchedLocation != '/onboarding' &&
         matchedLocation != '/exercises' &&
-        matchedLocation != '/ai-coach') {
+        matchedLocation != '/ai-coach' &&
+        !matchedLocation.startsWith('/events/') &&
+        !matchedLocation.startsWith('/workout/') &&
+        !matchedLocation.startsWith('/public-trainer/') &&
+        !matchedLocation.startsWith('/settings/') &&
+        matchedLocation != '/client/trainer') {
       return _defaultRoute(authState.role);
     }
   }
@@ -578,6 +583,143 @@ void main() {
       final state = container.read(authProvider);
       expect(_computeRedirect(state, '/auth/login'), isNull);
     });
+
+    // -----------------------------------------------------------------------
+    // 10. New route redirect validation — trainer routes
+    // -----------------------------------------------------------------------
+
+    test(
+        'trainer on /trainer/notifications → no redirect (under /trainer/ prefix)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/trainer/notifications'), isNull);
+    });
+
+    test(
+        'trainer on /trainer/chat → no redirect (under /trainer/ prefix)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/trainer/chat'), isNull);
+    });
+
+    test(
+        'trainer on /trainer/chat/conv123 → no redirect (under /trainer/ prefix)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/trainer/chat/conv123'), isNull);
+    });
+
+    test(
+        'trainer on /trainer/recipes → no redirect (under /trainer/ prefix)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/trainer/recipes'), isNull);
+    });
+
+    test(
+        'trainer on /trainer/resources → no redirect (under /trainer/ prefix)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/trainer/resources'), isNull);
+    });
+
+    // -----------------------------------------------------------------------
+    // 11. Shared route /client/trainer — accessible by trainers and clients
+    // -----------------------------------------------------------------------
+
+    test(
+        'trainer on /client/trainer → no redirect (shared route)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/client/trainer'), isNull);
+    });
+
+    test(
+        'client on /client/trainer → no redirect (same prefix)',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'client',
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+      expect(_computeRedirect(state, '/client/trainer'), isNull);
+    });
+
+    // -----------------------------------------------------------------------
+    // 12. Unauthenticated user → redirected from all new protected routes
+    // -----------------------------------------------------------------------
+
+    test(
+        'unauthenticated user on new protected routes → redirects to /auth/login',
+        () {
+      final container = _createContainer(
+        status: AuthStatus.unauthenticated,
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(authProvider);
+
+      final newProtectedRoutes = [
+        '/chat',
+        '/chat/conv123',
+        '/notifications',
+        '/client/trainer',
+        '/trainer/notifications',
+        '/trainer/chat',
+        '/trainer/chat/conv123',
+        '/trainer/recipes',
+        '/trainer/recipes/create',
+        '/trainer/recipes/recipe123',
+        '/trainer/resources',
+        '/trainer/resources/create',
+      ];
+
+      for (final route in newProtectedRoutes) {
+        expect(
+          _computeRedirect(state, route),
+          '/auth/login',
+          reason: 'Unauthenticated user should be redirected from $route',
+        );
+      }
+    });
   });
 
   // ===========================================================================
@@ -602,6 +744,132 @@ void main() {
         addTearDown(container.dispose);
         expect(container.read(routerProvider), isA<GoRouter>());
       }
+    });
+  });
+
+  // ===========================================================================
+  // Missing route validation — routes that must be registered in GoRouter
+  // to avoid GoException when navigated via router.go()
+  // ===========================================================================
+
+  group('missing route validation', () {
+    /// Helper: verifies a route is registered in the GoRouter configuration.
+    /// Uses findMatch which returns match.isError == true when no route matches.
+    void assertRouteRegistered(GoRouter router, String path) {
+      final match = router.configuration.findMatch(Uri.parse(path));
+      expect(
+        match.isError,
+        isFalse,
+        reason:
+            'Route $path must be defined in GoRouter so that '
+            'router.go(\'$path\') does not throw a GoException',
+      );
+    }
+
+    test('/chat is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(container.read(routerProvider), '/chat');
+    });
+
+    test('/chat/conv123 is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(container.read(routerProvider), '/chat/conv123');
+    });
+
+    test('/notifications is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(container.read(routerProvider), '/notifications');
+    });
+
+    test('/client/trainer is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(container.read(routerProvider), '/client/trainer');
+    });
+
+    test('/trainer/recipes is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/recipes');
+    });
+
+    test('/trainer/recipes/create is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/recipes/create');
+    });
+
+    test('/trainer/recipes/recipe123 is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/recipes/recipe123');
+    });
+
+    test('/trainer/resources is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/resources');
+    });
+
+    test('/trainer/resources/create is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/resources/create');
+    });
+
+    test('/trainer/settings/payouts is defined (existing)', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/settings/payouts');
+    });
+
+    test('/trainer/assessments is defined (existing)', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'trainer',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/trainer/assessments');
     });
   });
 }

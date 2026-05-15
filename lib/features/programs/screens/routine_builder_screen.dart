@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
+import 'package:zirofit_fl/features/programs/providers/programs_provider.dart';
 import 'package:zirofit_fl/features/programs/widgets/template_picker_sheet.dart';
 
 /// Local model for a routine's workout slot.
@@ -53,6 +54,7 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
   final _scrollController = ScrollController();
 
   final List<RoutineSlot> _slots = [];
+  bool _isSaving = false;
 
   bool get _isEditing => widget.routine != null;
 
@@ -124,26 +126,70 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
 
     final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
 
-    // Build a result map that the caller can use
-    final result = <String, dynamic>{
-      'name': name,
-      if (description.isNotEmpty) 'description': description,
-      'slots': _slots
-          .map((s) => {
-                'templateId': s.template.id,
-                'templateName': s.template.name,
-                'label': _labelControllers[s.id]?.text ?? s.label,
-              })
-          .toList(),
-    };
+    try {
+      final String programId;
 
-    Navigator.of(context).pop(result);
+      if (_isEditing) {
+        // Edit mode: program already exists, add templates for new slots
+        programId = widget.routine!.id;
+      } else {
+        // Create mode: persist program first
+        final program = await ref.read(programsProvider.notifier).createProgram(
+              name,
+              description.isNotEmpty ? description : null,
+            );
+
+        if (program == null) {
+          final state = ref.read(programsProvider);
+          if (mounted) {
+            setState(() => _isSaving = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.error ?? 'Failed to create routine'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+          return;
+        }
+        programId = program.id;
+      }
+
+      // Create a template for each slot under the program
+      for (final slot in _slots) {
+        final label = _labelControllers[slot.id]?.text ?? slot.label;
+        await ref.read(programsProvider.notifier).createTemplate(
+              name: slot.template.name,
+              description: label,
+              programId: programId,
+            );
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Routine "$name" saved')),
+      );
+      setState(() => _isSaving = false);
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save routine: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -155,8 +201,14 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
         title: Text(_isEditing ? 'Edit Routine' : 'New Routine'),
         actions: [
           TextButton(
-            onPressed: _save,
-            child: const Text('Save'),
+            onPressed: _isSaving ? null : _save,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save'),
           ),
         ],
       ),

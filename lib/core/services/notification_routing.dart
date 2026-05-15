@@ -30,17 +30,25 @@ class NotificationRoutingService {
 
   /// Resolves a GoRouter location path from [notificationType] and optional [id].
   ///
+  /// When [role] is provided, role-specific route prefixes are used (e.g.
+  /// `/trainer/chat` for trainers, `/client/chat` for clients). Falls back to
+  /// the generic `/chat` when role is unknown.
+  ///
   /// Returns `null` when:
   /// - The notification type is unknown / unsupported.
   /// - A required identifier (e.g. event ID for `event_reminder`) is missing.
   static String? routeForNotificationType(
     String notificationType, {
     String? id,
+    String? role,
   }) {
     switch (notificationType) {
       case typeNewMessage:
-        if (id != null && id.isNotEmpty) return '/chat/$id';
-        return '/chat';
+        if (id != null && id.isNotEmpty) {
+          final prefix = _chatPrefix(role);
+          return '$prefix/$id';
+        }
+        return _chatPrefix(role);
 
       case typeCheckInReviewed:
         return '/client/check-in/history';
@@ -60,24 +68,38 @@ class NotificationRoutingService {
     }
   }
 
+  /// Returns the role-aware chat route prefix.
+  static String _chatPrefix(String? role) {
+    switch (role) {
+      case 'trainer':
+        return '/trainer/chat';
+      case 'client':
+        return '/client/chat';
+      default:
+        return '/chat';
+    }
+  }
+
   /// Navigates to the screen indicated by a push notification tap.
   ///
-  /// Extracts `notification_type` and `id` from the FCM [data] payload and
-  /// navigates via [router]. Falls back to `/notifications` when the type is
-  /// unknown or required data fields are missing.
+  /// Extracts `notification_type`, `id`, and `role` from the FCM [data] payload
+  /// and navigates via [router]. When [role] is present, role-specific routes
+  /// (e.g. `/trainer/chat`) are used. Falls back to `/notifications` when the
+  /// type is unknown or required data fields are missing.
   static void handleNotificationTap(
     Map<String, dynamic> data,
     GoRouter router,
   ) {
     final type = data['notification_type'] as String?;
     final id = data['id'] as String?;
+    final role = data['role'] as String?;
 
     if (type == null) {
       router.go('/notifications');
       return;
     }
 
-    final route = routeForNotificationType(type, id: id);
+    final route = routeForNotificationType(type, id: id, role: role);
     if (route != null) {
       router.go(route);
     } else {

@@ -1,6 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/features/dashboard/providers/daily_target_provider.dart';
+import '../../helpers/mock_api_client.dart';
 
 void main() {
   group('DailyTarget', () {
@@ -201,6 +205,85 @@ void main() {
       await notifier.loadTargets(DateTime.now());
 
       expect(notifier.state.targets, isEmpty);
+      expect(notifier.state.isLoading, false);
+    });
+  });
+
+  group('DailyTargetNotifier with API', () {
+    late DailyTargetNotifier notifier;
+    late MockApiClient mockApiClient;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      mockApiClient = MockApiClient();
+      notifier = DailyTargetNotifier(apiClient: mockApiClient);
+    });
+
+    test('loadTargets with apiClient calls GET /client/daily-targets', () async {
+      final today = DateTime.now();
+
+      final apiTarget = DailyTarget(
+        id: 'api-1',
+        title: 'API Steps',
+        type: 'steps',
+        targetValue: 10000,
+        currentValue: 5000,
+        unit: 'steps',
+        date: today,
+      );
+
+      mockApiClient.mockGet(
+        ApiConstants.dailyTargets,
+        response: {
+          'targets': [apiTarget.toJson()],
+          'streak': 3,
+        },
+      );
+
+      await notifier.loadTargets(today);
+
+      verify(
+        () => mockApiClient.get<Map<String, dynamic>>(
+          ApiConstants.dailyTargets,
+          queryParams: any(named: 'queryParams'),
+        ),
+      ).called(1);
+
+      expect(notifier.state.targets.length, 1);
+      expect(notifier.state.targets.first.id, 'api-1');
+      expect(notifier.state.targets.first.title, 'API Steps');
+      expect(notifier.state.streak, 3);
+      expect(notifier.state.isLoading, false);
+    });
+
+    test('loadTargets when API fails falls back to SharedPreferences', () async {
+      final today = DateTime.now();
+
+      // Add a target via the notifier (persists to SharedPrefs)
+      final localTarget = DailyTarget(
+        id: 'local-1',
+        title: 'Local Water',
+        type: 'water',
+        targetValue: 8,
+        unit: 'glasses',
+        date: today,
+      );
+      await notifier.addTarget(localTarget);
+      expect(notifier.state.targets.length, 1);
+
+      // Make the API call fail
+      mockApiClient.mockError(
+        ApiConstants.dailyTargets,
+        DioExceptionType.badResponse,
+        method: 'GET',
+      );
+
+      // Load — should fall back to SharedPrefs
+      await notifier.loadTargets(today);
+
+      expect(notifier.state.targets.length, 1);
+      expect(notifier.state.targets.first.id, 'local-1');
+      expect(notifier.state.targets.first.title, 'Local Water');
       expect(notifier.state.isLoading, false);
     });
   });

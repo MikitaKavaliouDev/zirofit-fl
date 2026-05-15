@@ -9,7 +9,10 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/enums/workout_session_status.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
-import 'package:zirofit_fl/data/models/workout_template.dart';
+import 'package:zirofit_fl/data/models/active_program_progress.dart';
+import 'package:zirofit_fl/data/models/active_program_response.dart';
+import 'package:zirofit_fl/data/models/active_program_template.dart';
+import 'package:zirofit_fl/data/models/enums/template_step_status.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/clients/providers/measurement_provider.dart';
 import 'package:zirofit_fl/features/dashboard/providers/client_dashboard_provider.dart';
@@ -168,22 +171,38 @@ AuthState get defaultAuth => const AuthState(
 
 ClientProgramsState get activeProgramState {
   final now = DateTime.now();
+  final program = WorkoutProgram(
+    id: 'prog-1',
+    name: 'Test Program',
+    createdAt: now,
+    updatedAt: now,
+  );
+
+  final progress = ActiveProgramProgress(
+    completedCount: 0,
+    totalCount: 1,
+    progressPercentage: 0,
+  );
+
+  final activeTemplate = ActiveProgramTemplate(
+    id: 't1',
+    name: 'Template 1',
+    programId: 'prog-1',
+    order: 0,
+    status: TemplateStepStatus.pending,
+    createdAt: now,
+    updatedAt: now,
+  );
+
+  final response = ActiveProgramResponse(
+    program: program,
+    progress: progress,
+    templates: [activeTemplate],
+  );
+
   return ClientProgramsState(
-    activeProgram: WorkoutProgram(
-      id: 'prog-1',
-      name: 'Test Program',
-      createdAt: now,
-      updatedAt: now,
-    ),
-    templates: [
-      WorkoutTemplate(
-        id: 't1',
-        name: 'Template 1',
-        programId: 'prog-1',
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ],
+    activeProgramResponse: response,
+    isLoading: false,
   );
 }
 

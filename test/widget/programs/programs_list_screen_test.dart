@@ -87,7 +87,7 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        buildApp(ProgramsState(programs: programs, isLoading: false)),
+        buildApp(ProgramsState(userPrograms: programs, isLoading: false)),
       );
       await tester.pumpAndSettle();
 
@@ -118,7 +118,7 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        buildApp(ProgramsState(programs: programs, isLoading: false)),
+        buildApp(ProgramsState(userPrograms: programs, isLoading: false)),
       );
       await tester.pumpAndSettle();
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/data/models/assigned_program.dart';
+import 'package:zirofit_fl/data/models/client_program_library_response.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
 import 'package:zirofit_fl/features/programs/screens/my_routines_screen.dart';
@@ -89,8 +91,20 @@ void main() {
         ),
       ];
 
+      final assignedPrograms = programs.map((p) => AssignedProgram(
+        assignmentId: p.id,
+        startDate: now,
+        isActive: true,
+        source: 'assigned',
+        program: p,
+      )).toList();
+
+      final library = ClientProgramLibraryResponse(
+        assignedPrograms: assignedPrograms,
+      );
+
       await tester.pumpWidget(
-        buildApp(ClientProgramsState(programs: programs, isLoading: false)),
+        buildApp(ClientProgramsState(library: library, isLoading: false)),
       );
       await tester.pumpAndSettle();
 
@@ -124,9 +138,21 @@ void main() {
         ),
       ];
 
+      final assignedPrograms = programs.map((p) => AssignedProgram(
+        assignmentId: p.id,
+        startDate: now,
+        isActive: true,
+        source: 'assigned',
+        program: p,
+      )).toList();
+
+      final library = ClientProgramLibraryResponse(
+        assignedPrograms: assignedPrograms,
+      );
+
       // Build inline to capture the notifier reference
       final notifier = FakeClientProgramsNotifier(
-        ClientProgramsState(programs: programs, isLoading: false),
+        ClientProgramsState(library: library, isLoading: false),
       );
 
       await tester.pumpWidget(

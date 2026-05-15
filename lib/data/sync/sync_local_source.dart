@@ -242,6 +242,7 @@ class SyncLocalSource {
       'client_measurements',
       'client_photos',
       'client_exercise_logs',
+      'template_exercises',
       'trainer_services',
       'trainer_packages',
       'trainer_testimonials',

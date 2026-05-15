@@ -163,7 +163,7 @@ class _ExerciseSelectionViewState
     final state = ref.read(exerciseListProvider);
     var exercises = state.exercises;
 
-    if (_selectedBodyPart != null) {
+    if (_selectedBodyPart != null && _selectedBodyPart!.isNotEmpty) {
       exercises = exercises
           .where((e) =>
               e.muscleGroup?.toLowerCase() == _selectedBodyPart!.toLowerCase())
@@ -349,11 +349,11 @@ class _ExerciseSelectionViewState
         children: [
           // -- Body part dropdown --
           _FilterChipDropdown<String>(
-            label: _selectedBodyPart ?? 'Body Part',
+            label: _selectedBodyPart == '' ? 'All Body Parts' : _selectedBodyPart ?? 'Body Part',
             isActive: _selectedBodyPart != null,
             items: [
               const PopupMenuItem(
-                value: null,
+                value: '',
                 child: Text('All Body Parts'),
               ),
               ...bodyParts.map(

@@ -1,6 +1,7 @@
 // Enums
 export 'enums/workout_session_status.dart';
 export 'enums/step_type.dart';
+export 'enums/template_step_status.dart';
 export 'enums/training_type.dart';
 export 'enums/booking_status.dart';
 export 'enums/weight_unit.dart';
@@ -34,6 +35,13 @@ export 'workout_program.dart';
 export 'workout_template.dart';
 export 'template_exercise.dart';
 export 'client_program_assignment.dart';
+export 'client_program_library_response.dart';
+export 'assigned_program.dart';
+export 'personal_program.dart';
+export 'personal_template.dart';
+export 'active_program_progress.dart';
+export 'active_program_template.dart';
+export 'active_program_response.dart';
 export 'personal_record.dart';
 export 'assessment.dart';
 export 'assessment_result.dart';

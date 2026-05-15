@@ -22,6 +22,7 @@ import 'tables/trainer_programs_table.dart';
 import 'tables/trainer_services_table.dart';
 import 'tables/trainer_testimonials_table.dart';
 import 'tables/users_table.dart';
+import 'tables/template_exercises_table.dart';
 import 'tables/workout_sessions_table.dart';
 import 'tables/workout_templates_table.dart';
 
@@ -36,6 +37,7 @@ part 'app_database.g.dart';
     Clients,
     Profiles,
     TrainerProfiles,
+    TemplateExercises,
     WorkoutSessions,
     Exercises,
     WorkoutTemplates,

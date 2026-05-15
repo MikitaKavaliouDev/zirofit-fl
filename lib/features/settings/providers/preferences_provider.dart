@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:zirofit_fl/core/constants/api_constants.dart';
+import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart' show apiClientProvider;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -116,7 +120,11 @@ const _kSharingDuration = 'pref_sharingDuration';
 // ---------------------------------------------------------------------------
 
 class PreferencesNotifier extends StateNotifier<PreferencesState> {
-  PreferencesNotifier() : super(const PreferencesState());
+  final ApiClient? _apiClient;
+
+  PreferencesNotifier({ApiClient? apiClient})
+      : _apiClient = apiClient,
+        super(const PreferencesState());
 
   // -- Load preferences from disk --
 
@@ -126,6 +134,85 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
+      // Try API first
+      if (_apiClient != null) {
+        try {
+          final response = await _apiClient!.get<Map<String, dynamic>>(
+            ApiConstants.userPreferences,
+          );
+          final data = response['data'] ?? response;
+          if (data is Map<String, dynamic>) {
+            state = PreferencesState(
+              themeMode: data['theme_mode'] as String? ?? 'system',
+              language: data['language'] as String? ?? 'en',
+              pushNotifications:
+                  data['push_notifications'] as bool? ?? true,
+              emailNotifications:
+                  data['email_notifications'] as bool? ?? true,
+              workoutReminders:
+                  data['workout_reminders'] as bool? ?? true,
+              bookingAlerts: data['booking_alerts'] as bool? ?? true,
+              showTrainerNotificationsInClientMode:
+                  data['show_trainer_notifications_in_client_mode']
+                          as bool? ??
+                      true,
+              showClientNotificationsInTrainerMode:
+                  data['show_client_notifications_in_trainer_mode']
+                          as bool? ??
+                      true,
+              isCustomModeEnabled:
+                  data['is_custom_mode_enabled'] as bool? ?? false,
+              isDailyTargetsEnabled:
+                  data['is_daily_targets_enabled'] as bool? ?? false,
+              isVoiceFeedbackEnabled:
+                  data['is_voice_feedback_enabled'] as bool? ?? false,
+              isRoutinesEnabled:
+                  data['is_routines_enabled'] as bool? ?? false,
+              syncToAppleCalendar:
+                  data['sync_to_apple_calendar'] as bool? ?? false,
+              sharingDuration:
+                  data['sharing_duration'] as String? ?? 'forever',
+              isLoading: false,
+            );
+
+            // Persist API response to SharedPrefs
+            final prefs = await SharedPreferences.getInstance();
+            await Future.wait([
+              prefs.setString(_kThemeMode, state.themeMode),
+              prefs.setString(_kLanguage, state.language),
+              prefs.setBool(_kPushNotifications, state.pushNotifications),
+              prefs.setBool(
+                  _kEmailNotifications, state.emailNotifications),
+              prefs.setBool(
+                  _kWorkoutReminders, state.workoutReminders),
+              prefs.setBool(_kBookingAlerts, state.bookingAlerts),
+              prefs.setBool(
+                  _kShowTrainerNotificationsInClientMode,
+                  state.showTrainerNotificationsInClientMode),
+              prefs.setBool(
+                  _kShowClientNotificationsInTrainerMode,
+                  state.showClientNotificationsInTrainerMode),
+              prefs.setBool(
+                  _kIsCustomModeEnabled, state.isCustomModeEnabled),
+              prefs.setBool(
+                  _kIsDailyTargetsEnabled, state.isDailyTargetsEnabled),
+              prefs.setBool(
+                  _kIsVoiceFeedbackEnabled, state.isVoiceFeedbackEnabled),
+              prefs.setBool(
+                  _kIsRoutinesEnabled, state.isRoutinesEnabled),
+              prefs.setBool(
+                  _kSyncToAppleCalendar, state.syncToAppleCalendar),
+              prefs.setString(
+                  _kSharingDuration, state.sharingDuration),
+            ]);
+            return;
+          }
+        } catch (_) {
+          // API failed, fall through to SharedPrefs
+        }
+      }
+
+      // Fallback: existing SharedPrefs loading code
       final prefs = await SharedPreferences.getInstance();
 
       state = PreferencesState(
@@ -177,6 +264,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'theme_mode': mode},
+        );
+      } catch (_) {}
+    }
   }
 
   // -- Language --
@@ -189,6 +285,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       await prefs.setString(_kLanguage, language);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'language': language},
+        );
+      } catch (_) {}
     }
   }
 
@@ -204,6 +309,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'push_notifications': enabled},
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> setEmailNotifications(bool enabled) async {
@@ -215,6 +329,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       await prefs.setBool(_kEmailNotifications, enabled);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'email_notifications': enabled},
+        );
+      } catch (_) {}
     }
   }
 
@@ -228,6 +351,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'workout_reminders': enabled},
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> setBookingAlerts(bool enabled) async {
@@ -238,6 +370,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       await prefs.setBool(_kBookingAlerts, enabled);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'booking_alerts': enabled},
+        );
+      } catch (_) {}
     }
   }
 
@@ -257,6 +398,17 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {
+            'show_trainer_notifications_in_client_mode': enabled,
+          },
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> setShowClientNotificationsInTrainerMode(
@@ -275,6 +427,17 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {
+            'show_client_notifications_in_trainer_mode': enabled,
+          },
+        );
+      } catch (_) {}
+    }
   }
 
   // -- Feature toggles --
@@ -289,6 +452,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'is_custom_mode_enabled': enabled},
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> setDailyTargetsEnabled(bool enabled) async {
@@ -300,6 +472,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       await prefs.setBool(_kIsDailyTargetsEnabled, enabled);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'is_daily_targets_enabled': enabled},
+        );
+      } catch (_) {}
     }
   }
 
@@ -313,6 +494,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'is_voice_feedback_enabled': enabled},
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> setRoutinesEnabled(bool enabled) async {
@@ -324,6 +514,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       await prefs.setBool(_kIsRoutinesEnabled, enabled);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'is_routines_enabled': enabled},
+        );
+      } catch (_) {}
     }
   }
 
@@ -339,6 +538,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
     }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'sync_to_apple_calendar': enabled},
+        );
+      } catch (_) {}
+    }
   }
 
   // -- Sharing duration --
@@ -352,6 +560,15 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       await prefs.setString(_kSharingDuration, duration);
     } catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
+    }
+
+    if (_apiClient != null) {
+      try {
+        await _apiClient!.put(
+          ApiConstants.userPreferences,
+          body: {'sharing_duration': duration},
+        );
+      } catch (_) {}
     }
   }
 
@@ -400,5 +617,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
 final preferencesProvider =
     StateNotifierProvider<PreferencesNotifier, PreferencesState>((ref) {
-  return PreferencesNotifier();
+  final apiClient = ref.watch(apiClientProvider);
+  return PreferencesNotifier(apiClient: apiClient);
 });

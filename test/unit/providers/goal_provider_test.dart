@@ -1,13 +1,17 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/data/models/fitness_goal.dart';
 import 'package:zirofit_fl/data/models/personal_record.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/progress/providers/goal_provider.dart';
 
+import '../../helpers/mock_api_client.dart';
 import '../../helpers/provider_utils.dart';
 
 /// Creates a [ProviderContainer] backed by a fresh SharedPreferences mock.
@@ -16,9 +20,13 @@ import '../../helpers/provider_utils.dart';
 /// the SharedPreferences singleton.
 Future<ProviderContainer> createIsolatedContainer({
   Map<String, Object> prefs = const {},
+  MockApiClient? apiClient,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
-  final container = createTestContainer();
+  final resolvedApiClient = apiClient ?? MockApiClient();
+  final container = createTestContainer(overrides: [
+    apiClientProvider.overrideWithValue(resolvedApiClient),
+  ]);
   // Trigger lazy provider creation so _loadGoals starts.
   container.read(goalsProvider);
   // Let the async _loadGoals complete.
@@ -185,9 +193,9 @@ void main() {
       ));
 
       await notifier.updateProgress(heatmapDates: [
-        '2026-05-01',
-        '2026-05-03',
-        '2026-05-05',
+        '2026-05-09',
+        '2026-05-11',
+        '2026-05-13',
       ]);
 
       final state = container.read(goalsProvider);
@@ -208,9 +216,9 @@ void main() {
       ));
 
       await notifier.updateProgress(volumeHistory: [
-        VolumePoint(date: DateTime(2026, 5, 1), volume: 3000),
-        VolumePoint(date: DateTime(2026, 5, 3), volume: 4000),
-        VolumePoint(date: DateTime(2026, 5, 5), volume: 2000),
+        VolumePoint(date: DateTime(2026, 5, 9), volume: 3000),
+        VolumePoint(date: DateTime(2026, 5, 11), volume: 4000),
+        VolumePoint(date: DateTime(2026, 5, 13), volume: 2000),
       ]);
 
       final state = container.read(goalsProvider);
@@ -292,9 +300,9 @@ void main() {
       ));
 
       await notifier.updateProgress(
-        heatmapDates: ['2026-05-01', '2026-05-02'],
+        heatmapDates: ['2026-05-09', '2026-05-10'],
         volumeHistory: [
-          VolumePoint(date: DateTime(2026, 5, 1), volume: 5000),
+          VolumePoint(date: DateTime(2026, 5, 9), volume: 5000),
         ],
         prs: [
           PersonalRecord(
@@ -469,6 +477,196 @@ void main() {
       expect(b.currentValue, 2.0);
       expect(b.id, a.id);
       expect(b.type, a.type);
+    });
+  });
+
+  group('API-first load', () {
+    test('loads goals from API on init when API succeeds', () async {
+      final apiClient = MockApiClient();
+      final goals = [
+        FitnessGoal(
+          id: 'api-1',
+          type: GoalType.sessions,
+          targetValue: 4,
+          startDate: DateTime(2026, 5, 1),
+        ),
+      ];
+      apiClient.mockGet(
+        ApiConstants.fitnessGoals,
+        response: {'data': [goals[0].toJson()]},
+      );
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, hasLength(1));
+      expect(state.goals[0].id, 'api-1');
+    });
+
+    test('loads goals from API and persists to SharedPreferences', () async {
+      final apiClient = MockApiClient();
+      final goals = [
+        FitnessGoal(
+          id: 'api-cached',
+          type: GoalType.sessions,
+          targetValue: 4,
+          startDate: DateTime(2026, 5, 1),
+        ),
+      ];
+      apiClient.mockGet(
+        ApiConstants.fitnessGoals,
+        response: {'data': [goals[0].toJson()]},
+      );
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+
+      // Verify goals are in state
+      final state = container.read(goalsProvider);
+      expect(state.goals, hasLength(1));
+
+      // Verify goals were also persisted to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('fitness_goals');
+      expect(saved, isNotNull);
+      final parsed = jsonDecode(saved!) as List;
+      expect(parsed, hasLength(1));
+      expect(parsed[0]['id'], 'api-cached');
+    });
+
+    test('falls back to SharedPreferences when API call fails', () async {
+      final apiClient = MockApiClient();
+      apiClient.mockError(
+        ApiConstants.fitnessGoals,
+        DioExceptionType.connectionError,
+        method: 'GET',
+      );
+
+      final goal = FitnessGoal(
+        id: 'local-1',
+        type: GoalType.sessions,
+        targetValue: 4,
+        startDate: DateTime(2026, 5, 1),
+      );
+      final container = await createIsolatedContainer(
+        prefs: {'fitness_goals': jsonEncode([goal.toJson()])},
+        apiClient: apiClient,
+      );
+      addTearDown(() => container.dispose());
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, hasLength(1));
+      expect(state.goals[0].id, 'local-1');
+    });
+
+    test('falls back to empty state when API fails and no SharedPrefs data',
+        () async {
+      final apiClient = MockApiClient();
+      apiClient.mockError(
+        ApiConstants.fitnessGoals,
+        DioExceptionType.connectionError,
+        method: 'GET',
+      );
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, isEmpty);
+    });
+  });
+
+  group('API-first mutations', () {
+    test('setGoal tries API and persists locally on API success', () async {
+      final apiClient = MockApiClient();
+      apiClient.mockPost(ApiConstants.fitnessGoals);
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+
+      await container.read(goalsProvider.notifier).setGoal(FitnessGoal(
+            id: 'goal-1',
+            type: GoalType.sessions,
+            targetValue: 4,
+            startDate: DateTime(2026, 5, 1),
+          ));
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, hasLength(1));
+      expect(state.goals[0].id, 'goal-1');
+
+      // Verify persisted locally
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('fitness_goals');
+      expect(saved, isNotNull);
+    });
+
+    test('setGoal persists locally when API call fails', () async {
+      final apiClient = MockApiClient();
+      apiClient.mockError(
+        ApiConstants.fitnessGoals,
+        DioExceptionType.connectionError,
+      );
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+
+      await container.read(goalsProvider.notifier).setGoal(FitnessGoal(
+            id: 'goal-1',
+            type: GoalType.sessions,
+            targetValue: 4,
+            startDate: DateTime(2026, 5, 1),
+          ));
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, hasLength(1));
+      expect(state.goals[0].id, 'goal-1');
+    });
+
+    test('removeGoal tries API and persists locally on API success',
+        () async {
+      final apiClient = MockApiClient();
+      apiClient.mockDelete(ApiConstants.fitnessGoal('goal-1'));
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+      final notifier = container.read(goalsProvider.notifier);
+
+      await notifier.setGoal(FitnessGoal(
+        id: 'goal-1',
+        type: GoalType.sessions,
+        targetValue: 4,
+        startDate: DateTime(2026, 5, 1),
+      ));
+      await notifier.removeGoal('goal-1');
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, isEmpty);
+    });
+
+    test('removeGoal persists locally when API call fails', () async {
+      final apiClient = MockApiClient();
+      apiClient.mockError(
+        ApiConstants.fitnessGoal('goal-1'),
+        DioExceptionType.connectionError,
+        method: 'DELETE',
+      );
+
+      final container = await createIsolatedContainer(apiClient: apiClient);
+      addTearDown(() => container.dispose());
+      final notifier = container.read(goalsProvider.notifier);
+
+      await notifier.setGoal(FitnessGoal(
+        id: 'goal-1',
+        type: GoalType.sessions,
+        targetValue: 4,
+        startDate: DateTime(2026, 5, 1),
+      ));
+      await notifier.removeGoal('goal-1');
+
+      final state = container.read(goalsProvider);
+      expect(state.goals, isEmpty);
     });
   });
 }

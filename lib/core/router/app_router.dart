@@ -26,6 +26,7 @@ import 'package:zirofit_fl/features/clients/screens/invite_client_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/client_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/daily_target_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/trainer_dashboard_screen.dart';
+import 'package:zirofit_fl/features/dashboard/screens/my_trainer_screen.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/client_shell.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/trainer_shell.dart';
 import 'package:zirofit_fl/features/onboarding/screens/educational_onboarding_screen.dart';
@@ -34,6 +35,12 @@ import 'package:zirofit_fl/features/programs/screens/create_program_screen.dart'
 import 'package:zirofit_fl/features/programs/screens/create_template_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/program_detail_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/programs_list_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/client_programs_list_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/client_create_program_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/client_create_template_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/client_active_program_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/client_program_detail_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/client_template_detail_screen.dart';
 import 'package:zirofit_fl/features/progress/screens/movement_detail_screen.dart';
 import 'package:zirofit_fl/features/progress/screens/progress_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/edit_profile_text_screen.dart';
@@ -64,6 +71,11 @@ import 'package:zirofit_fl/features/workout/screens/workout_history_screen.dart'
 import 'package:zirofit_fl/features/chat/screens/conversations_list_screen.dart';
 import 'package:zirofit_fl/features/chat/screens/chat_screen.dart';
 import 'package:zirofit_fl/features/notifications/screens/notifications_screen.dart';
+import 'package:zirofit_fl/features/nutrition/screens/recipes_list_screen.dart';
+import 'package:zirofit_fl/features/nutrition/screens/create_recipe_screen.dart';
+import 'package:zirofit_fl/features/nutrition/screens/recipe_detail_screen.dart';
+import 'package:zirofit_fl/features/resources/screens/resource_vault_screen.dart';
+import 'package:zirofit_fl/features/resources/screens/create_resource_screen.dart';
 import 'package:zirofit_fl/features/billing/screens/revenue_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/explore_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/trainer_discovery_screen.dart';
@@ -114,7 +126,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             !location.startsWith('/events/') &&
             !location.startsWith('/workout/') &&
             !location.startsWith('/public-trainer/') &&
-            !location.startsWith('/settings/')) {
+            !location.startsWith('/settings/') &&
+            !location.startsWith('/chat') &&
+            !location.startsWith('/notifications')) {
           return _getDefaultRoute(authState.role);
         }
       }
@@ -297,7 +311,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: 'create-template',
-                builder: (_, _) => const CreateTemplateScreen(),
+                builder: (_, state) => CreateTemplateScreen(
+                  programId: state.extra as String?,
+                ),
               ),
               GoRoute(
                 path: ':id',
@@ -377,6 +393,32 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const TrainerAssessmentsScreen(),
           ),
           GoRoute(
+            path: '/trainer/recipes',
+            builder: (_, _) => const RecipesListScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                builder: (_, _) => const CreateRecipeScreen(),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => RecipeDetailScreen(
+                  recipeId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/trainer/resources',
+            builder: (_, _) => const ResourceVaultScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                builder: (_, _) => const CreateResourceScreen(),
+              ),
+            ],
+          ),
+          GoRoute(
             path: '/trainer/settings',
             builder: (_, _) => const SettingsScreen(),
             routes: [
@@ -440,6 +482,38 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const SettingsScreen(),
           ),
           GoRoute(
+            path: '/client/programs',
+            builder: (_, _) => const ClientProgramsListScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                builder: (_, _) => const ClientCreateProgramScreen(),
+              ),
+              GoRoute(
+                path: 'active',
+                builder: (_, _) => const ClientActiveProgramScreen(),
+              ),
+              GoRoute(
+                path: 'create-template',
+                builder: (_, state) => ClientCreateTemplateScreen(
+                  programId: state.extra as String?,
+                ),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => ClientProgramDetailScreen(
+                  programId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: 'templates/:templateId',
+                builder: (_, state) => ClientTemplateDetailScreen(
+                  templateId: state.pathParameters['templateId']!,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
             path: '/client/explore',
             builder: (_, _) => const ExploreScreen(),
           ),
@@ -469,6 +543,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               trainerId: state.pathParameters['trainerId']!,
             ),
           ),
+          GoRoute(
+            path: '/client/trainer',
+            builder: (_, _) => const MyTrainerScreen(),
+          ),
         ],
       ),
 
@@ -490,6 +568,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => MovementDetailScreen(
           exerciseName: state.pathParameters['exerciseName']!,
         ),
+      ),
+      GoRoute(
+        path: '/chat',
+        builder: (_, _) => const ConversationsListScreen(),
+        routes: [
+          GoRoute(
+            path: ':conversationId',
+            builder: (_, state) => ChatScreen(
+              conversationId: state.pathParameters['conversationId']!,
+              title: 'Messages',
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, _) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/public-trainer/:id',

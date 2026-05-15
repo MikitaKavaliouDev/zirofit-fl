@@ -41,7 +41,7 @@ void main() {
         overrides: [
           programsProvider.overrideWith(
             (ref) => FakeProgramsNotifier(
-              const ProgramsState(programs: [], isLoading: false),
+              const ProgramsState(userPrograms: [], isLoading: false),
             ),
           ),
         ],
@@ -58,7 +58,7 @@ void main() {
           overrides: [
             programsProvider.overrideWith(
               (ref) => FakeProgramsNotifier(
-                const ProgramsState(programs: [], isLoading: true),
+                const ProgramsState(userPrograms: [], isLoading: true),
               ),
             ),
           ],
@@ -74,7 +74,7 @@ void main() {
         overrides: [
           programsProvider.overrideWith(
             (ref) => FakeProgramsNotifier(
-              const ProgramsState(programs: [], isLoading: false),
+              const ProgramsState(userPrograms: [], isLoading: false),
             ),
           ),
         ],
@@ -92,7 +92,7 @@ void main() {
         createdAt: DateTime(2026, 1, 15),
         updatedAt: DateTime(2026, 1, 15),
       );
-      final state = ProgramsState(programs: [program], isLoading: false);
+      final state = ProgramsState(userPrograms: [program], isLoading: false);
 
       await tester.pumpApp(
         const ProgramDetailScreen(programId: '1'),
@@ -118,7 +118,7 @@ void main() {
         createdAt: DateTime(2026, 1, 15),
         updatedAt: DateTime(2026, 1, 15),
       );
-      final state = ProgramsState(programs: [program], isLoading: false);
+      final state = ProgramsState(userPrograms: [program], isLoading: false);
 
       await tester.pumpApp(
         const ProgramDetailScreen(programId: '1'),
@@ -140,7 +140,7 @@ void main() {
         createdAt: DateTime(2026, 1, 15),
         updatedAt: DateTime(2026, 1, 15),
       );
-      final state = ProgramsState(programs: [program], isLoading: false);
+      final state = ProgramsState(userPrograms: [program], isLoading: false);
 
       await tester.pumpApp(
         const ProgramDetailScreen(programId: '1'),

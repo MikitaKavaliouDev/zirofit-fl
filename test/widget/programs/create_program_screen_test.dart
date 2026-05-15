@@ -58,7 +58,7 @@ class FakeProgramsNotifier extends ProgramsNotifier {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      state = ProgramsState(programs: [program], isLoading: false);
+      state = ProgramsState(userPrograms: [program], isLoading: false);
       return program;
     } else {
       state = state.copyWith(isLoading: false, error: errorMessage);

@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:zirofit_fl/core/constants/api_constants.dart';
+import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/progress/models/analytics_widget_config.dart';
 
 /// Provider for managing analytics widget visibility and ordering.
@@ -11,17 +14,41 @@ import 'package:zirofit_fl/features/progress/models/analytics_widget_config.dart
 final widgetConfigProvider =
     StateNotifierProvider<WidgetConfigNotifier, List<AnalyticsWidgetConfig>>(
         (ref) {
-  return WidgetConfigNotifier();
+  final apiClient = ref.read(apiClientProvider);
+  return WidgetConfigNotifier(apiClient: apiClient);
 });
 
 class WidgetConfigNotifier extends StateNotifier<List<AnalyticsWidgetConfig>> {
   static const String _storageKey = 'analytics_widgets';
+  final ApiClient? _apiClient;
 
-  WidgetConfigNotifier() : super([]) {
+  WidgetConfigNotifier({ApiClient? apiClient})
+      : _apiClient = apiClient,
+        super([]) {
     _load();
   }
 
   Future<void> _load() async {
+    if (_apiClient != null) {
+      try {
+        final response = await _apiClient.get<Map<String, dynamic>>(
+          ApiConstants.widgetConfig,
+        );
+        final data = response['data'];
+        if (data is List) {
+          final list = data
+              .map((e) =>
+                  AnalyticsWidgetConfig.fromJson(e as Map<String, dynamic>))
+              .toList();
+          state = _mergeDefaults(list);
+          await _save(); // persist locally
+          return;
+        }
+      } catch (_) {
+        // API failed — fall through to local
+      }
+    }
+    // Fallback: load from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_storageKey);
     if (jsonString != null && jsonString.isNotEmpty) {
@@ -67,6 +94,7 @@ class WidgetConfigNotifier extends StateNotifier<List<AnalyticsWidgetConfig>> {
       return w;
     }).toList();
     await _save();
+    await _syncToApi();
   }
 
   /// Sets visibility of a widget.
@@ -78,6 +106,7 @@ class WidgetConfigNotifier extends StateNotifier<List<AnalyticsWidgetConfig>> {
       return w;
     }).toList();
     await _save();
+    await _syncToApi();
   }
 
   /// Removes a widget from the active list.
@@ -89,6 +118,7 @@ class WidgetConfigNotifier extends StateNotifier<List<AnalyticsWidgetConfig>> {
       return w;
     }).toList();
     await _save();
+    await _syncToApi();
   }
 
   /// Adds a widget (makes it visible) with the next available order.
@@ -100,6 +130,7 @@ class WidgetConfigNotifier extends StateNotifier<List<AnalyticsWidgetConfig>> {
       return w;
     }).toList();
     await _save();
+    await _syncToApi();
   }
 
   /// Reorders widgets (called after drag-and-drop).
@@ -111,5 +142,21 @@ class WidgetConfigNotifier extends StateNotifier<List<AnalyticsWidgetConfig>> {
       return entry.value.copyWith(order: entry.key);
     }).toList();
     await _save();
+    await _syncToApi();
+  }
+
+  /// Syncs current widget config to the API (fire-and-forget on failure).
+  Future<void> _syncToApi() async {
+    if (_apiClient == null) return;
+    try {
+      await _apiClient.put(
+        ApiConstants.widgetConfig,
+        body: {
+          'widgets': state.map((w) => w.toJson()).toList(),
+        },
+      );
+    } catch (_) {
+      // Silent — local state is already saved
+    }
   }
 }
