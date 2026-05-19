@@ -173,6 +173,80 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
+  /// Sends a message with optional media attachments.
+  ///
+  /// POSTs to [ApiConstants.chat] with [conversationId], [content],
+  /// [mediaUrl] and [mediaType] so the backend can associate media with
+  /// the message.
+  Future<void> sendMessageWithMedia({
+    required String conversationId,
+    required String content,
+    String? mediaUrl,
+    String? mediaType,
+  }) async {
+    state = state.copyWith(isSending: true, clearError: true);
+
+    try {
+      final body = <String, dynamic>{
+        'conversationId': conversationId,
+        'content': content,
+      };
+      if (mediaUrl != null) body['mediaUrl'] = mediaUrl;
+      if (mediaType != null) body['mediaType'] = mediaType;
+
+      final response = await _api.post<Map<String, dynamic>>(
+        ApiConstants.chat,
+        body: body,
+      );
+
+      final rawData = response['data'];
+      Message sentMessage;
+      if (rawData is Map<String, dynamic>) {
+        sentMessage = Message.fromJson(rawData);
+      } else {
+        sentMessage = Message(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          conversationId: conversationId,
+          content: content,
+          mediaUrl: mediaUrl,
+          mediaType: mediaType,
+          createdAt: DateTime.now(),
+        );
+      }
+
+      state = state.copyWith(
+        messages: [...state.messages, sentMessage],
+        isSending: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isSending: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  /// Uploads a file at [filePath] to the server.
+  ///
+  /// POSTs to [ApiConstants.clientUpload] as [FormData] and returns the
+  /// uploaded file URL on success.
+  Future<String> uploadFile(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+
+    final response = await _api.dio.post<Map<String, dynamic>>(
+      ApiConstants.clientUpload,
+      data: formData,
+    );
+
+    final data = response.data;
+    if (data == null) {
+      throw Exception('Upload returned empty response');
+    }
+    return (data['url'] ?? data['data']?['url'] ?? '') as String;
+  }
+
   /// Clears any error in the state.
   void clearError() {
     state = state.copyWith(clearError: true);

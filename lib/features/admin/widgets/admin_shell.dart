@@ -11,6 +11,9 @@ class AdminShell extends StatelessWidget {
     if (location.startsWith('/admin/events')) return 1;
     if (location.startsWith('/admin/blog')) return 2;
     if (location.startsWith('/admin/tickets')) return 3;
+    if (location.startsWith('/admin/users')) return 4;
+    if (location.startsWith('/admin/errors')) return 5;
+    if (location.startsWith('/admin/feature-toggles')) return 6;
     return 0;
   }
 
@@ -37,6 +40,15 @@ class AdminShell extends StatelessWidget {
             case 3:
               context.go('/admin/tickets');
               break;
+            case 4:
+              context.go('/admin/users');
+              break;
+            case 5:
+              context.go('/admin/errors');
+              break;
+            case 6:
+              context.go('/admin/feature-toggles');
+              break;
           }
         },
         destinations: const [
@@ -59,6 +71,21 @@ class AdminShell extends StatelessWidget {
             icon: Icon(Icons.confirmation_number_outlined),
             selectedIcon: Icon(Icons.confirmation_number),
             label: 'Tickets',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outlined),
+            selectedIcon: Icon(Icons.people),
+            label: 'Users',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bug_report_outlined),
+            selectedIcon: Icon(Icons.bug_report),
+            label: 'Errors',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.toggle_off_outlined),
+            selectedIcon: Icon(Icons.toggle_on),
+            label: 'Features',
           ),
         ],
       ),

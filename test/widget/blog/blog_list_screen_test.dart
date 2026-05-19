@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/blog_post.dart';
 import 'package:zirofit_fl/features/blog/providers/blog_provider.dart';
 import 'package:zirofit_fl/features/blog/screens/blog_list_screen.dart';
+import 'package:zirofit_fl/features/blog/screens/blog_post_screen.dart';
 import '../../helpers/test_setup.dart';
 
 // ---------------------------------------------------------------------------
@@ -62,6 +64,36 @@ Widget buildTestApp(BlogState state) {
     ],
     child: const MaterialApp(
       home: BlogListScreen(),
+    ),
+  );
+}
+
+/// Wraps BlogListScreen with a minimal GoRouter so navigation works.
+Widget _buildGoRouterTestApp(BlogState state) {
+  final router = GoRouter(
+    initialLocation: '/blog',
+    routes: [
+      GoRoute(
+        path: '/blog',
+        builder: (_, _) => const BlogListScreen(),
+        routes: [
+          GoRoute(
+            path: ':slug',
+            builder: (_, state) => BlogPostScreen(
+              slug: state.pathParameters['slug']!,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  return ProviderScope(
+    overrides: [
+      blogProvider.overrideWith((ref) => FakeBlogNotifier(state)),
+    ],
+    child: MaterialApp.router(
+      routerConfig: router,
     ),
   );
 }
@@ -145,7 +177,7 @@ void main() {
       ),
     ];
 
-    await tester.pumpWidget(buildTestApp(
+    await tester.pumpWidget(_buildGoRouterTestApp(
       BlogState(posts: posts, isLoading: false),
     ));
     await tester.pump();

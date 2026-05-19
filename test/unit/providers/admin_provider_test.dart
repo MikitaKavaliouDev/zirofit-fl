@@ -518,5 +518,316 @@ void main() {
         expect(state.error, isNotNull);
       });
     });
+
+    group('fetchUsers', () {
+      Map<String, dynamic> _userJson({
+        String id = 'user-1',
+        String name = 'Test User',
+        String role = 'client',
+      }) =>
+          {
+            'id': id,
+            'name': name,
+            'email': '$name@test.com',
+            'role': role,
+            'tier': 'STARTER',
+            'createdAt': '2024-01-01T00:00:00.000Z',
+            'updatedAt': '2024-01-01T00:00:00.000Z',
+          };
+
+      test('populates users on success', () async {
+        final users = [_userJson(id: 'u1'), _userJson(id: 'u2', name: 'Second')];
+
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminUsers,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'users': users,
+                'total': 2,
+                'page': 1,
+                'limit': 20,
+              },
+            });
+
+        await container.read(adminProvider.notifier).fetchUsers();
+
+        final state = container.read(adminProvider);
+        expect(state.users, hasLength(2));
+        expect(state.users[0].id, 'u1');
+        expect(state.users[1].name, 'Second');
+        expect(state.totalUsers, 2);
+        expect(state.usersPage, 1);
+        expect(state.isLoading, false);
+        expect(state.error, isNull);
+      });
+
+      test('passes role filter', () async {
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminUsers,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'users': [_userJson(id: 'u1', role: 'trainer')],
+                'total': 1,
+                'page': 1,
+                'limit': 20,
+              },
+            });
+
+        await container
+            .read(adminProvider.notifier)
+            .fetchUsers(role: 'trainer');
+
+        final state = container.read(adminProvider);
+        expect(state.users, hasLength(1));
+        expect(state.users[0].role, 'trainer');
+        expect(state.isLoading, false);
+        expect(state.error, isNull);
+      });
+
+      test('sets error on failure', () async {
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminUsers,
+              queryParams: any(named: 'queryParams'),
+            )).thenThrow(DioException(
+          requestOptions: RequestOptions(path: ApiConstants.adminUsers),
+          type: DioExceptionType.badResponse,
+          response: Response(
+            requestOptions: RequestOptions(path: ApiConstants.adminUsers),
+            statusCode: 500,
+            data: <String, dynamic>{'message': 'Server error'},
+          ),
+        ));
+
+        await container.read(adminProvider.notifier).fetchUsers();
+
+        final state = container.read(adminProvider);
+        expect(state.users, isEmpty);
+        expect(state.isLoading, false);
+        expect(state.error, isNotNull);
+      });
+    });
+
+    group('fetchErrors', () {
+      Map<String, dynamic> _errorJson({
+        String id = 'err-1',
+        String severity = 'error',
+      }) =>
+          {
+            'id': id,
+            'message': 'Test error',
+            'path': '/api/test',
+            'method': 'GET',
+            'status_code': 500,
+            'severity': severity,
+            'is_read': false,
+            'error_type': 'UnhandledException',
+            'created_at': 1700000000000,
+            'updated_at': 1700000000000,
+          };
+
+      test('populates errors on success', () async {
+        final errors = [_errorJson(), _errorJson(id: 'err-2', severity: 'warning')];
+
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminErrors,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'errors': errors,
+                'total': 2,
+                'page': 1,
+                'limit': 20,
+              },
+            });
+
+        await container.read(adminProvider.notifier).fetchErrors();
+
+        final state = container.read(adminProvider);
+        expect(state.errors, hasLength(2));
+        expect(state.errors[0].id, 'err-1');
+        expect(state.errors[1].severity, 'warning');
+        expect(state.totalErrors, 2);
+        expect(state.errorsPage, 1);
+        expect(state.isLoading, false);
+        expect(state.error, isNull);
+      });
+
+      test('filters by severity', () async {
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminErrors,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'errors': [_errorJson(severity: 'warning')],
+                'total': 1,
+                'page': 1,
+                'limit': 20,
+              },
+            });
+
+        await container
+            .read(adminProvider.notifier)
+            .fetchErrors(severity: 'warning');
+
+        final state = container.read(adminProvider);
+        expect(state.errors, hasLength(1));
+        expect(state.errors[0].severity, 'warning');
+        expect(state.isLoading, false);
+        expect(state.error, isNull);
+      });
+
+      test('sets error on failure', () async {
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminErrors,
+              queryParams: any(named: 'queryParams'),
+            )).thenThrow(DioException(
+          requestOptions: RequestOptions(path: ApiConstants.adminErrors),
+          type: DioExceptionType.badResponse,
+          response: Response(
+            requestOptions: RequestOptions(path: ApiConstants.adminErrors),
+            statusCode: 500,
+            data: <String, dynamic>{'message': 'Server error'},
+          ),
+        ));
+
+        await container.read(adminProvider.notifier).fetchErrors();
+
+        final state = container.read(adminProvider);
+        expect(state.errors, isEmpty);
+        expect(state.isLoading, false);
+        expect(state.error, isNotNull);
+      });
+    });
+
+    group('fetchFeatureToggles', () {
+      test('populates toggles on success', () async {
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminFeatureToggles,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'freeAccessMode': false,
+                'customDomains': true,
+              },
+            });
+
+        await container.read(adminProvider.notifier).fetchFeatureToggles();
+
+        final state = container.read(adminProvider);
+        expect(state.featureToggles, isNotNull);
+        expect(state.featureToggles!['freeAccessMode'], false);
+        expect(state.featureToggles!['customDomains'], true);
+        expect(state.isLoading, false);
+        expect(state.error, isNull);
+      });
+
+      test('sets error on failure', () async {
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminFeatureToggles,
+              queryParams: any(named: 'queryParams'),
+            )).thenThrow(DioException(
+          requestOptions: RequestOptions(path: ApiConstants.adminFeatureToggles),
+          type: DioExceptionType.badResponse,
+          response: Response(
+            requestOptions: RequestOptions(path: ApiConstants.adminFeatureToggles),
+            statusCode: 500,
+            data: <String, dynamic>{'message': 'Server error'},
+          ),
+        ));
+
+        await container.read(adminProvider.notifier).fetchFeatureToggles();
+
+        final state = container.read(adminProvider);
+        expect(state.featureToggles, isNull);
+        expect(state.isLoading, false);
+        expect(state.error, isNotNull);
+      });
+    });
+
+    group('updateFeatureToggle', () {
+      test('updates toggle locally on success', () async {
+        // First load toggles
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminFeatureToggles,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'freeAccessMode': false,
+                'customDomains': false,
+              },
+            });
+
+        await container.read(adminProvider.notifier).fetchFeatureToggles();
+        expect(
+          container.read(adminProvider).featureToggles!['freeAccessMode'],
+          false,
+        );
+
+        // Stub PUT
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.put(
+              ApiConstants.adminFeatureToggles,
+              body: any(named: 'body'),
+            )).thenAnswer((_) async => {'data': {'key': 'freeAccessMode', 'value': 'true'}});
+
+        // Act
+        await container
+            .read(adminProvider.notifier)
+            .updateFeatureToggle('freeAccessMode', 'true');
+
+        // Assert
+        final state = container.read(adminProvider);
+        expect(state.featureToggles!['freeAccessMode'], true);
+        expect(state.isLoading, false);
+        expect(state.error, isNull);
+      });
+
+      test('sets error on failure', () async {
+        // First load toggles
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
+              ApiConstants.adminFeatureToggles,
+              queryParams: any(named: 'queryParams'),
+            )).thenAnswer((_) async => {
+              'data': {
+                'freeAccessMode': false,
+                'customDomains': false,
+              },
+            });
+
+        await container.read(adminProvider.notifier).fetchFeatureToggles();
+        expect(
+          container.read(adminProvider).featureToggles!['freeAccessMode'],
+          false,
+        );
+
+        // Stub PUT to fail
+        when<Future<Map<String, dynamic>>>(() => mockApiClient.put(
+              ApiConstants.adminFeatureToggles,
+              body: any(named: 'body'),
+            )).thenThrow(DioException(
+          requestOptions:
+              RequestOptions(path: ApiConstants.adminFeatureToggles),
+          type: DioExceptionType.badResponse,
+          response: Response(
+            requestOptions:
+                RequestOptions(path: ApiConstants.adminFeatureToggles),
+            statusCode: 500,
+            data: <String, dynamic>{'message': 'Update failed'},
+          ),
+        ));
+
+        // Act
+        await container
+            .read(adminProvider.notifier)
+            .updateFeatureToggle('freeAccessMode', 'true');
+
+        // Assert
+        final state = container.read(adminProvider);
+        expect(state.featureToggles!['freeAccessMode'], false); // Unchanged
+        expect(state.isLoading, false);
+        expect(state.error, isNotNull);
+      });
+    });
   });
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/data/models/blog_post.dart';
 import 'package:zirofit_fl/features/blog/providers/blog_provider.dart';
-import 'package:zirofit_fl/features/blog/screens/blog_post_screen.dart';
 
 class BlogListScreen extends ConsumerStatefulWidget {
   const BlogListScreen({super.key});
@@ -86,11 +86,7 @@ class _BlogListScreenState extends ConsumerState<BlogListScreen> {
   }
 
   void _openPost(BlogPost post) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BlogPostScreen(slug: post.slug),
-      ),
-    );
+    context.push('/blog/${post.slug}');
   }
 }
 

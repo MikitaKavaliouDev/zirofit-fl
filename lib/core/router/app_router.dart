@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/admin/screens/admin_blog_screen.dart';
 import 'package:zirofit_fl/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:zirofit_fl/features/admin/screens/admin_error_logs_screen.dart';
 import 'package:zirofit_fl/features/admin/screens/admin_events_screen.dart';
+import 'package:zirofit_fl/features/admin/screens/admin_feature_toggles_screen.dart';
 import 'package:zirofit_fl/features/admin/screens/admin_tickets_screen.dart';
+import 'package:zirofit_fl/features/admin/screens/admin_users_screen.dart';
 import 'package:zirofit_fl/features/admin/widgets/admin_shell.dart';
 import 'package:zirofit_fl/features/ai_coach/screens/ai_coach_screen.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
@@ -23,8 +26,10 @@ import 'package:zirofit_fl/features/clients/screens/client_detail_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_history_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_list_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/invite_client_screen.dart';
+import 'package:zirofit_fl/features/clients/screens/live_session_monitor_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/client_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/daily_target_screen.dart';
+import 'package:zirofit_fl/features/dashboard/screens/sharing_requests_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/trainer_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/my_trainer_screen.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/client_shell.dart';
@@ -83,6 +88,8 @@ import 'package:zirofit_fl/features/explore/screens/trainer_map_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/public_trainer_profile_screen.dart';
 import 'package:zirofit_fl/features/bookings/screens/booking_management_screen.dart';
 import 'package:zirofit_fl/features/bookings/screens/client_booking_screen.dart';
+import 'package:zirofit_fl/features/blog/screens/blog_list_screen.dart';
+import 'package:zirofit_fl/features/blog/screens/blog_post_screen.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -128,7 +135,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             !location.startsWith('/public-trainer/') &&
             !location.startsWith('/settings/') &&
             !location.startsWith('/chat') &&
-            !location.startsWith('/notifications')) {
+            !location.startsWith('/notifications') &&
+            !location.startsWith('/blog')) {
           return _getDefaultRoute(authState.role);
         }
       }
@@ -254,6 +262,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/tickets',
             builder: (_, _) => const AdminTicketsScreen(),
           ),
+          GoRoute(
+            path: '/admin/users',
+            builder: (_, _) => const AdminUsersScreen(),
+          ),
+          GoRoute(
+            path: '/admin/errors',
+            builder: (_, _) => const AdminErrorLogsScreen(),
+          ),
+          GoRoute(
+            path: '/admin/feature-toggles',
+            builder: (_, _) => const AdminFeatureTogglesScreen(),
+          ),
         ],
       ),
 
@@ -282,6 +302,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'sessions',
                     builder: (_, state) => ClientHistoryScreen(
+                      clientId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'live-session',
+                    builder: (_, state) => LiveSessionMonitorScreen(
                       clientId: state.pathParameters['id']!,
                     ),
                   ),
@@ -336,6 +362,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/trainer/notifications',
             builder: (_, _) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/trainer/sharing-requests',
+            builder: (_, _) => const SharingRequestsScreen(),
           ),
           GoRoute(
             path: '/trainer/revenue',
@@ -586,6 +616,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         builder: (_, _) => const NotificationsScreen(),
       ),
+
+      // -- Blog (shared, accessible by any authenticated role) --
+      GoRoute(
+        path: '/blog',
+        builder: (_, _) => const BlogListScreen(),
+        routes: [
+          GoRoute(
+            path: ':slug',
+            builder: (_, state) => BlogPostScreen(
+              slug: state.pathParameters['slug']!,
+            ),
+          ),
+        ],
+      ),
+
       GoRoute(
         path: '/public-trainer/:id',
         builder: (_, state) {

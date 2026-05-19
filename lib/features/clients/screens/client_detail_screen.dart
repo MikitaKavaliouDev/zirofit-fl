@@ -77,6 +77,8 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
                     ref.read(clientDetailProvider(widget.id).notifier)
                         .fetchAll();
                   }
+                } else if (value == 'monitor') {
+                  context.push('/trainer/clients/${widget.id}/live-session');
                 }
               },
               itemBuilder: (context) => [
@@ -85,6 +87,13 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
                   child: ListTile(
                     leading: Icon(Icons.assignment),
                     title: Text('Assign Program'),
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'monitor',
+                  child: ListTile(
+                    leading: Icon(Icons.monitor_heart),
+                    title: Text('Live Session'),
                   ),
                 ),
                 const PopupMenuItem(

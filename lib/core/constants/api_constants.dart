@@ -84,6 +84,9 @@ class ApiConstants {
   static const String clientDashboard = '/client/dashboard';
   static const String widgetConfig = '/client/widget-config';
 
+  // Client Active Session
+  static String clientActiveSession(String id) => '/clients/$id/session/active';
+
   // Client Daily Targets
   static const String dailyTargets = '/client/daily-targets';
 
@@ -244,11 +247,18 @@ class ApiConstants {
   static const String adminUpload = '/admin/upload';
   static const String adminTickets = '/admin/tickets';
   static String adminTicket(String id) => '/admin/tickets/$id';
+  static const String adminUsers = '/admin/users';
+  static const String adminErrors = '/admin/errors';
+  static const String adminFeatureToggles = '/admin/feature-toggles';
 
   // AI Coach & Mobile
   static const String aiCoachGenerate = '/mobile/ai-coach/generate';
   static const String aiCoachRefine = '/mobile/ai-coach/refine';
+  static const String aiVoice = '/ai-trainer/voice';
   static const String mobileHome = '/mobile/home';
+
+  // Upload
+  static const String clientUpload = '/client/upload';
 
   // Support Tickets
   static const String supportTickets = '/support/tickets';
@@ -284,4 +294,9 @@ class ApiConstants {
   // Fitness Goals
   static const String fitnessGoals = '/client/fitness-goals';
   static String fitnessGoal(String id) => '/client/fitness-goals/$id';
+
+  // Body measurements
+  static String clientBodyMeasurements(String id) => '/clients/$id/body-measurements';
+  static String clientBodyMeasurement(String clientId, String measurementId) =>
+    '/clients/$clientId/body-measurements/$measurementId';
 }

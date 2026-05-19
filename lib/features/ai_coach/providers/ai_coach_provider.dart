@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/features/ai_coach/services/live_coach_service.dart';
 
 // ---------------------------------------------------------------------------
 // State
@@ -14,12 +15,24 @@ class AICoachState {
   final String? error;
   final List<String> conversation;
 
+  // Live coach fields
+  final bool isListening;
+  final bool isProcessing;
+  final String? lastCoachMessage;
+  final List<CoachResult> coachResponses;
+  final String? activeWorkoutSessionId;
+
   const AICoachState({
     this.generatedProgram,
     this.goal,
     this.isLoading = false,
     this.error,
     this.conversation = const [],
+    this.isListening = false,
+    this.isProcessing = false,
+    this.lastCoachMessage,
+    this.coachResponses = const [],
+    this.activeWorkoutSessionId,
   });
 
   AICoachState copyWith({
@@ -28,6 +41,11 @@ class AICoachState {
     bool? isLoading,
     String? error,
     List<String>? conversation,
+    bool? isListening,
+    bool? isProcessing,
+    String? lastCoachMessage,
+    List<CoachResult>? coachResponses,
+    String? activeWorkoutSessionId,
     bool clearError = false,
     bool clearGeneratedProgram = false,
   }) {
@@ -38,6 +56,12 @@ class AICoachState {
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       conversation: conversation ?? this.conversation,
+      isListening: isListening ?? this.isListening,
+      isProcessing: isProcessing ?? this.isProcessing,
+      lastCoachMessage: lastCoachMessage ?? this.lastCoachMessage,
+      coachResponses: coachResponses ?? this.coachResponses,
+      activeWorkoutSessionId:
+          activeWorkoutSessionId ?? this.activeWorkoutSessionId,
     );
   }
 }
@@ -131,6 +155,98 @@ class AICoachNotifier extends StateNotifier<AICoachState> {
         error: message,
       );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Live Coaching
+  // ---------------------------------------------------------------------------
+
+  /// Starts a live coaching session for the given [workoutSessionId].
+  ///
+  /// Resets coaching state and marks the session as active.
+  void startCoaching(String workoutSessionId) {
+    state = state.copyWith(
+      activeWorkoutSessionId: workoutSessionId,
+      coachResponses: [],
+      lastCoachMessage: null,
+      isListening: false,
+      isProcessing: false,
+      clearError: true,
+    );
+  }
+
+  /// Processes a base64-encoded audio input through the AI coach.
+  ///
+  /// Sets [isProcessing] to `true` during the request, updates
+  /// [coachResponses] and [lastCoachMessage] on completion.
+  Future<void> processVoiceInput(String audioBase64) async {
+    state = state.copyWith(
+      isProcessing: true,
+      isListening: false,
+      clearError: true,
+    );
+
+    try {
+      final service = LiveCoachService();
+      final result = await service.processVoiceInput(audioBase64);
+
+      await service.speakFeedback(result.message);
+
+      state = state.copyWith(
+        isProcessing: false,
+        lastCoachMessage: result.message,
+        coachResponses: [...state.coachResponses, result],
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isProcessing: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  /// Processes a text input through the AI coach (keyboard fallback).
+  Future<void> processTextInput(String text) async {
+    if (text.trim().isEmpty) return;
+
+    state = state.copyWith(
+      isProcessing: true,
+      clearError: true,
+    );
+
+    try {
+      final service = LiveCoachService();
+      final result = await service.processTextInput(text);
+
+      await service.speakFeedback(result.message);
+
+      state = state.copyWith(
+        isProcessing: false,
+        lastCoachMessage: result.message,
+        coachResponses: [...state.coachResponses, result],
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isProcessing: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  /// Toggles the listening state for voice input.
+  void setListening(bool value) {
+    state = state.copyWith(isListening: value);
+  }
+
+  /// Stops the live coaching session and clears coaching-specific state.
+  void stopCoaching() {
+    state = state.copyWith(
+      isListening: false,
+      isProcessing: false,
+      lastCoachMessage: null,
+      coachResponses: [],
+      activeWorkoutSessionId: null,
+    );
   }
 
   /// Clears the error message.

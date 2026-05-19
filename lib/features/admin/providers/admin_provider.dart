@@ -5,17 +5,36 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/blog_post.dart';
 import 'package:zirofit_fl/data/models/event.dart';
 import 'package:zirofit_fl/data/models/support_ticket.dart';
-import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
+import 'package:zirofit_fl/data/models/system_error.dart';
+import 'package:zirofit_fl/data/models/user.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart' show apiClientProvider;
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 class AdminState {
+  // Existing
   final Map<String, dynamic>? stats;
   final List<Event> pendingEvents;
   final List<BlogPost> blogPosts;
   final List<SupportTicket> tickets;
+
+  // Users
+  final List<User> users;
+  final int totalUsers;
+  final int usersPage;
+  final int usersLimit;
+
+  // Errors
+  final List<SystemError> errors;
+  final int totalErrors;
+  final int errorsPage;
+  final int errorsLimit;
+
+  // Feature toggles
+  final Map<String, dynamic>? featureToggles;
+
   final bool isLoading;
   final String? error;
 
@@ -24,6 +43,15 @@ class AdminState {
     this.pendingEvents = const [],
     this.blogPosts = const [],
     this.tickets = const [],
+    this.users = const [],
+    this.totalUsers = 0,
+    this.usersPage = 1,
+    this.usersLimit = 20,
+    this.errors = const [],
+    this.totalErrors = 0,
+    this.errorsPage = 1,
+    this.errorsLimit = 20,
+    this.featureToggles,
     this.isLoading = false,
     this.error,
   });
@@ -33,16 +61,36 @@ class AdminState {
     List<Event>? pendingEvents,
     List<BlogPost>? blogPosts,
     List<SupportTicket>? tickets,
+    List<User>? users,
+    int? totalUsers,
+    int? usersPage,
+    int? usersLimit,
+    List<SystemError>? errors,
+    int? totalErrors,
+    int? errorsPage,
+    int? errorsLimit,
+    Map<String, dynamic>? featureToggles,
     bool? isLoading,
     String? error,
     bool clearError = false,
     bool clearStats = false,
+    bool clearFeatureToggles = false,
   }) {
     return AdminState(
       stats: clearStats ? null : (stats ?? this.stats),
       pendingEvents: pendingEvents ?? this.pendingEvents,
       blogPosts: blogPosts ?? this.blogPosts,
       tickets: tickets ?? this.tickets,
+      users: users ?? this.users,
+      totalUsers: totalUsers ?? this.totalUsers,
+      usersPage: usersPage ?? this.usersPage,
+      usersLimit: usersLimit ?? this.usersLimit,
+      errors: errors ?? this.errors,
+      totalErrors: totalErrors ?? this.totalErrors,
+      errorsPage: errorsPage ?? this.errorsPage,
+      errorsLimit: errorsLimit ?? this.errorsLimit,
+      featureToggles:
+          clearFeatureToggles ? null : (featureToggles ?? this.featureToggles),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );
@@ -254,6 +302,154 @@ class AdminNotifier extends StateNotifier<AdminState> {
           }
           return t;
         }).toList(),
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Users
+  // ---------------------------------------------------------------------------
+
+  /// GET /api/admin/users?page=&limit=&role=
+  Future<void> fetchUsers({
+    int page = 1,
+    int limit = 20,
+    String? role,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page,
+        'limit': limit,
+      };
+      if (role != null) {
+        queryParams['role'] = role;
+      }
+
+      final result = await _api.get<Map<String, dynamic>>(
+        ApiConstants.adminUsers,
+        queryParams: queryParams,
+      );
+
+      final data = result['data'] as Map<String, dynamic>? ?? result;
+      final rawList = data['users'] as List<dynamic>? ?? [];
+      final users =
+          rawList.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
+
+      state = state.copyWith(
+        users: users,
+        totalUsers: (data['total'] as num?)?.toInt() ?? 0,
+        usersPage: (data['page'] as num?)?.toInt() ?? page,
+        usersLimit: (data['limit'] as num?)?.toInt() ?? limit,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Errors
+  // ---------------------------------------------------------------------------
+
+  /// GET /api/admin/errors?page=&limit=&severity=
+  Future<void> fetchErrors({
+    int page = 1,
+    int limit = 20,
+    String? severity,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page,
+        'limit': limit,
+      };
+      if (severity != null) {
+        queryParams['severity'] = severity;
+      }
+
+      final result = await _api.get<Map<String, dynamic>>(
+        ApiConstants.adminErrors,
+        queryParams: queryParams,
+      );
+
+      final data = result['data'] as Map<String, dynamic>? ?? result;
+      final rawList = data['errors'] as List<dynamic>? ?? [];
+      final errors = rawList
+          .map((e) => SystemError.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      state = state.copyWith(
+        errors: errors,
+        totalErrors: (data['total'] as num?)?.toInt() ?? 0,
+        errorsPage: (data['page'] as num?)?.toInt() ?? page,
+        errorsLimit: (data['limit'] as num?)?.toInt() ?? limit,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Feature Toggles
+  // ---------------------------------------------------------------------------
+
+  /// GET /api/admin/feature-toggles
+  Future<void> fetchFeatureToggles() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final result = await _api.get<Map<String, dynamic>>(
+        ApiConstants.adminFeatureToggles,
+      );
+
+      final data = result['data'] as Map<String, dynamic>? ?? result;
+
+      state = state.copyWith(
+        featureToggles: Map<String, dynamic>.from(data),
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  /// PUT /api/admin/feature-toggles
+  Future<void> updateFeatureToggle(String key, String value) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      await _api.put<Map<String, dynamic>>(
+        ApiConstants.adminFeatureToggles,
+        body: {'key': key, 'value': value},
+      );
+
+      // Update local state
+      final updated = Map<String, dynamic>.from(
+        state.featureToggles ?? {},
+      );
+      updated[key] = value == 'true';
+
+      state = state.copyWith(
+        featureToggles: updated,
         isLoading: false,
       );
     } catch (e) {

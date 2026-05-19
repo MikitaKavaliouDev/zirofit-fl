@@ -60,7 +60,8 @@ String? _computeRedirect(AuthState authState, String matchedLocation) {
         !matchedLocation.startsWith('/workout/') &&
         !matchedLocation.startsWith('/public-trainer/') &&
         !matchedLocation.startsWith('/settings/') &&
-        matchedLocation != '/client/trainer') {
+        matchedLocation != '/client/trainer' &&
+        !matchedLocation.startsWith('/blog')) {
       return _defaultRoute(authState.role);
     }
   }
@@ -496,6 +497,43 @@ void main() {
     });
 
     test(
+        'any authenticated role accessing /blog → no redirect (null)', () {
+      for (final role in ['trainer', 'client', 'admin']) {
+        final container = _createContainer(
+          status: AuthStatus.authenticated,
+          role: role,
+        );
+        addTearDown(container.dispose);
+
+        final state = container.read(authProvider);
+        expect(
+          _computeRedirect(state, '/blog'),
+          isNull,
+          reason: 'Role $role should access /blog freely',
+        );
+      }
+    });
+
+    test(
+        'any authenticated role accessing /blog/some-slug → no redirect (null)',
+        () {
+      for (final role in ['trainer', 'client', 'admin']) {
+        final container = _createContainer(
+          status: AuthStatus.authenticated,
+          role: role,
+        );
+        addTearDown(container.dispose);
+
+        final state = container.read(authProvider);
+        expect(
+          _computeRedirect(state, '/blog/some-slug'),
+          isNull,
+          reason: 'Role $role should access /blog posts freely',
+        );
+      }
+    });
+
+    test(
         'any authenticated role accessing /ai-coach → no redirect (null)', () {
       for (final role in ['trainer', 'client', 'admin']) {
         final container = _createContainer(
@@ -698,6 +736,8 @@ void main() {
       final state = container.read(authProvider);
 
       final newProtectedRoutes = [
+        '/blog',
+        '/blog/some-slug',
         '/chat',
         '/chat/conv123',
         '/notifications',
@@ -870,6 +910,25 @@ void main() {
       addTearDown(container.dispose);
       assertRouteRegistered(
           container.read(routerProvider), '/trainer/assessments');
+    });
+
+    test('/blog is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'client',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(container.read(routerProvider), '/blog');
+    });
+
+    test('/blog/some-slug is defined', () {
+      final container = _createContainer(
+        status: AuthStatus.authenticated,
+        role: 'client',
+      );
+      addTearDown(container.dispose);
+      assertRouteRegistered(
+          container.read(routerProvider), '/blog/some-slug');
     });
   });
 }
