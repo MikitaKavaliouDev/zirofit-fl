@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/rest_timer_manager_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
-import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 
 // ---------------------------------------------------------------------------
 // WorkoutMiniPlayer
@@ -63,18 +63,6 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     super.dispose();
   }
 
-  String _formatElapsed(Duration duration) {
-    final totalSeconds = duration.inSeconds;
-    final hours = totalSeconds ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final seconds = totalSeconds % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
   void _handleDragStart(DragStartDetails details) {
     _dragAccumulator = 0;
     _isDragging = true;
@@ -114,6 +102,77 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
   }
 
   // ---------------------------------------------------------------------------
+  // Rest ring (iOS-style circular progress with REST label + MM:SS)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildRestRing(ThemeData theme, RestTimerState restState) {
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Background track ring
+          CircularProgressIndicator(
+            value: 1.0,
+            strokeWidth: 3,
+            backgroundColor: Colors.transparent,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+          ),
+          // Orange progress ring
+          CircularProgressIndicator(
+            value: restState.progress,
+            strokeWidth: 3,
+            backgroundColor: Colors.transparent,
+            color: const Color(0xFFFF6B00),
+          ),
+          // REST label + remaining time
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'REST',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFFFF6B00),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 9,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                restState.formattedTime,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutIcon(ThemeData theme) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(
+        Icons.fitness_center,
+        size: 20,
+        color: theme.colorScheme.onPrimaryContainer,
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -122,7 +181,7 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     final theme = Theme.of(context);
     final workoutState = ref.watch(activeWorkoutProvider);
     final timerData = ref.watch(workoutTimerProvider);
-    final enhancementState = ref.watch(workoutEnhancementProvider);
+    final restState = ref.watch(restTimerManagerProvider);
 
     // Don't render if there's no active session
     if (!workoutState.hasActiveSession) {
@@ -130,22 +189,19 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
     }
 
     final session = workoutState.session!;
-    final restSeconds = workoutState.restSeconds;
-    final isRestRunning = workoutState.isRestRunning;
     final isPaused = timerData.isPaused;
+    final isRestActive = restState.isRunning || restState.hasRemainingTime;
 
     // Find the most recent exercise name
     final lastLog =
         workoutState.logs.isNotEmpty ? workoutState.logs.last : null;
     final exerciseName = lastLog != null
-        ? (workoutState.exerciseNames[lastLog.exerciseId] ?? lastLog.exerciseName ?? 'Exercise')
+        ? (workoutState.exerciseNames[lastLog.exerciseId] ??
+            lastLog.exerciseName ??
+            'Exercise')
         : session.name ?? 'Workout';
 
-    // Rest progress for ring overlay (0.0 to 1.0)
-    final restTotal = enhancementState.restTimerSettings.defaultSeconds;
-    final restProgress = restTotal > 0
-        ? (restSeconds / restTotal).clamp(0.0, 1.0)
-        : 0.0;
+    final exerciseCount = workoutState.logs.length;
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -173,67 +229,25 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
             children: [
               // Main content
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
-                    // Rest ring indicator (left of icon)
-                    if (isRestRunning && restSeconds > 0) ...[
-                      SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Background ring
-                            CircularProgressIndicator(
-                              value: 1.0,
-                              strokeWidth: 2,
-                              backgroundColor: Colors.transparent,
-                              color: theme.colorScheme.outlineVariant
-                                  .withValues(alpha: 0.3),
-                            ),
-                            // Progress ring (orange)
-                            CircularProgressIndicator(
-                              value: restProgress,
-                              strokeWidth: 2,
-                              backgroundColor: Colors.transparent,
-                              color: const Color(0xFFFF6B00),
-                            ),
-                            // "REST" label inside ring
-                            Text(
-                              'REST',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: const Color(0xFFFF6B00),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 9,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.fitness_center,
-                          size: 20,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ],
+                    // Left side: rest ring indicator or workout icon
+                    if (isRestActive)
+                      _buildRestRing(theme, restState)
+                    else
+                      _buildWorkoutIcon(theme),
+
                     const SizedBox(width: 12),
 
-                    // Exercise name + elapsed
+                    // Middle: exercise name + timer + exercise count
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Current exercise name
                           Text(
                             exerciseName,
                             style: theme.textTheme.bodyMedium?.copyWith(
@@ -243,8 +257,10 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
+                          // Timer + exercise count row
                           Row(
                             children: [
+                              // Green live dot
                               Container(
                                 width: 8,
                                 height: 8,
@@ -254,20 +270,31 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                                 ),
                               ),
                               const SizedBox(width: 6),
+                              // Elapsed time (MM:SS or H:MM:SS)
                               Text(
-                                _formatElapsed(timerData.elapsed),
+                                timerData.formattedTime,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   fontFeatures: [FontFeature.tabularFigures()],
                                 ),
                               ),
-                              if (isRestRunning && restSeconds > 0) ...[
-                                const SizedBox(width: 8),
+                              // Exercise count with dot separator
+                              if (exerciseCount > 0) ...[
+                                Container(
+                                  width: 3,
+                                  height: 3,
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.4),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
                                 Text(
-                                  'Rest ${restSeconds}s',
+                                  '$exerciseCount ${exerciseCount == 1 ? 'exercise' : 'exercises'}',
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],

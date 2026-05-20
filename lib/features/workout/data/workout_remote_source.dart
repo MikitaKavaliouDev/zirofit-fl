@@ -321,6 +321,24 @@ return (session: session, logs: logsList);
     await _apiClient.delete(ApiConstants.workoutExerciseLog(sessionId, logId));
   }
 
+  /// POST /api/workout-sessions/{id}/save-as-template
+  /// Saves the current session as a reusable workout template.
+  Future<void> saveSessionAsTemplate({
+    required String sessionId,
+    required String name,
+    String? description,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      if (description != null) 'description': description,
+    };
+
+    await _apiClient.post<Map<String, dynamic>>(
+      ApiConstants.workoutSaveAsTemplate(sessionId),
+      body: body,
+    );
+  }
+
   /// GET /api/workout-sessions/{id}/summary
   /// Fetches the summary data for a completed workout.
   Future<WorkoutSummaryResponse> fetchWorkoutSummary(String sessionId) async {

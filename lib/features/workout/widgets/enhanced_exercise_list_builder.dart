@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/exercise_library_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 import 'package:zirofit_fl/features/workout/models/workout_focus_state.dart';
 import 'package:zirofit_fl/features/workout/widgets/enhanced_workout_set_row.dart';
+import 'package:zirofit_fl/features/workout/widgets/section_header_label.dart';
 
 /// Enhanced exercise list builder matching iOS WorkoutSessionContent
 ///
@@ -60,12 +62,35 @@ class _EnhancedExerciseListBuilderState
     final List<ClientExerciseLog> nonSupersetExercises =
         groupedExercises[''] ?? [];
 
-    // Build list items
-    final List<Widget> items = [];
+    // --- Section header logic ---
+    // Build a muscleGroup lookup from the exercise library.
+    // The Exercise.muscleGroup serves as the iOS-aligned sectionLabel.
+    final libraryState = ref.watch(exerciseLibraryProvider);
+    final Map<String, String?> exerciseSectionLabels = {};
+    for (final e in libraryState.allExercises) {
+      exerciseSectionLabels[e.id] = e.muscleGroup;
+    }
 
-    // Add superset groups
+    // Resolve the section label for an exercise log (or the first in a group).
+    String? sectionLabelFor(ClientExerciseLog log) =>
+        exerciseSectionLabels[log.exerciseId];
+
+    // Build list items with section headers interleaved
+    final List<Widget> items = [];
+    String? previousSectionLabel;
+
+    void addSectionHeaderIfNeeded(String? currentLabel) {
+      if (currentLabel != null && currentLabel != previousSectionLabel) {
+        items.add(SectionHeaderLabel(title: currentLabel));
+      }
+      previousSectionLabel = currentLabel;
+    }
+
+    // Add superset groups (section derived from first exercise in superset)
     for (final key in supersetKeys) {
       final exercises = groupedExercises[key]!;
+      final currentLabel = sectionLabelFor(exercises.first);
+      addSectionHeaderIfNeeded(currentLabel);
       final supersetGroup = _findSupersetGroup(enhancementState, key);
       items.add(
         _buildSupersetGroupContainer(
@@ -80,6 +105,8 @@ class _EnhancedExerciseListBuilderState
 
     // Add non-superset exercises
     for (final exercise in nonSupersetExercises) {
+      final currentLabel = sectionLabelFor(exercise);
+      addSectionHeaderIfNeeded(currentLabel);
       items.add(_buildExerciseCard(context, exercise, theme));
     }
 

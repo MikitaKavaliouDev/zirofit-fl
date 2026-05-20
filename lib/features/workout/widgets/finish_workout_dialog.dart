@@ -7,109 +7,84 @@ class FinishWorkoutAlert {
     return showDialog<FinishOption>(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (context) => const _FinishDialog(),
     );
   }
 }
 
-class _FinishDialog extends StatefulWidget {
+class _FinishDialog extends StatelessWidget {
   const _FinishDialog();
 
   @override
-  State<_FinishDialog> createState() => _FinishDialogState();
-}
-
-class _FinishDialogState extends State<_FinishDialog>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _opacityAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _opacityAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeIn,
-    );
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacityAnimation,
-      child: AlertDialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        content: _buildDialogContent(context),
-      ),
-    );
-  }
-
-  Widget _buildDialogContent(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    return Center(
       child: Container(
-        width: 280,
+        margin: const EdgeInsets.symmetric(horizontal: 40),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Emoji at top
+            // 🎉 Emoji
             const Text(
               '🎉',
-              style: TextStyle(fontSize: 48),
+              style: TextStyle(fontSize: 50),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             // Title
             const Text(
               'Finish Workout?',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            // Options
-            _buildOptionTile(
-              context: context,
-              icon: Icons.check_circle_outline,
-              iconColor: Colors.orange,
+            const SizedBox(height: 20),
+            // Description
+            const Text(
+              'There are valid sets in this workout that have not been marked as complete.\nInvalid or empty sets will be removed.',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 30),
+            // Button 1: Complete Unfinished Sets
+            _FinishDialogButton(
               label: 'Complete Unfinished Sets',
-              subtitle: 'Mark all valid sets as done',
-              onTap: () => Navigator.of(context).pop(FinishOption.completeUnfinished),
+              backgroundColor: const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              onTap: () =>
+                  Navigator.of(context).pop(FinishOption.completeUnfinished),
             ),
             const SizedBox(height: 12),
-            _buildOptionTile(
-              context: context,
-              icon: Icons.delete_outline,
-              iconColor: Colors.red,
+            // Button 2: Discard Unfinished Sets
+            _FinishDialogButton(
               label: 'Discard Unfinished Sets',
-              subtitle: 'Remove all incomplete sets',
-              onTap: () => Navigator.of(context).pop(FinishOption.discardUnfinished),
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
+              foregroundColor: Colors.red,
+              onTap: () =>
+                  Navigator.of(context).pop(FinishOption.discardUnfinished),
             ),
             const SizedBox(height: 12),
-            _buildOptionTile(
-              context: context,
-              icon: Icons.close,
-              iconColor: Colors.grey,
+            // Button 3: Cancel
+            _FinishDialogButton(
               label: 'Cancel',
-              subtitle: 'Return to workout',
+              backgroundColor: const Color(0xFFF1F1F1),
+              foregroundColor: Colors.black,
               onTap: () => Navigator.of(context).pop(null),
             ),
           ],
@@ -117,54 +92,44 @@ class _FinishDialogState extends State<_FinishDialog>
       ),
     );
   }
+}
 
-  Widget _buildOptionTile({
-    required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
+class _FinishDialogButton extends StatelessWidget {
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final VoidCallback onTap;
+
+  const _FinishDialogButton({
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Material(
+          color: backgroundColor,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: foregroundColor,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

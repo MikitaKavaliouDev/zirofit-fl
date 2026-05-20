@@ -10,10 +10,12 @@ sealed class SessionFocusField {
   String get setId;
   bool get isWeight => this is _WeightField;
   bool get isReps => this is _RepsField;
+  bool get isTempo => this is _TempoField;
   bool get isRpe => this is _RpeField;
 
   static SessionFocusField weight(String setId) => _WeightField(setId);
   static SessionFocusField reps(String setId) => _RepsField(setId);
+  static SessionFocusField tempo(String setId) => _TempoField(setId);
   static SessionFocusField rpe(String setId) => _RpeField(setId);
 }
 
@@ -25,6 +27,11 @@ class _WeightField extends SessionFocusField {
 class _RepsField extends SessionFocusField {
   @override final String setId;
   const _RepsField(this.setId);
+}
+
+class _TempoField extends SessionFocusField {
+  @override final String setId;
+  const _TempoField(this.setId);
 }
 
 class _RpeField extends SessionFocusField {

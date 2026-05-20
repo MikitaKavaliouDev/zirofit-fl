@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
-import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 
 class WorkoutSessionControls extends ConsumerWidget {
   final VoidCallback onVoicePressed;
@@ -21,7 +20,6 @@ class WorkoutSessionControls extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activeWorkoutProvider);
-    final timerData = ref.watch(workoutTimerProvider);
     final theme = Theme.of(context);
 
     final bool isBlank = state.logs.isEmpty;
@@ -46,26 +44,14 @@ class WorkoutSessionControls extends ConsumerWidget {
           borderRadius: BorderRadius.circular(40),
           child: Row(
             children: [
-              // Voice Button
+              // Voice Button (iOS-aligned: left side)
               _VoiceControlButton(
                 isRecording: isRecording,
                 onPressed: onVoicePressed,
               ),
               const SizedBox(width: 12),
               
-              // Pause/Resume Button
-              Expanded(
-                child: _WorkoutPauseResumeButton(
-                  isRunning: timerData.isRunning,
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    ref.read(workoutTimerProvider.notifier).togglePause();
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              
-              // Finish/Cancel Button
+              // Finish/Cancel Button (iOS-aligned: right side, no pause button)
               Expanded(
                 child: GestureDetector(
                   onTap: () {
@@ -145,45 +131,4 @@ class _VoiceControlButton extends StatelessWidget {
   }
 }
 
-class _WorkoutPauseResumeButton extends StatelessWidget {
-  final bool isRunning;
-  final VoidCallback onPressed;
 
-  const _WorkoutPauseResumeButton({
-    required this.isRunning,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: isRunning ? Colors.orange : Colors.blue,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isRunning ? Icons.pause : Icons.play_arrow,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              isRunning ? 'Pause' : 'Resume',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
