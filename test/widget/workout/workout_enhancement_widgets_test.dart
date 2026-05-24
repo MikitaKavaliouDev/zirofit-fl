@@ -526,7 +526,7 @@ void main() {
       await t.pump();
 
       // The decimal button exists on the keyboard
-      expect(find.text('.'), findsOneWidget);
+      expect(find.text(','), findsOneWidget);
     });
 
     testWidgets('clear button resets value', (t) async {
@@ -609,17 +609,17 @@ void main() {
       );
       await t.pump();
 
-      // Enter "67.5" — all taps are unambiguous since display never matches
+      // Enter "67,5" — all taps are unambiguous since display never matches
       await t.tap(find.text('6'));
       await t.pump();
       await t.tap(find.text('7'));
       await t.pump();
-      await t.tap(find.text('.'));
+      await t.tap(find.text(','));
       await t.pump();
       await t.tap(find.text('5'));
       await t.pump();
 
-      expect(currentValue, '67.5');
+      expect(currentValue, '67,5');
     });
   });
 

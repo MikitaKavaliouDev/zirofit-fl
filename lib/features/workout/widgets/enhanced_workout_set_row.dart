@@ -21,6 +21,7 @@ class EnhancedWorkoutSetRow extends ConsumerStatefulWidget {
   final bool isActive;
   final String activeText;
   final bool isInputSelected;
+  final SessionFocusField? focusedField;
   final void Function(SessionFocusField field) onFocus;
   final void Function(double? weight) onWeightChanged;
   final void Function(int? reps) onRepsChanged;
@@ -42,6 +43,7 @@ class EnhancedWorkoutSetRow extends ConsumerStatefulWidget {
     this.isActive = false,
     this.activeText = '',
     this.isInputSelected = false,
+    this.focusedField,
     required this.onFocus,
     required this.onWeightChanged,
     required this.onRepsChanged,
@@ -67,6 +69,32 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
   void initState() {
     super.initState();
     // Listen to focused field changes to handle errors
+    if (widget.isActive && widget.activeSetId == widget.set.id) {
+      _scrollToFocus();
+    }
+  }
+
+  @override
+  void didUpdateWidget(EnhancedWorkoutSetRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final becameActive = widget.isActive && widget.activeSetId == widget.set.id;
+    final wasActive = oldWidget.isActive && oldWidget.activeSetId == widget.set.id;
+    if (becameActive && !wasActive) {
+      _scrollToFocus();
+    }
+  }
+
+  void _scrollToFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: 0.5,
+        );
+      }
+    });
   }
 
   void _clearError() {
@@ -224,11 +252,9 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
   }
 
   Widget _buildWeightInput(ThemeData theme) {
-    final isFocused = widget.isActive && widget.set.id == widget.activeSetId && 
-        ref.read(activeWorkoutProvider).logs.any((l) => l.id == widget.set.logId); // Safety check
-    // Note: The logic for focus is slightly complex. 
-    // In actual implementation, we'd use a more robust way to check which field is focused.
-    
+    final isFocused = widget.isActive &&
+        widget.focusedField?.isWeight == true &&
+        widget.focusedField?.setId == widget.set.id;
 
     final displayText = isFocused
         ? widget.activeText
@@ -266,7 +292,9 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
   }
 
   Widget _buildRepsInput(ThemeData theme) {
-    final isFocused = widget.isActive && widget.set.id == widget.activeSetId;
+    final isFocused = widget.isActive &&
+        widget.focusedField?.isReps == true &&
+        widget.focusedField?.setId == widget.set.id;
     
     final displayText = isFocused
         ? widget.activeText

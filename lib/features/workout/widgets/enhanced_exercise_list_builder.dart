@@ -113,7 +113,11 @@ class _EnhancedExerciseListBuilderState
     // Add button at bottom
     items.add(const SizedBox(height: 16));
     items.add(_buildAddExerciseButton(theme));
-    items.add(const SizedBox(height: 100)); // Padding for floating controls
+    if (widget.inputState.isActive) {
+      items.add(const SizedBox(height: 380)); // Padding to allow scrolling above the virtual keyboard overlay
+    } else {
+      items.add(const SizedBox(height: 100)); // Padding for floating controls
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -279,6 +283,7 @@ class _EnhancedExerciseListBuilderState
                 isActive: widget.inputState.overlay == WorkoutInputOverlay.keyboard ||
                     widget.inputState.overlay == WorkoutInputOverlay.rpePicker ||
                     widget.inputState.overlay == WorkoutInputOverlay.plateCalculator,
+                focusedField: widget.inputState.focusedField,
                 activeText: widget.inputState.activeSetId == set.id
                     ? widget.inputState.activeText
                     : '',

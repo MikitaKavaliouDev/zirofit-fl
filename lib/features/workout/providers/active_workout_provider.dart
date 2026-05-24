@@ -410,8 +410,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
   /// 3. On success: sync with server response, show PR toast if new records
   /// 4. On failure: rollback local state
   Future<void> completeSet(String logId, {String? exerciseName}) async {
+    final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     // Find the existing log to get its data
-    final existingLog = state.logs.where((log) => log.id == logId).firstOrNull;
+    final existingLog = state.logs.where((log) => log.id == actualLogId).firstOrNull;
     if (existingLog == null) {
       state = state.copyWith(error: 'Log not found');
       return;
@@ -422,7 +423,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
 
     // OPTIMISTIC UPDATE: Immediately mark as completed in UI
     final optimisticLogs = state.logs.map((log) {
-      if (log.id == logId) {
+      if (log.id == actualLogId) {
         return ClientExerciseLog(
           id: log.id,
           clientId: log.clientId,
@@ -458,12 +459,12 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         reps: existingLog.reps,
         weight: existingLog.weight,
         isCompleted: true,
-        logId: logId,
+        logId: actualLogId,
       );
 
       // Sync with server response (update with actual data from backend)
       final syncedLogs = state.logs.map((l) {
-        return l.id == logId ? log : l;
+        return l.id == actualLogId ? log : l;
       }).toList();
 
       state = state.copyWith(logs: syncedLogs);
@@ -687,9 +688,10 @@ try {
 
   /// Update RPE for a specific set in local state.
   void updateSetRpe(String logId, double rpe) {
+    final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     // Update local state - TODO: Add API call when endpoint available
     final updatedLogs = state.logs.map((log) {
-      if (log.id == logId) {
+      if (log.id == actualLogId) {
         return ClientExerciseLog(
           id: log.id,
           clientId: log.clientId,
@@ -721,8 +723,9 @@ try {
   /// Update weight for a specific set in local state (optimistic, no API call).
   /// Mirrors iOS manager.updateSetWeight(setId:weight:).
   void updateSetWeight(String logId, double weight) {
+    final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     final updatedLogs = state.logs.map((log) {
-      if (log.id == logId) {
+      if (log.id == actualLogId) {
         return ClientExerciseLog(
           id: log.id,
           clientId: log.clientId,
@@ -754,8 +757,9 @@ try {
   /// Update reps for a specific set in local state (optimistic, no API call).
   /// Mirrors iOS manager.updateSetReps(setId:reps:).
   void updateSetReps(String logId, int reps) {
+    final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     final updatedLogs = state.logs.map((log) {
-      if (log.id == logId) {
+      if (log.id == actualLogId) {
         return ClientExerciseLog(
           id: log.id,
           clientId: log.clientId,
@@ -787,8 +791,9 @@ try {
   /// Update tempo for a specific set in local state (optimistic, no API call).
   /// Mirrors iOS manager.updateSetTempo(setId:tempo:).
   void updateSetTempo(String logId, String tempo) {
+    final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     final updatedLogs = state.logs.map((log) {
-      if (log.id == logId) {
+      if (log.id == actualLogId) {
         return ClientExerciseLog(
           id: log.id,
           clientId: log.clientId,

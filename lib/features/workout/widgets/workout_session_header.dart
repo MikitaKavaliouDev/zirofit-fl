@@ -148,9 +148,9 @@ class _WorkoutTimerDisplay extends StatelessWidget {
     final theme = Theme.of(context);
     
     // If resting, show a simplified rest progress or just the rest timer
+    // If resting, show a simplified rest progress or just the rest timer
     if (isResting) {
       return Container(
-        width: 140,
         height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
@@ -158,26 +158,29 @@ class _WorkoutTimerDisplay extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.timer, size: 14, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              'REST: ${_formatRestTime(restSeconds)}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-                fontFamily: 'monospace',
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.timer, size: 14, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'REST: ${_formatRestTime(restSeconds)}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                  fontFamily: 'monospace',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
     return Container(
-      width: 140,
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -192,32 +195,36 @@ class _WorkoutTimerDisplay extends StatelessWidget {
         ],
         border: Border.all(color: theme.colorScheme.onSurface.withValues(alpha: 0.1)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.timer_outlined,
-            size: 14,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            formattedTime,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.timer_outlined,
+              size: 14,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isRunning ? Colors.green : Colors.orange,
+            const SizedBox(width: 8),
+            Text(
+              formattedTime,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isRunning ? Colors.green : Colors.orange,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
