@@ -38,7 +38,9 @@ import 'package:zirofit_fl/features/onboarding/screens/educational_onboarding_sc
 import 'package:zirofit_fl/features/onboarding/screens/onboarding_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/create_program_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/create_template_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/program_builder_choice_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/program_detail_screen.dart';
+import 'package:zirofit_fl/features/programs/screens/visual_timeline_builder_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/programs_list_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/client_programs_list_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/client_create_program_screen.dart';
@@ -56,6 +58,7 @@ import 'package:zirofit_fl/features/trainer/screens/trainer_testimonials_screen.
 import 'package:zirofit_fl/features/trainer/screens/trainer_transformation_photos_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/trainer_external_links_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/trainer_social_links_screen.dart';
+import 'package:zirofit_fl/features/trainer/screens/trainer_qr_code_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/custom_exercises_screen.dart';
 import 'package:zirofit_fl/features/trainer/screens/trainer_assessments_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/data_sharing_screen.dart';
@@ -72,6 +75,7 @@ import 'package:zirofit_fl/features/settings/screens/dashboard_prompts_screen.da
 import 'package:zirofit_fl/features/settings/screens/language_settings_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/contact_support_screen.dart';
 import 'package:zirofit_fl/features/events/screens/client_event_detail_screen.dart';
+import 'package:zirofit_fl/features/events/screens/event_map_screen.dart';
 import 'package:zirofit_fl/features/exercises/screens/exercise_list_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/enhanced_active_workout_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_history_screen.dart';
@@ -84,9 +88,12 @@ import 'package:zirofit_fl/features/nutrition/screens/recipe_detail_screen.dart'
 import 'package:zirofit_fl/features/resources/screens/resource_vault_screen.dart';
 import 'package:zirofit_fl/features/resources/screens/create_resource_screen.dart';
 import 'package:zirofit_fl/features/billing/screens/revenue_screen.dart';
+import 'package:zirofit_fl/features/billing/screens/transaction_history_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/explore_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/trainer_discovery_screen.dart';
+import 'package:zirofit_fl/features/explore/screens/trainer_finding_onboarding_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/trainer_map_screen.dart';
+import 'package:zirofit_fl/features/explore/screens/marketplace_screen.dart';
 import 'package:zirofit_fl/features/explore/screens/public_trainer_profile_screen.dart';
 import 'package:zirofit_fl/features/bookings/screens/booking_management_screen.dart';
 import 'package:zirofit_fl/features/bookings/screens/client_booking_screen.dart';
@@ -218,6 +225,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => EducationalOnboardingScreen(
           role: state.extra as String?,
         ),
+      ),
+      GoRoute(
+        path: '/onboarding/find-trainer',
+        builder: (_, _) => const TrainerFindingOnboardingScreen(),
       ),
 
       // -- Exercise library (standalone, can be navigated from any role) --
@@ -381,6 +392,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const ProgramsListScreen(),
             routes: [
               GoRoute(
+                path: 'choose-builder',
+                builder: (_, _) => const ProgramBuilderChoiceScreen(),
+              ),
+              GoRoute(
+                path: 'timeline-builder',
+                builder: (_, _) => const VisualTimelineBuilderScreen(),
+              ),
+              GoRoute(
                 path: 'create',
                 builder: (_, _) => const CreateProgramScreen(),
               ),
@@ -419,6 +438,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/trainer/revenue',
             builder: (_, _) => const RevenueScreen(),
+          ),
+          GoRoute(
+            path: '/trainer/transactions',
+            builder: (_, _) => const TransactionHistoryScreen(),
           ),
           GoRoute(
             path: '/trainer/chat',
@@ -466,6 +489,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (_, _) => const TrainerSocialLinksScreen(),
               ),
             ],
+          ),
+          GoRoute(
+            path: '/trainer/qr-code',
+            builder: (_, _) => const TrainerQrCodeScreen(),
           ),
           GoRoute(
             path: '/trainer/assessments',
@@ -609,6 +636,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const TrainerMapScreen(),
           ),
           GoRoute(
+            path: '/client/explore/marketplace',
+            builder: (_, _) => const MarketplaceScreen(),
+          ),
+          GoRoute(
             path: '/client/chat',
             builder: (_, _) => const ConversationsListScreen(),
             routes: [
@@ -634,10 +665,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/client/more',
             builder: (_, _) => const MoreScreen(),
           ),
+          GoRoute(
+            path: '/client/transactions',
+            builder: (_, _) => const TransactionHistoryScreen(),
+          ),
         ],
       ),
 
       // -- Deep link & shared routes (top-level, auth handled by redirect above) --
+      GoRoute(
+        path: '/events/map',
+        builder: (_, _) => const EventMapScreen(),
+      ),
       GoRoute(
         path: '/events/:id',
         builder: (_, state) => ClientEventDetailScreen(

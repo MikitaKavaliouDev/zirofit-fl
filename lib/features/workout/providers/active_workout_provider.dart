@@ -382,6 +382,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
   /// POST /api/workout-sessions/start
   /// Starts a new workout, optionally from a template.
   Future<void> startWorkout({String? templateId}) async {
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -419,6 +420,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         isLoading: false,
         error: e.toString(),
       );
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -428,6 +431,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     required String clientId,
     required String clientName,
   }) async {
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -461,6 +465,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         isLoading: false,
         error: e.toString(),
       );
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -522,6 +528,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
 
   /// Loads the currently active session (for re-entering the screen).
   Future<void> loadActiveSession() async {
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -563,6 +570,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       debugPrint('LOAD_ACTIVE_SESSION_ERROR: $e');
       debugPrint('STACKTRACE: $st');
       state = const ActiveWorkoutState();
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -576,6 +585,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     bool? isCompleted,
     String? logId,
   }) async {
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -602,6 +612,53 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
           logs: [...state.logs, log],
         );
       }
+    } catch (e, st) {
+      debugPrint('WORKOUT_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: save to local DB + enqueue for sync
+        final tempLog = ClientExerciseLog(
+          id: logId ?? 'log-${DateTime.now().millisecondsSinceEpoch}',
+          clientId: state.session!.clientId,
+          exerciseId: exerciseId,
+          reps: reps,
+          weight: weight,
+          isCompleted: isCompleted,
+          order: state.logs.length + 1,
+          workoutSessionId: state.session!.id,
+          createdAt: DateTime.now(),
+        );
+        // Persist locally
+        await _localDbService.createLocalLog(tempLog);
+        // Enqueue for sync
+        await _syncEngine?.queueMutation(
+          tableName: 'client_exercise_logs',
+          recordId: tempLog.id,
+          operation: SyncOperation.create,
+          data: tempLog.toJson(),
+        );
+        // Update local state
+        if (logId != null) {
+          final updatedLogs = state.logs.map((l) {
+            return l.id == logId ? tempLog : l;
+          }).toList();
+          state = state.copyWith(isLoading: false, logs: updatedLogs);
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            logs: [...state.logs, tempLog],
+          );
+        }
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        );
+      }
+    } finally {
+      setSyncingWorkout(false);
+    }
+  }
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -661,6 +718,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       state = state.copyWith(error: 'Log not found');
       return;
     }
+
+    setSyncingWorkout(true);
 
     // Store pre-update state for potential rollback
     final previousLogs = List<ClientExerciseLog>.from(state.logs);
@@ -754,6 +813,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
           error: e.toString(),
         );
       }
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -763,6 +824,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     final sessionId = state.session?.id;
     if (sessionId == null) return null;
 
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -808,6 +870,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         );
         return null;
       }
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -820,6 +884,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       return;
     }
 
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -852,6 +917,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
           error: e.toString(),
         );
       }
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -942,6 +1009,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     final sessionId = state.session?.id;
     if (sessionId == null) return;
 
+    setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
@@ -975,6 +1043,8 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
           error: e.toString(),
         );
       }
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 
@@ -1471,6 +1541,7 @@ try {
     final sessionId = state.session?.id;
     if (sessionId == null) return;
 
+    setSyncingWorkout(true);
     try {
       await _remoteSource.saveSessionAsTemplate(
         sessionId: sessionId,
@@ -1481,6 +1552,8 @@ try {
       debugPrint('SAVE_TEMPLATE_ERROR: $e');
       debugPrint('STACKTRACE: $st');
       state = state.copyWith(error: 'Failed to save template: $e');
+    } finally {
+      setSyncingWorkout(false);
     }
   }
 

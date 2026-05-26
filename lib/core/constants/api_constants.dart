@@ -152,6 +152,7 @@ class ApiConstants {
 
   // Programs & Templates
   static const String trainerPrograms = '/trainer/programs';
+  static String trainerProgram(String id) => '/trainer/programs/$id';
   static const String trainerWorkoutTemplates = '/trainer/workout-templates';
   static const String clientPrograms = '/client/programs';
   static const String clientProgramTemplates = '/client/programs/templates';

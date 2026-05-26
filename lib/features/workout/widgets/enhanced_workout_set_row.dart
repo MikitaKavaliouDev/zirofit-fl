@@ -61,12 +61,22 @@ class EnhancedWorkoutSetRow extends ConsumerStatefulWidget {
   ConsumerState<EnhancedWorkoutSetRow> createState() => _EnhancedWorkoutSetRowState();
 }
 
-class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
+class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow>
+    with SingleTickerProviderStateMixin {
   bool _showError = false;
+  double _dragOffset = 0.0;
+  bool _isSwiping = false;
+  late AnimationController _swipeController;
+
+  static const double _swipeThreshold = 80.0;
 
   @override
   void initState() {
     super.initState();
+    _swipeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
     // Listen to focused field changes to handle errors
     if (widget.isActive && widget.activeSetId == widget.set.id) {
       _scrollToFocus();
@@ -81,6 +91,12 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
     if (becameActive && !wasActive) {
       _scrollToFocus();
     }
+  }
+
+  @override
+  void dispose() {
+    _swipeController.dispose();
+    super.dispose();
   }
 
   void _scrollToFocus() {
@@ -100,6 +116,75 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
     if (_showError) {
       setState(() => _showError = false);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Swipe-to-complete gesture handlers
+  // ---------------------------------------------------------------------------
+
+  void _onHorizontalDragStart(DragStartDetails details) {
+    if (widget.set.isCompleted) return;
+    setState(() {
+      _dragOffset = 0;
+      _isSwiping = true;
+    });
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (widget.set.isCompleted || !_isSwiping) return;
+    final newOffset = (_dragOffset + details.delta.dx).clamp(0.0, 200.0);
+    if (newOffset != _dragOffset) {
+      setState(() {
+        _dragOffset = newOffset;
+      });
+    }
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (widget.set.isCompleted || !_isSwiping) return;
+    _isSwiping = false;
+
+    if (_dragOffset >= _swipeThreshold) {
+      HapticFeedback.mediumImpact();
+      // Reset offset immediately to avoid visual glitch when provider rebuilds
+      _dragOffset = 0;
+      widget.onComplete();
+    } else {
+      _animateSwipeBack();
+    }
+  }
+
+  void _animateSwipeBack() {
+    final start = _dragOffset;
+    if (start <= 0) {
+      setState(() => _dragOffset = 0);
+      return;
+    }
+
+    final animation = Tween<double>(begin: start, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _swipeController,
+        curve: Curves.fastOutSlowIn,
+      ),
+    );
+
+    void listener() {
+      setState(() {
+        _dragOffset = animation.value;
+      });
+    }
+
+    void statusListener(AnimationStatus status) {
+      if (status == AnimationStatus.completed) {
+        animation.removeListener(listener);
+        _swipeController.removeStatusListener(statusListener);
+        setState(() => _dragOffset = 0);
+      }
+    }
+
+    animation.addListener(listener);
+    _swipeController.addStatusListener(statusListener);
+    _swipeController.forward(from: 0.0);
   }
 
   Color _getStatusColor(SetStatus status) {
@@ -130,12 +215,39 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
     }
   }
 
+  /// Builds the green-tinted background revealed during rightward swipe.
+  Widget _buildSwipeBackground() {
+    final opacity = (_dragOffset / _swipeThreshold).clamp(0.0, 1.0);
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: opacity * 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Opacity(
+              opacity: opacity,
+              child: const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 28,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statusColor = _getStatusColor(widget.set.status);
 
-    return Column(
+    final rowContent = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Main row with set details
@@ -179,6 +291,29 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
         if (_hasPreviousData)
           _buildPreviousDataRow(theme),
       ],
+    );
+
+    // Don't add swipe gesture for already completed sets
+    if (widget.set.isCompleted) {
+      return rowContent;
+    }
+
+    return GestureDetector(
+      onHorizontalDragStart: _onHorizontalDragStart,
+      onHorizontalDragUpdate: _onHorizontalDragUpdate,
+      onHorizontalDragEnd: _onHorizontalDragEnd,
+      behavior: HitTestBehavior.translucent,
+      child: ClipRect(
+        child: Stack(
+          children: [
+            _buildSwipeBackground(),
+            Transform.translate(
+              offset: Offset(_dragOffset, 0),
+              child: rowContent,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

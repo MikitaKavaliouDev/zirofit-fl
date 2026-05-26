@@ -1,6 +1,7 @@
 {
-  "active_plan": "V:\\zirofit-fl\\.sisyphus\\plans\\full-ios-parity-plan.md",
+  "active_plan": null,
   "started_at": "2026-05-25T06:35:00.000Z",
+  "completed_at": "2026-05-26T08:35:00.000Z",
   "session_ids": [
     "ses_1a71d6fcaffekXWXfUmmEWUTVo",
     "ses_1a1037ef2ffe8RvmsTn3GbZwOJ",
@@ -8,6 +9,7 @@
     "ses_1a1037839ffe4N34AwgOMnH9o0"
   ],
   "plan_name": "full-ios-parity-plan",
+  "status": "completed",
   "session_origins": {
     "ses_1a71d6fcaffekXWXfUmmEWUTVo": "direct",
     "ses_1a1037ef2ffe8RvmsTn3GbZwOJ": "appended",

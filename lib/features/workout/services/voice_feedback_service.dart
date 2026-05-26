@@ -135,6 +135,29 @@ class VoiceFeedbackService {
     await speak('Workout complete! Great work today.');
   }
 
+  /// Announce the next exercise, with target reps and weight if available.
+  Future<void> announceNextExercise({
+    required String exerciseName,
+    int? targetReps,
+    double? targetWeight,
+  }) async {
+    final buffer = StringBuffer()
+      ..write('Next up, ')
+      ..write(exerciseName);
+    if (targetWeight != null && targetWeight > 0) {
+      buffer.write(', ${targetWeight.toStringAsFixed(1)} kilograms');
+    }
+    if (targetReps != null && targetReps > 0) {
+      if (targetWeight != null && targetWeight > 0) {
+        buffer.write(' for ');
+      } else {
+        buffer.write(', ');
+      }
+      buffer.write('$targetReps reps');
+    }
+    await speak(buffer.toString());
+  }
+
   /// Speak a confirmation after logging a set.
   Future<void> speakConfirmation({
     required String exerciseName,

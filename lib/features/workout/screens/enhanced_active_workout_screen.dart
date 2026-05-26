@@ -111,6 +111,10 @@ class _EnhancedActiveWorkoutScreenState
   bool _voiceOverlayVisible = false;
   bool _voiceCommandPending = false;
 
+  /// Tracks the last exercise that was announced by the voice coach,
+  /// preventing duplicate "next up" announcements for the same exercise.
+  String? _lastAnnouncedExerciseId;
+
   // ---------------------------------------------------------------------------
   // Drag to dismiss state
   // ---------------------------------------------------------------------------
@@ -842,6 +846,31 @@ class _EnhancedActiveWorkoutScreenState
       },
     );
 
+    // Exercise transition audio cue (iOS VoiceCoachManager behavior):
+    // When a new set is added for a different exercise, announce "Next up: [exercise]".
+    ref.listen<int>(
+      activeWorkoutProvider.select((s) => s.logs.length),
+      (previous, next) {
+        if (previous == null || next <= previous) return;
+        if (next < 2) return; // need at least 2 logs to compare exercises
+        final state = ref.read(activeWorkoutProvider);
+        final logs = state.logs;
+        final newSet = logs.last;
+        final previousSet = logs[logs.length - 2];
+        if (newSet.exerciseId != previousSet.exerciseId &&
+            _lastAnnouncedExerciseId != newSet.exerciseId) {
+          _lastAnnouncedExerciseId = newSet.exerciseId;
+          final exerciseName =
+              state.exerciseNames[newSet.exerciseId] ?? 'Exercise';
+          _voiceService.announceNextExercise(
+            exerciseName: exerciseName,
+            targetWeight: newSet.weight,
+            targetReps: newSet.reps,
+          );
+        }
+      },
+    );
+
     // ── ZStack equivalent: Stack ──
     final bodyWidget = ValueListenableBuilder<double>(
       valueListenable: _dragOffset,
@@ -1099,6 +1128,66 @@ class _EnhancedActiveWorkoutScreenState
                     );
                   },
                 ),
+
+              // ── Syncing Overlay (iOS: ProgressView + "Syncing workout..." at zIndex: 100) ──
+              Consumer(
+                builder: (context, ref, _) {
+                  final isSyncing = ref.watch(
+                    activeWorkoutProvider.select((s) => s.isSyncingWorkout),
+                  );
+                  if (!isSyncing) return const SizedBox.shrink();
+                  return Stack(
+                    children: [
+                      // Semi-transparent barrier
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      // Centered spinner + text
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 20,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                'Syncing workout...',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),

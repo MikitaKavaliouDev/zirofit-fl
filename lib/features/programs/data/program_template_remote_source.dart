@@ -132,6 +132,45 @@ class ProgramTemplateRemoteSource {
     return response.data as Map<String, dynamic>;
   }
 
+  // ---------------------------------------------------------------------------
+  // Timeline (Visual Timeline Builder)
+  // ---------------------------------------------------------------------------
+
+  /// POST/PUT /api/trainer/programs
+  /// Saves a timeline structure.
+  ///
+  /// If [programId] is empty, a new program is created (POST).
+  /// If [programId] is provided, the existing program is updated (PUT).
+  /// [timelineData] should contain the full program payload including
+  /// `name`, `description`, and nested `timeline.weeks`.
+  Future<Map<String, dynamic>> saveTimeline(
+    String programId,
+    Map<String, dynamic> timelineData,
+  ) async {
+    if (programId.isEmpty) {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiConstants.trainerPrograms,
+        data: timelineData,
+      );
+      return response.data as Map<String, dynamic>;
+    } else {
+      final response = await _dio.put<Map<String, dynamic>>(
+        ApiConstants.trainerProgram(programId),
+        data: timelineData,
+      );
+      return response.data as Map<String, dynamic>;
+    }
+  }
+
+  /// GET /api/trainer/programs/{programId}
+  /// Loads a program's timeline data.
+  Future<Map<String, dynamic>> loadTimeline(String programId) async {
+    final response = await _dio.get(
+      ApiConstants.trainerProgram(programId),
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// GET /api/exercises?search=...&page=...&limit=...
   /// Searches exercises with optional text query and pagination.
   Future<Map<String, dynamic>> searchExercises({

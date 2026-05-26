@@ -8,7 +8,9 @@ import 'package:zirofit_fl/features/calendar/widgets/session_card.dart';
 import 'package:zirofit_fl/features/calendar/widgets/calendar_date_strip.dart';
 import 'package:zirofit_fl/features/calendar/widgets/calendar_day_view.dart';
 import 'package:zirofit_fl/features/calendar/widgets/calendar_agenda_view.dart';
+import 'package:zirofit_fl/features/calendar/widgets/clients_summary_panel.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 
 /// Calendar screen with month grid, day view (swipeable), and agenda view.
@@ -318,6 +320,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         // Month calendar grid
         _buildCalendarGrid(theme, calendarState),
         const Divider(height: 1),
+        // Clients for the selected date (collapsible)
+        ClientsSummaryPanel(
+          events: calendarState.events,
+          selectedDate: calendarState.selectedDate,
+          onClientTap: (clientId, clientName) {
+            context.go('/trainer/clients/$clientId');
+          },
+        ),
         // Selected day's sessions
         Expanded(
           child: _buildDaySessions(theme, calendarState),

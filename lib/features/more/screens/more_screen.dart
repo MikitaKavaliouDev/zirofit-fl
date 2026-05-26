@@ -62,6 +62,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               onTap: () => context.go('/client/check-in/history'),
             ),
             _MoreListTile(
+              icon: Icons.receipt_long_outlined,
+              title: 'Purchase History',
+              onTap: () => context.go('/client/transactions'),
+            ),
+            _MoreListTile(
               icon: Icons.fitness_center_outlined,
               title: 'Programs',
               onTap: () => context.go('/client/programs'),
@@ -78,6 +83,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               onTap: () => context.go('/trainer/profile'),
             ),
             _MoreListTile(
+              icon: Icons.qr_code_2_outlined,
+              title: 'Digital Business Card',
+              onTap: () => context.go('/trainer/qr-code'),
+            ),
+            _MoreListTile(
               icon: Icons.settings_outlined,
               title: 'Settings',
               onTap: () => context.go('/trainer/settings'),
@@ -91,6 +101,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
               icon: Icons.attach_money_outlined,
               title: 'Revenue',
               onTap: () => context.go('/trainer/revenue'),
+            ),
+            _MoreListTile(
+              icon: Icons.receipt_long_outlined,
+              title: 'Transaction History',
+              onTap: () => context.go('/trainer/transactions'),
             ),
             _MoreListTile(
               icon: Icons.folder_outlined,

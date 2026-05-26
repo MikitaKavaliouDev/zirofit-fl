@@ -17,6 +17,7 @@ import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/active_program_response.dart';
 import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
 import 'package:zirofit_fl/features/clients/widgets/trainer_details_bottom_sheet.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/active_routine_widget.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/recent_workout_row.dart';
 
 /// SharedPreferences key for the educational overlay.
@@ -181,6 +182,10 @@ class _ClientDashboardScreenState
                 _buildStreakBanner(theme, data.progress.workoutStreak),
                 const SizedBox(height: 16),
               ],
+
+              // 1.5 Active Routine
+              const ActiveRoutineWidget(),
+              const SizedBox(height: 16),
 
               // 2. Quick Actions
               _buildQuickActions(theme, data),

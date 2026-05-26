@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/auth/providers/mode_switch_provider.dart';
+import 'package:zirofit_fl/features/auth/widgets/role_login_sheet.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/ziro_tab_bar.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_sheet_overlay.dart';
+import 'package:zirofit_fl/core/services/notification_routing.dart';
+import 'package:zirofit_fl/features/notifications/providers/cross_mode_alert_provider.dart';
 import 'package:zirofit_fl/features/notifications/providers/notifications_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -156,7 +160,79 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
       return;
     }
     
+    // Pop to root when re-tapping the already active tab
+    if (index == _selectedIndex(location)) {
+      final router = GoRouter.of(context);
+      while (router.canPop()) {
+        router.pop();
+      }
+    }
+
     context.go(route);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cross-mode notification alert
+  // ---------------------------------------------------------------------------
+
+  /// Shows an AlertDialog asking the user whether to switch to the
+  /// role required by the push notification.
+  ///
+  /// On confirm:
+  /// 1. Switches auth session to the target role
+  /// 2. Sets the display mode to match
+  /// 3. Dismisses the alert
+  /// 4. Navigates to the notification's intended screen
+  Future<void> _showCrossModeAlert(CrossModeAlertState alert) async {
+    final targetLabel = AuthNotifier.roleLabel(alert.targetRole);
+
+    final shouldSwitch = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cross-Mode Notification'),
+        content: Text(
+          'This notification requires $targetLabel mode. Switch now?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Switch'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (shouldSwitch == true) {
+      // 1. Switch the auth session to the target role
+      await ref.read(authProvider.notifier).switchToRole(alert.targetRole);
+
+      // 2. Set the display mode to match
+      final targetMode = alert.targetRole == 'trainer'
+          ? AppMode.trainer
+          : AppMode.personal;
+      await ref.read(modeSwitchProvider.notifier).setMode(targetMode);
+
+      // 3. Dismiss the alert
+      ref.read(crossModeAlertProvider.notifier).dismiss();
+
+      // 4. Navigate to the notification's intended screen
+      if (alert.data.isNotEmpty && mounted) {
+        final router = GoRouter.of(context);
+        NotificationRoutingService.handleNotificationTap(
+          alert.data,
+          router,
+        );
+      }
+    } else {
+      // User cancelled — just dismiss the alert
+      ref.read(crossModeAlertProvider.notifier).dismiss();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -181,6 +257,18 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
           final homeIndex = newTabs.length > 2 ? 2 : newTabs.length - 1;
           context.go(newTabs[homeIndex].route);
         }
+      }
+    });
+
+    // Cross-mode notification alert: when a push notification targets a
+    // different role than the user's current mode, show a dialog offering
+    // to switch modes.
+    ref.listen<CrossModeAlertState?>(crossModeAlertProvider, (previous, next) {
+      if (!mounted) return;
+      if (next != null &&
+          next.isAlertActive &&
+          (previous == null || !previous.isAlertActive)) {
+        _showCrossModeAlert(next);
       }
     });
 
@@ -248,7 +336,24 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
               onToggleModeExpanded: () =>
                   setState(() => _isModeExpanded = !_isModeExpanded),
               currentMode: mode,
-              onModeChanged: (newMode) {
+              onModeChanged: (newMode) async {
+                final authState = ref.read(authProvider);
+                final targetRole =
+                    newMode == AppMode.trainer ? 'trainer' : 'client';
+
+                // Gate: if the user's role doesn't match the target mode,
+                // show a login sheet before switching.
+                if (authState.role != targetRole) {
+                  final loggedIn = await RoleLoginSheet.show(
+                    context,
+                    targetRole: targetRole,
+                  );
+                  if (!loggedIn || !context.mounted) {
+                    setState(() => _isModeExpanded = false);
+                    return;
+                  }
+                }
+
                 ref.read(modeSwitchProvider.notifier).setMode(newMode);
                 setState(() => _isModeExpanded = false);
               },
@@ -257,6 +362,11 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
                 // Skip route navigation for overlay-based tabs (client Workout)
                 if (location.startsWith('/client') && route == '/client/workout') {
                   return;
+                }
+                // Pop to root on double-tap of active tab
+                final router = GoRouter.of(context);
+                while (router.canPop()) {
+                  router.pop();
                 }
                 context.go(route);
               },

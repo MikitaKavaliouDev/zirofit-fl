@@ -70,7 +70,7 @@ class ZiroSheetHeader extends StatelessWidget {
           _buildDragHandle(),
 
           // Title row with Cancel / Done buttons
-          _buildTitleRow(),
+          _buildTitleRow(context),
         ],
       ),
     );
@@ -90,7 +90,7 @@ class ZiroSheetHeader extends StatelessWidget {
   }
 
   /// The title row with centered text and Cancel/Done/trailing-icon buttons.
-  Widget _buildTitleRow() {
+  Widget _buildTitleRow(BuildContext context) {
     return SizedBox(
       height: 44,
       child: Stack(

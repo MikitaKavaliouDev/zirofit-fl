@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 
 class TrainerDetailsBottomSheet extends ConsumerStatefulWidget {
@@ -194,11 +195,31 @@ class _TrainerDetailsBottomSheetState extends ConsumerState<TrainerDetailsBottom
               ),
               const SizedBox(height: 8),
               Text(
-                'Your trainer will appear here once assigned.',
+                'Find a trainer who matches your goals\nand start your fitness journey.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Future.microtask(
+                      () => context.go('/onboarding/find-trainer'),
+                    );
+                  },
+                  icon: const Icon(Icons.search_rounded),
+                  label: const Text('Find a Trainer'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -376,7 +397,30 @@ class _TrainerDetailsBottomSheetState extends ConsumerState<TrainerDetailsBottom
               ),
             ],
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
+
+            // Browse Trainers button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Future.microtask(
+                    () => context.go('/onboarding/find-trainer'),
+                  );
+                },
+                icon: const Icon(Icons.search_rounded),
+                label: const Text('Browse All Trainers'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             // Unlink Button
             SizedBox(

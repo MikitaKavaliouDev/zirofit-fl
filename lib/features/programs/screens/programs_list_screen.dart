@@ -59,12 +59,12 @@ class _ProgramsListScreenState extends ConsumerState<ProgramsListScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
+              ListTile(
               leading: const Icon(Icons.fitness_center),
               title: const Text('New Program'),
               onTap: () {
                 Navigator.of(ctx).pop();
-                context.push('/trainer/programs/create');
+                context.push('/trainer/programs/choose-builder');
               },
             ),
             ListTile(

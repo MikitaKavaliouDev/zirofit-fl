@@ -13,6 +13,7 @@ import 'core/services/deep_link_service.dart';
 import 'core/services/language_manager.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/location_service.dart';
+import 'core/services/login_prefetch_service.dart';
 import 'core/services/notification_routing.dart';
 import 'core/services/stripe_connect_service.dart';
 import 'core/utils/provider_state_logger.dart';
@@ -20,7 +21,7 @@ import 'data/models/profile.dart';
 import 'data/sync/sync_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/providers/mode_switch_provider.dart';
-import 'features/clients/providers/client_list_provider.dart';
+import 'features/notifications/providers/cross_mode_alert_provider.dart';
 import 'features/workout/providers/active_workout_provider.dart';
 
 /// Application initialization orchestration.
@@ -86,18 +87,12 @@ class AppBootstrap {
       }
     });
 
-    // 4. Pre-fetch clients on login (cache-first)
-    //    This loads the client list from the API and caches it so the
-    //    client list screen renders instantly on first visit.
-    if (authState.role == 'trainer') {
-      try {
-        final clientListNotifier =
-            container.read(clientListProvider.notifier);
-        // Attempt a background fetch to warm the cache
-        clientListNotifier.fetchClients();
-      } catch (_) {
-        // Best-effort; client list fetch should never block startup.
-      }
+    // 4. Background prefetch on login (cache-first)
+    //    Warms the cache for dashboard, clients, programs, calendar, and
+    //    analytics so the app loads instantly after auth.
+    //    Mirrors the iOS prefetch strategy.
+    if (authState.isAuthenticated && authState.role != null) {
+      LoginPrefetchService.prefetch(container, authState.role!);
     }
 
     // 5. Trigger initial sync (runs in background; failures are non-fatal)
@@ -221,6 +216,13 @@ class AppBootstrap {
           router,
         );
       });
+
+      // Initialize the cross-mode alert notifier so it starts listening to
+      // the onMessage stream immediately. It handles ALL message types
+      // (foreground, background, terminated) and detects role mismatches,
+      // showing an AlertDialog when a notification targets a different role
+      // than the user's current AppMode.
+      container.read(crossModeAlertProvider);
     } catch (_) {
       // FCM initialization may fail on platforms without Google Play
       // Services (emulator, web, etc.). Non-fatal.
