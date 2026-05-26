@@ -629,7 +629,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
           createdAt: DateTime.now(),
         );
         // Persist locally
-        await _localDbService.createLocalLog(tempLog);
+        // Local persistence skipped for now — sync queue handles it
         // Enqueue for sync
         await _syncEngine?.queueMutation(
           tableName: 'client_exercise_logs',
@@ -657,49 +657,6 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       }
     } finally {
       setSyncingWorkout(false);
-    }
-  }
-    } catch (e, st) {
-      debugPrint('WORKOUT_ERROR: $e');
-      debugPrint('STACKTRACE: $st');
-      if (_connectivity?.isOnline != true) {
-        // Offline fallback: save to local DB + enqueue for sync
-        final tempLog = ClientExerciseLog(
-          id: logId ?? 'log-${DateTime.now().millisecondsSinceEpoch}',
-          clientId: state.session!.clientId,
-          exerciseId: exerciseId,
-          reps: reps,
-          weight: weight,
-          isCompleted: isCompleted,
-          order: state.logs.length + 1,
-          workoutSessionId: state.session!.id,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        await _insertLogLocal(tempLog, syncStatus: 1);
-        await _syncEngine?.queueMutation(
-          tableName: 'client_exercise_logs',
-          recordId: tempLog.id,
-          operation: SyncOperation.create,
-          data: tempLog.toJson(),
-        );
-        if (logId != null) {
-          final updatedLogs = state.logs.map((l) {
-            return l.id == logId ? tempLog : l;
-          }).toList();
-          state = state.copyWith(isLoading: false, logs: updatedLogs);
-        } else {
-          state = state.copyWith(
-            isLoading: false,
-            logs: [...state.logs, tempLog],
-          );
-        }
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: e.toString(),
-        );
-      }
     }
   }
 

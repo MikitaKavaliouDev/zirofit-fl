@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zirofit_fl/core/services/apple_calendar_service.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
 import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
 
@@ -32,6 +34,7 @@ class _RoutineSchedulerScreenState
     extends ConsumerState<RoutineSchedulerScreen> {
   late List<_DaySchedule> _days;
   bool _isSaving = false;
+  bool _syncToCalendar = true;
 
   static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -159,6 +162,30 @@ class _RoutineSchedulerScreenState
                         : const Icon(Icons.check),
                     label: const Text('Save Schedule'),
                   ),
+                  // Sync to Calendar toggle
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month,
+                          size: 20,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Sync to Apple Calendar',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                        Switch(
+                          value: _syncToCalendar,
+                          onChanged: (v) => setState(() => _syncToCalendar = v),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   // Skip button
                   TextButton(
@@ -202,6 +229,14 @@ class _RoutineSchedulerScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Routine scheduled successfully')),
         );
+      }
+
+      // Sync to calendar if enabled
+      if (_syncToCalendar && mounted) {
+        await _syncRoutineToCalendar();
+      }
+
+      if (mounted) {
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -215,6 +250,57 @@ class _RoutineSchedulerScreenState
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _syncRoutineToCalendar() async {
+    final service = ref.read(appleCalendarServiceProvider);
+
+    try {
+      final hasPerm = await service.hasPermission();
+      if (!hasPerm) {
+        final granted = await service.requestPermission();
+        if (!granted) return;
+      }
+
+      final now = DateTime.now();
+      final enabledDays = _days.where((d) => d.enabled && d.time != null);
+
+      int added = 0;
+      for (final day in enabledDays) {
+        // Calculate next occurrence of this weekday
+        final todayWeekday = now.weekday; // 1=Mon ... 7=Sun
+        int daysUntil = (day.weekday - todayWeekday + 7) % 7;
+        if (daysUntil == 0) daysUntil = 7; // Next week if today
+
+        final eventDate = DateTime(
+          now.year, now.month, now.day + daysUntil,
+          day.time!.hour, day.time!.minute,
+        );
+
+        final result = await service.createEvent(
+          title: 'Workout: ${widget.routine.name}',
+          start: eventDate,
+          end: eventDate.add(const Duration(hours: 1)),
+          notes: 'Scheduled workout routine',
+        );
+        if (result != null) {
+          await service.storeEventMapping(
+            bookingId: '${widget.routine.id}_${day.weekday}',
+            eventId: result.eventId,
+            calendarId: result.calendarId,
+          );
+          added++;
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$added events synced to calendar')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[CalendarSync] Routine sync failed: $e');
     }
   }
 }

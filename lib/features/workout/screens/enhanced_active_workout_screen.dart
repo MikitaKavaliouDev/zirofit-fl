@@ -14,6 +14,7 @@ import 'package:zirofit_fl/features/workout/providers/active_workout_provider.da
 import 'package:zirofit_fl/features/workout/providers/exercise_library_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
+import 'package:zirofit_fl/core/services/apple_calendar_service.dart';
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
 import 'package:zirofit_fl/features/workout/services/voice_log_service.dart';
 import 'package:zirofit_fl/features/workout/services/workout_toast_service.dart';
@@ -434,11 +435,43 @@ class _EnhancedActiveWorkoutScreenState
 
     ref.read(sessionOverlayProvider.notifier).hide();
     _voiceService.announceWorkoutComplete();
+    _syncWorkoutToCalendar(finishedSession); // fire-and-forget
 
     if (widget.onFinish != null) {
       widget.onFinish!(finishedSession, enrichedLogs);
     } else if (mounted) {
       _navigateToSummary(context, finishedSession, enrichedLogs);
+    }
+  }
+
+  /// Syncs the finished workout to Apple Calendar if the user has sync
+  /// enabled. This is fire-and-forget and will never block navigation.
+  Future<void> _syncWorkoutToCalendar(WorkoutSession finishedSession) async {
+    try {
+      final service = ref.read(appleCalendarServiceProvider);
+      if (!await service.isSyncEnabled()) return;
+
+      if (!await service.hasPermission()) {
+        if (!await service.requestPermission()) return;
+      }
+
+      final result = await service.createEvent(
+        title: 'Workout: ${finishedSession.name ?? "Workout"}',
+        start: finishedSession.startTime,
+        end: finishedSession.endTime ??
+            finishedSession.startTime.add(const Duration(hours: 1)),
+        notes: 'Completed workout session',
+      );
+
+      if (result != null) {
+        await service.storeEventMapping(
+          bookingId: finishedSession.id,
+          eventId: result.eventId,
+          calendarId: result.calendarId,
+        );
+      }
+    } catch (e) {
+      debugPrint('Calendar sync error: $e');
     }
   }
 

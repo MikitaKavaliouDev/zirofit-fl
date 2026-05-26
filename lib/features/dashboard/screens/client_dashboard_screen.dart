@@ -19,6 +19,7 @@ import 'package:zirofit_fl/shared/widgets/ziro_data_view.dart';
 import 'package:zirofit_fl/features/clients/widgets/trainer_details_bottom_sheet.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/active_routine_widget.dart';
 import 'package:zirofit_fl/features/dashboard/widgets/recent_workout_row.dart';
+import 'package:zirofit_fl/core/services/apple_calendar_service.dart';
 
 /// SharedPreferences key for the educational overlay.
 const _kEducationOverlayKey = 'dashboard_education_seen';
@@ -1498,14 +1499,14 @@ class _ProgressStat extends StatelessWidget {
 // Upcoming Session Card (horizontal scroll)
 // ---------------------------------------------------------------------------
 
-class _UpcomingSessionCard extends StatelessWidget {
+class _UpcomingSessionCard extends ConsumerWidget {
   final WorkoutSession session;
   final VoidCallback? onTap;
 
   const _UpcomingSessionCard({required this.session, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MMM d');
     final isTrainerLed = session.isTrainerLed;
@@ -1550,6 +1551,16 @@ class _UpcomingSessionCard extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.7),
                       size: 16,
                     ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () =>
+                          _addSessionToCalendar(context, ref, session),
+                      child: Icon(
+                        Icons.calendar_month,
+                        color: Colors.white.withValues(alpha: 0.7),
+                        size: 16,
+                      ),
+                    ),
                   ],
                 ),
                 const Spacer(),
@@ -1576,6 +1587,56 @@ class _UpcomingSessionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _addSessionToCalendar(
+  BuildContext context,
+  WidgetRef ref,
+  WorkoutSession session,
+) async {
+  final service = ref.read(appleCalendarServiceProvider);
+  try {
+    final hasPerm = await service.hasPermission();
+    if (!hasPerm) {
+      final granted = await service.requestPermission();
+      if (!granted) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Calendar permission denied')),
+          );
+        }
+        return;
+      }
+    }
+
+    final sessionName = session.name ?? 'Upcoming Session';
+    final startTime = session.startTime;
+    final endTime = session.endTime ?? startTime.add(const Duration(hours: 1));
+    final sessionNotes = session.notes;
+
+    final result = await service.createEvent(
+      title: sessionName,
+      start: startTime,
+      end: endTime,
+      notes: sessionNotes,
+    );
+
+    if (result != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to calendar')),
+      );
+    }
+  } catch (e) {
+    debugPrint('[CalendarSync] Failed to add session: $e');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add to calendar: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 }
 

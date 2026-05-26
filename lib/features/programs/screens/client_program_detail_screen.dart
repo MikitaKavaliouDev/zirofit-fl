@@ -2,24 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/data/models/personal_template.dart';
+import 'package:zirofit_fl/core/services/apple_calendar_service.dart';
 import 'package:zirofit_fl/features/programs/providers/client_programs_provider.dart';
 
 /// Client-facing detail screen for a personal program.
 ///
 /// Shows program info, category, source badge, and a list of its templates.
-class ClientProgramDetailScreen extends ConsumerWidget {
+class ClientProgramDetailScreen extends ConsumerStatefulWidget {
   final String programId;
 
   const ClientProgramDetailScreen({super.key, required this.programId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClientProgramDetailScreen> createState() => _ClientProgramDetailScreenState();
+}
+
+class _ClientProgramDetailScreenState extends ConsumerState<ClientProgramDetailScreen> {
+  bool _isAddingToCalendar = false;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(clientProgramsProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     final program = state.library?.personalPrograms
-        .where((p) => p.id == programId)
+        .where((p) => p.id == widget.programId)
         .firstOrNull;
 
     // Loading (no library yet)
@@ -157,6 +165,18 @@ class ClientProgramDetailScreen extends ConsumerWidget {
               ),
             ),
 
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: _isAddingToCalendar
+                  ? const Center(child: CircularProgressIndicator())
+                  : OutlinedButton.icon(
+                      onPressed: program.templates.isNotEmpty ? _addAllToCalendar : null,
+                      icon: const Icon(Icons.calendar_month),
+                      label: const Text('Add All to Calendar'),
+                    ),
+            ),
+
             const SizedBox(height: 24),
 
             // ── Templates section ───────────────────────────────────
@@ -202,6 +222,61 @@ class ClientProgramDetailScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _addAllToCalendar() async {
+    final service = ref.read(appleCalendarServiceProvider);
+    final state = ref.read(clientProgramsProvider);
+    final program = state.library?.personalPrograms
+        .where((p) => p.id == widget.programId)
+        .firstOrNull;
+    if (program == null || program.templates.isEmpty) return;
+
+    setState(() => _isAddingToCalendar = true);
+    try {
+      final hasPerm = await service.hasPermission();
+      if (!hasPerm) {
+        final granted = await service.requestPermission();
+        if (!granted) return;
+      }
+
+      int added = 0;
+      for (final template in program.templates) {
+        final startDate = DateTime.now().add(Duration(days: template.order));
+        final result = await service.createEvent(
+          title: '${program.name} - ${template.name}',
+          start: startDate,
+          end: startDate.add(const Duration(hours: 1)),
+          notes: '${template.exerciseCount} exercises',
+        );
+        if (result != null) {
+          await service.storeEventMapping(
+            bookingId: template.id,
+            eventId: result.eventId,
+            calendarId: result.calendarId,
+          );
+          added++;
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$added events added to calendar')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[CalendarSync] Failed to add events: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add events: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isAddingToCalendar = false);
+    }
   }
 }
 
