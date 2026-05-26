@@ -37,7 +37,7 @@ class LoggedSetsNotifier extends StateNotifier<List<WorkoutSet>> {
 
   void addSet(WorkoutSet set) {
     state = [...state, set];
-    _haptic.lightImpact();  // Light for set log
+    _haptic.mediumImpact();  // Medium for set log
   }
 
   void updateSet(int index, WorkoutSet set) {

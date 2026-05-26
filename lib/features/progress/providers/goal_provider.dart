@@ -82,7 +82,7 @@ class GoalsNotifier extends StateNotifier<GoalsState> {
     // Try API first
     if (_apiClient != null) {
       try {
-        final response = await _apiClient!.get<Map<String, dynamic>>(
+        final response = await _apiClient.get<Map<String, dynamic>>(
           ApiConstants.fitnessGoals,
         );
         final data = response['data'];
@@ -143,7 +143,7 @@ class GoalsNotifier extends StateNotifier<GoalsState> {
     // Try API first
     if (_apiClient != null) {
       try {
-        await _apiClient!.post(
+        await _apiClient.post(
           ApiConstants.fitnessGoals,
           body: goal.toJson(),
         );
@@ -173,7 +173,7 @@ class GoalsNotifier extends StateNotifier<GoalsState> {
     // Try API first
     if (_apiClient != null) {
       try {
-        await _apiClient!.delete(ApiConstants.fitnessGoal(goalId));
+        await _apiClient.delete(ApiConstants.fitnessGoal(goalId));
       } catch (_) {
         // API failed, proceed with local save as fallback
       }

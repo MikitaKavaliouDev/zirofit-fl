@@ -219,7 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     icon: const Text('G',
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.bold)),
-                    label: const Text('Sign in with Google'),
+                    label: const Text('Continue with Google'),
                   ),
                   const SizedBox(height: 12),
 

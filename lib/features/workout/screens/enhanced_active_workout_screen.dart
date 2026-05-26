@@ -11,6 +11,7 @@ import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/clients/providers/client_list_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/exercise_library_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';
@@ -32,6 +33,14 @@ import 'package:zirofit_fl/features/workout/widgets/workout_session_header.dart'
 import 'package:zirofit_fl/features/workout/widgets/workout_session_controls.dart';
 import 'package:zirofit_fl/features/workout/widgets/finish_workout_dialog.dart'
     as finish_dialog;
+import 'package:zirofit_fl/features/voice_coach/voice_coach_provider.dart';
+import 'package:zirofit_fl/features/voice_coach/voice_coach_settings_screen.dart';
+import 'package:zirofit_fl/features/voice_coach/widgets/voice_coach_overlay.dart';
+
+// =============================================================================
+// WorkoutConflictAction — used by the ongoing session dialog
+// =============================================================================
+enum WorkoutConflictAction { resume, endAndStart, cancel }
 
 // =============================================================================
 // EnhancedActiveWorkoutScreen
@@ -85,15 +94,15 @@ class _EnhancedActiveWorkoutScreenState
   // ---------------------------------------------------------------------------
   // Sheet / Dialog flags (iOS: @State bools)
   // ---------------------------------------------------------------------------
-  bool _showExercisePicker = false;
-  bool _showTemplatePicker = false;
-  bool _showRestTimer = false;
-  bool _showFinishAlert = false;
+  final bool _showExercisePicker = false;
+  final bool _showTemplatePicker = false;
+  final bool _showRestTimer = false;
+  final bool _showFinishAlert = false;
   bool _showEmptyDataAlert = false;
-  bool _showCancelAlert = false;
+  final bool _showCancelAlert = false;
   bool _showHighDurationAlert = false;
   bool _showingSaveTemplateAlert = false;
-  String _saveTemplateName = '';
+  final String _saveTemplateName = '';
   final TextEditingController _saveTemplateController = TextEditingController();
 
   // ---------------------------------------------------------------------------
@@ -518,55 +527,81 @@ class _EnhancedActiveWorkoutScreenState
     final knownExercises =
         ref.read(activeWorkoutProvider).exerciseNames.values.toList();
 
+    // Full exercise library for 6-tier matching (tiers 3/5)
+    final libraryExercises = ref
+        .read(exerciseLibraryProvider)
+        .allExercises
+        .map((e) => e.name)
+        .toList();
+
     final parsed = await VoiceInputOverlay.show(
       context,
       service: _voiceLogService,
       knownExercises: knownExercises,
+      libraryExercises: libraryExercises,
     );
 
     if (parsed == null || !mounted) return;
 
     if (parsed.exerciseName != null) {
       final currentState = ref.read(activeWorkoutProvider);
-      final matchedEntry = currentState.exerciseNames.entries.firstWhere(
-        (e) => e.value.toLowerCase() == parsed.exerciseName!.toLowerCase(),
-        orElse: () => const MapEntry('', ''),
+      final sessionNames = currentState.exerciseNames.entries.toList();
+
+      // Use same 6-tier resolution for post-parse matching
+      final matchedName = VoiceLogService.matchSessionExercise(
+        parsed.exerciseName!,
+        sessionNames.map((e) => e.value).toList(),
       );
 
-      if (matchedEntry.key.isNotEmpty) {
-        await ref.read(activeWorkoutProvider.notifier).logExercise(
-              exerciseId: matchedEntry.key,
-              reps: parsed.reps,
-              weight: parsed.weight,
-            );
-        return;
+      if (matchedName != null) {
+        final matchedEntry = sessionNames.firstWhere(
+          (e) => e.value == matchedName,
+          orElse: () => const MapEntry('', ''),
+        );
+
+        if (matchedEntry.key.isNotEmpty) {
+          await ref.read(activeWorkoutProvider.notifier).logExercise(
+                exerciseId: matchedEntry.key,
+                reps: parsed.reps,
+                weight: parsed.weight,
+              );
+          return;
+        }
       }
     }
   }
 
-  /// Maps iOS voice button → inline VoiceLogOverlay
-  void _onVoiceButtonPressed() {
-    setState(() {
-      _voiceOverlayVisible = true;
-      _voiceCommandPending = false;
-    });
+  /// Opens the coach mode overlay (when voiceMode == coach).
+  void _openCoachOverlay() {
+    showVoiceCoachOverlay(context);
   }
 
   /// Called when VoiceLogOverlay auto-confirms or user taps "Confirm & Log".
   Future<void> _onVoiceConfirm(ParsedVoiceInput command) async {
     if (command.exerciseName != null) {
       final currentState = ref.read(activeWorkoutProvider);
-      final matchedEntry = currentState.exerciseNames.entries.firstWhere(
-        (e) => e.value.toLowerCase() == command.exerciseName!.toLowerCase(),
-        orElse: () => const MapEntry('', ''),
+      final sessionNames = currentState.exerciseNames.entries.toList();
+      final sessionNameValues = sessionNames.map((e) => e.value).toList();
+
+      // Use same 6-tier resolution for post-parse matching
+      final matchedName = VoiceLogService.matchSessionExercise(
+        command.exerciseName!,
+        sessionNameValues,
       );
 
-      if (matchedEntry.key.isNotEmpty) {
-        await ref.read(activeWorkoutProvider.notifier).logExercise(
-              exerciseId: matchedEntry.key,
-              reps: command.reps,
-              weight: command.weight,
-            );
+      if (matchedName != null) {
+        final matchedEntry = sessionNames.firstWhere(
+          (e) => e.value == matchedName,
+          orElse: () => const MapEntry('', ''),
+        );
+
+        if (matchedEntry.key.isNotEmpty) {
+          await ref.read(activeWorkoutProvider.notifier).logExercise(
+                exerciseId: matchedEntry.key,
+                reps: command.reps,
+                weight: command.weight,
+              );
+        }
       }
     }
 
@@ -599,8 +634,53 @@ class _EnhancedActiveWorkoutScreenState
   // ===========================================================================
 
   Future<void> _onStartWorkout() async {
-    final notifier = ref.read(activeWorkoutProvider.notifier);
-    await notifier.startWorkout();
+    final state = ref.read(activeWorkoutProvider);
+    if (state.hasActiveSession) {
+      await _showWorkoutConflictDialog();
+    } else {
+      await ref.read(activeWorkoutProvider.notifier).startWorkout();
+    }
+  }
+
+  Future<void> _showWorkoutConflictDialog() async {
+    final result = await showDialog<WorkoutConflictAction>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ongoing Session'),
+        content: const Text(
+          'You have an ongoing workout session. What would you like to do?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, WorkoutConflictAction.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, WorkoutConflictAction.endAndStart),
+            child: const Text('End & Start New'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, WorkoutConflictAction.resume),
+            child: const Text('Resume Current'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    switch (result) {
+      case WorkoutConflictAction.resume:
+        ref.read(sessionOverlayProvider.notifier).showFull();
+        break;
+      case WorkoutConflictAction.endAndStart:
+        await ref.read(activeWorkoutProvider.notifier).cancelWorkout();
+        if (!mounted) return;
+        await _onStartWorkout();
+        break;
+      case WorkoutConflictAction.cancel:
+        break;
+    }
   }
 
   /// Maps iOS .sheet TemplatePickerView: loads exercises from a template.
@@ -826,15 +906,6 @@ class _EnhancedActiveWorkoutScreenState
                         // Header row
                         Row(
                           children: [
-                            // Save template button (iOS: onSaveTemplate)
-                            if (state.hasActiveSession)
-                              IconButton(
-                                icon: const Icon(Icons.save_outlined),
-                                iconSize: 20,
-                                tooltip: 'Save as Template',
-                                onPressed: _showSaveTemplateAlert,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
                             // Load template button (iOS: .sheet TemplatePickerView)
                             if (state.hasActiveSession)
                               IconButton(
@@ -844,11 +915,58 @@ class _EnhancedActiveWorkoutScreenState
                                 onPressed: _onLoadTemplate,
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
+                            // Coach mode indicator
+                            Consumer(
+                              builder: (context, ref, _) {
+                                final coachMode = ref.watch(
+                                  voiceCoachProvider.select(
+                                    (s) => s.voiceMode,
+                                  ),
+                                );
+                                if (coachMode == VoiceMode.coach) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF4F46E5)
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.auto_awesome,
+                                            size: 12,
+                                            color: Color(0xFF4F46E5),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'AI Coach',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF4F46E5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
                             Expanded(
                               child: WorkoutSessionHeader(
                                 onShowRestTimer: () =>
                                     RestTimerSheet.show(context),
                                 onMinimize: _minimize,
+                                onSaveTemplate: _showSaveTemplateAlert,
                               ),
                             ),
                           ],
@@ -887,10 +1005,32 @@ class _EnhancedActiveWorkoutScreenState
                     duration: const Duration(milliseconds: 200),
                     opacity: _inputState.isActive ? 0 : 1,
                     child: WorkoutSessionControls(
-                       isRecording: _voiceLogService.isListening,
-                       onVoicePressed: _onVoiceButtonPressed,
-                       onFinishPressed: _onFinishButtonPressed,
+                      isRecording: _voiceLogService.isListening,
+                      onRecordingStart: () {
+                        HapticFeedback.lightImpact();
+                        _voiceLogService.startListening();
+                        setState(() => _voiceOverlayVisible = true);
+                      },
+                      onRecordingEnd: () {
+                        _voiceLogService.stopListening();
+                        setState(() => _voiceOverlayVisible = false);
+                      },
+                      onCoachRecordingStart: () {
+                        HapticFeedback.lightImpact();
+                        _openCoachOverlay();
+                      },
+                      onCoachRecordingEnd: () {
+                        // Coach overlay is dismissed independently
+                      },
+                      onFinishPressed: _onFinishButtonPressed,
                       onCancelPressed: () => _onCancelWorkout(context),
+                      onOpenVoiceSettings: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const VoiceCoachSettingsScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -932,13 +1072,32 @@ class _EnhancedActiveWorkoutScreenState
                 ),
 
               // ── Voice Log Overlay (iOS voiceLogOverlay, zIndex: 1000) ──
+              // Only shown in dictation mode; coach mode uses a dialog overlay.
               if (_voiceOverlayVisible)
-                VoiceLogOverlay(
-                  service: _voiceLogService,
-                  knownExercises:
-                      ref.read(activeWorkoutProvider).exerciseNames.values.toList(),
-                  onChangeExercise: _onVoiceChangeExercise,
-                  onConfirm: _onVoiceConfirm,
+                Consumer(
+                  builder: (context, ref, _) {
+                    final voiceMode = ref.watch(
+                      voiceCoachProvider.select((s) => s.voiceMode),
+                    );
+                    if (voiceMode == VoiceMode.coach) {
+                      return const SizedBox.shrink();
+                    }
+                    return VoiceLogOverlay(
+                      service: _voiceLogService,
+                      knownExercises: ref
+                          .read(activeWorkoutProvider)
+                          .exerciseNames
+                          .values
+                          .toList(),
+                      libraryExercises: ref
+                          .read(exerciseLibraryProvider)
+                          .allExercises
+                          .map((e) => e.name)
+                          .toList(),
+                      onChangeExercise: _onVoiceChangeExercise,
+                      onConfirm: _onVoiceConfirm,
+                    );
+                  },
                 ),
             ],
           ),
@@ -961,7 +1120,6 @@ class _EnhancedActiveWorkoutScreenState
 
     // Wrap with dialogs that are shown reactively
     return _DialogWrapper(
-      child: screen,
       showEmptyDataAlert: _showEmptyDataAlert,
       onDismissEmptyDataAlert: () =>
           setState(() => _showEmptyDataAlert = false),
@@ -982,6 +1140,7 @@ class _EnhancedActiveWorkoutScreenState
         setState(() => _showHighDurationAlert = false);
         ref.read(activeWorkoutProvider.notifier).acknowledgeLongSessionWarning();
       },
+      child: screen,
     );
   }
 

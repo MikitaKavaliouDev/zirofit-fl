@@ -1,3 +1,4 @@
+export 'badge.dart';
 export 'cached_async_image.dart';
 export 'calendar_skeleton.dart';
 export 'common_ui.dart';
@@ -11,6 +12,7 @@ export 'rounded_corner.dart';
 export 'sheet_background_modifier.dart';
 export 'success_view.dart';
 export 'swipe_view.dart';
+export 'ziro_avatar.dart';
 export 'ziro_blur.dart';
 export 'ziro_data_view.dart';
 export 'ziro_dismiss_button.dart';

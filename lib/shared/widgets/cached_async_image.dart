@@ -108,7 +108,7 @@ class _CachedAsyncImageState extends State<CachedAsyncImage> {
         height: widget.height,
         fit: widget.fit,
         alignment: widget.alignment,
-        errorBuilder: (_, __, ___) => _buildError(),
+        errorBuilder: (_, _, _) => _buildError(),
       );
     }
 
@@ -124,8 +124,8 @@ class _CachedAsyncImageState extends State<CachedAsyncImage> {
       height: widget.height,
       fit: widget.fit,
       alignment: widget.alignment,
-      placeholder: (_, __) => _buildPlaceholder(),
-      errorWidget: (_, __, ___) => _buildError(),
+      placeholder: (_, _) => _buildPlaceholder(),
+      errorWidget: (_, _, _) => _buildError(),
       // Use the disk cache from flutter_cache_manager but DO NOT change the
       // cache key — the URL itself is the key.
       cacheKey: url,

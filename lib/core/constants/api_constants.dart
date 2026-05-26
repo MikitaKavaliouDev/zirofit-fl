@@ -39,6 +39,7 @@ class ApiConstants {
   static const String completeOnboarding = '/auth/complete-onboarding';
   static const String resendVerification = '/auth/resend-verification';
   static const String deleteAccount = '/auth/delete-account';
+  static const String mobileSignin = '/auth/mobile-signin';
 
   // Sync
   static const String syncPull = '/sync/pull';
@@ -86,6 +87,15 @@ class ApiConstants {
 
   // Client Active Session
   static String clientActiveSession(String id) => '/clients/$id/session/active';
+
+  // Client Active Program
+  static String trainerClientActiveProgram(String id) =>
+      '/trainer/clients/$id/program/active';
+  static String clientCancelProgram(String clientId, String programId) =>
+      '/trainer/clients/$clientId/program/$programId/cancel';
+  static String clientPackages(String id) => '/clients/$id/packages';
+  static String clientRequestCheckIn(String id) =>
+      '/clients/$id/request-check-in';
 
   // Client Daily Targets
   static const String dailyTargets = '/client/daily-targets';
@@ -255,6 +265,12 @@ class ApiConstants {
   static const String aiCoachGenerate = '/mobile/ai-coach/generate';
   static const String aiCoachRefine = '/mobile/ai-coach/refine';
   static const String aiVoice = '/ai-trainer/voice';
+
+  // Voice Coach / ElevenLabs
+  static const String aiTrainerVoices = '/ai-trainer/voices';
+  static const String aiTrainerTtsStream = '/ai-trainer/tts/stream';
+  static const String userVoiceSettings = '/user/voice-settings';
+
   static const String mobileHome = '/mobile/home';
 
   // Upload

@@ -86,6 +86,9 @@ class ZiroTabBar extends StatefulWidget {
   /// Background colour of the tab bar.
   final Color? backgroundColor;
 
+  /// Unread notification count for the Home tab badge.
+  final int homeBadgeCount;
+
   const ZiroTabBar({
     super.key,
     required this.selectedIndex,
@@ -99,6 +102,7 @@ class ZiroTabBar extends StatefulWidget {
     this.selectedColor,
     this.unselectedColor,
     this.backgroundColor,
+    this.homeBadgeCount = 0,
   });
 
   @override
@@ -368,6 +372,8 @@ class _ZiroTabBarState extends State<ZiroTabBar>
                               ...List.generate(widget.tabs.length, (i) {
                                 final tab = widget.tabs[i];
                                 final isSelected = i == widget.selectedIndex;
+                                final badgeCount =
+                                    (i == 2) ? widget.homeBadgeCount : 0;
                                 return Expanded(
                                   child: _TabItem(
                                     tab: tab,
@@ -375,6 +381,7 @@ class _ZiroTabBarState extends State<ZiroTabBar>
                                     selectedColor: primaryColor,
                                     unselectedColor: unselected,
                                     onTap: () => _onTabTap(i),
+                                    badgeCount: badgeCount,
                                   ),
                                 );
                               }),
@@ -421,10 +428,10 @@ class _ZiroTabBarState extends State<ZiroTabBar>
                       ),
                     ),
                     padding: const EdgeInsets.all(1.5),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
+                    child: const ClipRRect(
+                      borderRadius: BorderRadius.vertical(
                           top: Radius.circular(38.5)),
-                      child: const DecoratedBox(
+                      child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                         ),
@@ -451,6 +458,7 @@ class _TabItem extends StatelessWidget {
   final Color selectedColor;
   final Color unselectedColor;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const _TabItem({
     required this.tab,
@@ -458,6 +466,7 @@ class _TabItem extends StatelessWidget {
     required this.selectedColor,
     required this.unselectedColor,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -471,10 +480,40 @@ class _TabItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isSelected ? tab.selectedIcon : tab.icon,
-              size: 22,
-              color: isSelected ? selectedColor : unselectedColor,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isSelected ? tab.selectedIcon : tab.icon,
+                  size: 22,
+                  color: isSelected ? selectedColor : unselectedColor,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(

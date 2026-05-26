@@ -11,6 +11,7 @@ class ClientInviteState {
   final String? error;
   final bool isSuccess;
   final String? invitedEmail;
+  final String? invitedPhone;
   final bool emailExists;
 
   const ClientInviteState({
@@ -18,6 +19,7 @@ class ClientInviteState {
     this.error,
     this.isSuccess = false,
     this.invitedEmail,
+    this.invitedPhone,
     this.emailExists = false,
   });
 
@@ -27,6 +29,7 @@ class ClientInviteState {
     bool clearError = false,
     bool? isSuccess,
     String? invitedEmail,
+    String? invitedPhone,
     bool? emailExists,
   }) {
     return ClientInviteState(
@@ -34,6 +37,7 @@ class ClientInviteState {
       error: clearError ? null : (error ?? this.error),
       isSuccess: isSuccess ?? this.isSuccess,
       invitedEmail: invitedEmail ?? this.invitedEmail,
+      invitedPhone: invitedPhone ?? this.invitedPhone,
       emailExists: emailExists ?? this.emailExists,
     );
   }
@@ -80,17 +84,23 @@ class ClientInviteNotifier extends StateNotifier<ClientInviteState> {
 
   /// Sends an invitation to a new client.
   Future<void> invite({
-    required String email,
+    String? email,
     required String name,
+    String? phone,
     String? message,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
       final body = <String, dynamic>{
-        'email': email,
         'name': name,
       };
+      if (email != null && email.trim().isNotEmpty) {
+        body['email'] = email.trim();
+      }
+      if (phone != null && phone.trim().isNotEmpty) {
+        body['phone'] = phone.trim();
+      }
       if (message != null && message.trim().isNotEmpty) {
         body['message'] = message.trim();
       }
@@ -101,6 +111,7 @@ class ClientInviteNotifier extends StateNotifier<ClientInviteState> {
         isLoading: false,
         isSuccess: true,
         invitedEmail: email,
+        invitedPhone: phone,
       );
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;

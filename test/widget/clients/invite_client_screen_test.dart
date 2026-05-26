@@ -31,8 +31,9 @@ class FakeClientInviteNotifier extends ClientInviteNotifier {
 
   @override
   Future<void> invite({
-    required String email,
+    String? email,
     required String name,
+    String? phone,
     String? message,
   }) async {
     // No-op in tests; state is controlled manually
@@ -88,13 +89,15 @@ void main() {
     // -----------------------------------------------------------------------
     // Test 1: Shows email + name + message fields
     // -----------------------------------------------------------------------
-    testWidgets('shows email, name, and message fields', (tester) async {
+    testWidgets('shows name, email, phone, and message fields', (tester) async {
       await tester.pumpWidget(buildTestApp(const ClientInviteState()));
       await tester.pump();
 
       expect(find.text('Name'), findsOneWidget);
       expect(find.text('Email'), findsOneWidget);
-      expect(find.text('Message (optional)'), findsOneWidget);
+      expect(find.text('Phone'), findsOneWidget);
+      expect(find.text('Personal message (optional)'), findsOneWidget);
+      expect(find.text('OR'), findsOneWidget);
       expect(find.text('Send Invitation'), findsOneWidget);
     });
 
@@ -167,20 +170,31 @@ void main() {
     });
 
     // -----------------------------------------------------------------------
-    // Test 4: Success shows confirmation
+    // Test 4: Phone field enables button when email is empty
     // -----------------------------------------------------------------------
-    testWidgets('success state shows confirmation message', (tester) async {
-      await tester.pumpWidget(buildTestApp(
-        const ClientInviteState(
-          isSuccess: true,
-          invitedEmail: 'alice@test.com',
-        ),
-      ));
+    testWidgets('phone field enables button when email is empty', (tester) async {
+      await tester.pumpWidget(buildTestApp(const ClientInviteState()));
       await tester.pump();
 
-      expect(find.text('Invitation sent to'), findsOneWidget);
-      expect(find.text('alice@test.com'), findsOneWidget);
-      expect(find.text('Done'), findsOneWidget);
+      // Enter name only
+      await tester.enterText(find.byType(TextFormField).at(0), 'John Doe');
+      await tester.pump();
+
+      // Button still disabled (no email, no phone)
+      var button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Send Invitation'),
+      );
+      expect(button.onPressed, isNull);
+
+      // Enter phone
+      await tester.enterText(find.byType(TextFormField).at(2), '+1 555-1234');
+      await tester.pump();
+
+      // Now enabled (name + phone, no email needed)
+      button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Send Invitation'),
+      );
+      expect(button.onPressed, isNotNull);
     });
 
     // -----------------------------------------------------------------------

@@ -518,7 +518,7 @@ class _AddDailyTargetScreenState extends ConsumerState<AddDailyTargetScreen> {
               shrinkWrap: true,
               padding: EdgeInsets.zero,
               itemCount: _searchResults.length,
-              separatorBuilder: (_, __) => Divider(
+              separatorBuilder: (_, _) => Divider(
                 height: 1,
                 indent: 16,
                 endIndent: 16,

@@ -19,7 +19,7 @@ import 'package:zirofit_fl/shared/widgets/ziro_blur.dart';
 /// ```
 /// {@end-tool}
 class ZiroSheetHeader extends StatelessWidget {
-  /// The title centered in the header.
+  /// The text displayed on the button.
   final String title;
 
   /// Whether to show the Cancel button on the leading side.
@@ -117,9 +117,9 @@ class ZiroSheetHeader extends StatelessWidget {
                       onTap: onCancel,
                       child: Text(
                         leadingText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
-                          color: Colors.blue,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -137,7 +137,7 @@ class ZiroSheetHeader extends StatelessWidget {
                         child: Icon(
                           trailingIcon,
                           size: 20,
-                          color: Colors.blue,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -148,10 +148,10 @@ class ZiroSheetHeader extends StatelessWidget {
                       onTap: onDone,
                       child: Text(
                         trailingText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),

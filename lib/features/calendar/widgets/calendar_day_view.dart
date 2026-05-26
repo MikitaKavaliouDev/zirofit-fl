@@ -165,9 +165,7 @@ class _DayPage extends StatelessWidget {
           child: SessionCard(
             event: event,
             onTap: () => onSessionTap(event),
-            onStartWorkout: onStartWorkout != null
-                ? onStartWorkout
-                : null,
+            onStartWorkout: onStartWorkout,
           ),
         );
       },

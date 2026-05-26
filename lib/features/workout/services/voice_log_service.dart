@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:zirofit_fl/core/constants/exercise_aliases.dart';
 
 /// ---------------------------------------------------------------------------
 /// ParsedVoiceInput
@@ -131,6 +132,7 @@ class VoiceLogService {
   ParsedVoiceInput? parse(
     String text, {
     List<String> knownExercises = const [],
+    List<String> libraryExercises = const [],
   }) {
     if (text.trim().isEmpty) return null;
 
@@ -232,43 +234,28 @@ class VoiceLogService {
     // If we still have no reps, parsing failed.
     if (reps == null || reps <= 0) return null;
 
-    // 6 – Extract exercise name
+    // 6 – Extract exercise name (6-tier cascade matching iOS VoiceLogManager)
     String? exerciseName;
     final nameSource = remaining;
 
-    // Try known exercises first (longest match wins)
-    if (knownExercises.isNotEmpty) {
-      final sorted = List<String>.from(knownExercises)
-        ..sort((a, b) => b.length.compareTo(a.length));
+    // Clean up the query text by stripping digits and filler words
+    final query = nameSource
+        .replaceAll(RegExp(r'\d+(?:\.\d+)?'), '')
+        .replaceAll(
+          RegExp(
+            r'\b(?:reps?|pounds|lbs?|kgs?|kilos|set?s?|of|at|for|and|do|the|a|an|please|um|uh|like|gonna|wanna)\b',
+          ),
+          '',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
 
-      for (final known in sorted) {
-        if (nameSource.contains(known.toLowerCase())) {
-          exerciseName = known;
-          break;
-        }
-      }
-    }
-
-    // Fallback: leading text before first number as exercise name
-    if (exerciseName == null) {
-      // Strip any remaining digits and common filler words
-      final cleaned = nameSource
-          .replaceAll(RegExp(r'\d+(?:\.\d+)?'), '')
-          .replaceAll(
-            RegExp(
-              r'\b(?:reps?|pounds|lbs?|kgs?|kilos|set?s?|of|at|for|and|do|the|a|an|please|um|uh|like|gonna|wanna)\b',
-            ),
-            '',
-          )
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-
-      if (cleaned.isNotEmpty) {
-        exerciseName = cleaned
-            .split(' ')
-            .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-            .join(' ');
-      }
+    if (query.isNotEmpty) {
+      exerciseName = _resolveExerciseName(
+        query,
+        knownExercises,
+        libraryExercises,
+      );
     }
 
     return ParsedVoiceInput(
@@ -277,6 +264,97 @@ class VoiceLogService {
       weight: weight,
       rawText: text,
     );
+  }
+
+  /// ---------------------------------------------------------------------------
+  /// 6-tier exercise name resolution (mirrors iOS VoiceLogManager).
+  ///
+  /// [rawText] is the cleaned query text (stop words removed, lowercased).
+  /// [knownExercises] are the exercises in the current session.
+  /// [libraryExercises] are ALL exercises from the full exercise library.
+  /// ---------------------------------------------------------------------------
+  static String? _resolveExerciseName(
+    String rawText,
+    List<String> knownExercises,
+    List<String> libraryExercises,
+  ) {
+    final clean = rawText.trim().toLowerCase();
+
+    // Tier 1: Exact name match (case-insensitive) against session exercises
+    for (final name in knownExercises) {
+      if (name.toLowerCase() == clean) return name;
+    }
+
+    // Tier 2: Bidirectional substring against session exercises
+    for (final name in knownExercises) {
+      final nameLower = name.toLowerCase();
+      if (nameLower.contains(clean) || clean.contains(nameLower)) {
+        return name;
+      }
+    }
+
+    // Tier 3: Library-wide exact match (full exercise library)
+    for (final name in libraryExercises) {
+      if (name.toLowerCase() == clean) return name;
+    }
+
+    // Tier 4: Popular/default exercises — bidirectional substring
+    for (final name in popularExercises) {
+      final nameLower = name.toLowerCase();
+      if (nameLower.contains(clean) || clean.contains(nameLower)) {
+        return name;
+      }
+    }
+
+    // Tier 5: Library-wide bidirectional substring with confidence scoring
+    //         (longest match wins — more specific = better)
+    String? bestMatch;
+    int bestScore = 0;
+    for (final name in libraryExercises) {
+      final nameLower = name.toLowerCase();
+      if (nameLower.contains(clean) || clean.contains(nameLower)) {
+        final score = name.length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = name;
+        }
+      }
+    }
+    if (bestMatch != null) return bestMatch;
+
+    // Tier 6: Keyword alias map
+    for (final entry in exerciseAliases.entries) {
+      if (clean.contains(entry.key)) return entry.value;
+    }
+
+    return null;
+  }
+
+  /// Relaxed matching of a resolved exercise name against session exercises.
+  ///
+  /// Tiers 1-2 (exact match then bidirectional substring) against
+  /// [sessionExercises].  Use this in the post-parse step to match the
+  /// resolved name to an actual exercise in the current session.
+  static String? matchSessionExercise(
+    String resolvedName,
+    List<String> sessionExercises,
+  ) {
+    final clean = resolvedName.trim().toLowerCase();
+
+    // Tier 1: Exact match
+    for (final name in sessionExercises) {
+      if (name.toLowerCase() == clean) return name;
+    }
+
+    // Tier 2: Bidirectional substring
+    for (final name in sessionExercises) {
+      final nameLower = name.toLowerCase();
+      if (nameLower.contains(clean) || clean.contains(nameLower)) {
+        return name;
+      }
+    }
+
+    return null;
   }
 
   // ---------------------------------------------------------------------------

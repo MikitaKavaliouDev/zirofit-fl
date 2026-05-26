@@ -27,6 +27,11 @@ class ProfileSettingsState {
   final bool isLoading;
   final bool isSaving;
   final bool isTrainer;
+  final String phone;
+  final List<String> specialties;
+  final double? serviceLatitude;
+  final double? serviceLongitude;
+  final double serviceRadiusKm;
   final String? error;
   final String? successMessage;
 
@@ -40,6 +45,11 @@ class ProfileSettingsState {
   final String _originalQualifications;
   final double _originalHeight;
   final double _originalWeight;
+  final String _originalPhone;
+  final List<String> _originalSpecialties;
+  final double? _originalServiceLatitude;
+  final double? _originalServiceLongitude;
+  final double _originalServiceRadiusKm;
 
   bool get isChanged =>
       pendingAvatar != null ||
@@ -53,7 +63,14 @@ class ProfileSettingsState {
       certifications != _originalCertifications ||
       qualifications != _originalQualifications ||
       height != _originalHeight ||
-      weight != _originalWeight;
+      weight != _originalWeight ||
+      phone != _originalPhone ||
+      specialties.length != _originalSpecialties.length ||
+      !specialties.every(_originalSpecialties.contains) ||
+      !_originalSpecialties.every(specialties.contains) ||
+      serviceLatitude != _originalServiceLatitude ||
+      serviceLongitude != _originalServiceLongitude ||
+      serviceRadiusKm != _originalServiceRadiusKm;
 
   const ProfileSettingsState({
     this.name = '',
@@ -66,6 +83,11 @@ class ProfileSettingsState {
     this.qualifications = '',
     this.height = 0,
     this.weight = 0,
+    this.phone = '',
+    this.specialties = const [],
+    this.serviceLatitude,
+    this.serviceLongitude,
+    this.serviceRadiusKm = 25,
     this.avatarUrl,
     this.pendingAvatar,
     this.isLoading = false,
@@ -82,6 +104,11 @@ class ProfileSettingsState {
     String originalQualifications = '',
     double originalHeight = 0,
     double originalWeight = 0,
+    String originalPhone = '',
+    List<String> originalSpecialties = const [],
+    double? originalServiceLatitude,
+    double? originalServiceLongitude,
+    double originalServiceRadiusKm = 25,
   })  : _originalName = originalName,
         _originalBio = originalBio,
         _originalLocations = originalLocations,
@@ -90,7 +117,12 @@ class ProfileSettingsState {
         _originalCertifications = originalCertifications,
         _originalQualifications = originalQualifications,
         _originalHeight = originalHeight,
-        _originalWeight = originalWeight;
+        _originalWeight = originalWeight,
+        _originalPhone = originalPhone,
+        _originalSpecialties = originalSpecialties,
+        _originalServiceLatitude = originalServiceLatitude,
+        _originalServiceLongitude = originalServiceLongitude,
+        _originalServiceRadiusKm = originalServiceRadiusKm;
 
   ProfileSettingsState copyWith({
     String? name,
@@ -103,6 +135,11 @@ class ProfileSettingsState {
     String? qualifications,
     double? height,
     double? weight,
+    String? phone,
+    List<String>? specialties,
+    double? serviceLatitude,
+    double? serviceLongitude,
+    double? serviceRadiusKm,
     String? avatarUrl,
     XFile? pendingAvatar,
     bool? isLoading,
@@ -122,6 +159,11 @@ class ProfileSettingsState {
     String? originalQualifications,
     double? originalHeight,
     double? originalWeight,
+    String? originalPhone,
+    List<String>? originalSpecialties,
+    double? originalServiceLatitude,
+    double? originalServiceLongitude,
+    double? originalServiceRadiusKm,
   }) {
     return ProfileSettingsState(
       name: name ?? this.name,
@@ -134,6 +176,11 @@ class ProfileSettingsState {
       qualifications: qualifications ?? this.qualifications,
       height: height ?? this.height,
       weight: weight ?? this.weight,
+      phone: phone ?? this.phone,
+      specialties: specialties ?? this.specialties,
+      serviceLatitude: serviceLatitude ?? this.serviceLatitude,
+      serviceLongitude: serviceLongitude ?? this.serviceLongitude,
+      serviceRadiusKm: serviceRadiusKm ?? this.serviceRadiusKm,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       pendingAvatar: pendingAvatar ?? this.pendingAvatar,
       isLoading: isLoading ?? this.isLoading,
@@ -151,6 +198,14 @@ class ProfileSettingsState {
       originalQualifications: originalQualifications ?? _originalQualifications,
       originalHeight: originalHeight ?? _originalHeight,
       originalWeight: originalWeight ?? _originalWeight,
+      originalPhone: originalPhone ?? _originalPhone,
+      originalSpecialties: originalSpecialties ?? _originalSpecialties,
+      originalServiceLatitude:
+          originalServiceLatitude ?? _originalServiceLatitude,
+      originalServiceLongitude:
+          originalServiceLongitude ?? _originalServiceLongitude,
+      originalServiceRadiusKm:
+          originalServiceRadiusKm ?? _originalServiceRadiusKm,
     );
   }
 }
@@ -203,6 +258,16 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
           (data['certifications'] ?? data['Certifications'] ?? '') as String;
       final qualifications =
           (data['qualifications'] ?? data['Qualifications'] ?? '') as String;
+      final phone = (data['phone'] ?? '') as String;
+
+      // Specialties from user or profile
+      final rawSpecialties = data['specialties'];
+      final List<String> specialties;
+      if (rawSpecialties is List) {
+        specialties = rawSpecialties.map((e) => e.toString()).toList();
+      } else {
+        specialties = [];
+      }
 
       // Locations from user or profile
       final rawLocations = data['locations'] ?? data['Locations'];
@@ -215,6 +280,15 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
         locations = [];
       }
 
+      // Service radius from profile data
+      final serviceLat =
+          (data['service_latitude'] ?? data['serviceLatitude']) as double?;
+      final serviceLng =
+          (data['service_longitude'] ?? data['serviceLongitude']) as double?;
+      final serviceRadius =
+          ((data['service_radius_km'] ?? data['serviceRadiusKm'] ?? 25) as num)
+              .toDouble();
+
       state = ProfileSettingsState(
         name: name,
         email: email,
@@ -226,6 +300,11 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
         qualifications: qualifications,
         height: height,
         weight: weight,
+        phone: phone,
+        specialties: specialties,
+        serviceLatitude: serviceLat,
+        serviceLongitude: serviceLng,
+        serviceRadiusKm: serviceRadius,
         avatarUrl: avatarUrl,
         isLoading: false,
         isSaving: false,
@@ -239,6 +318,11 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
         originalQualifications: qualifications,
         originalHeight: height,
         originalWeight: weight,
+        originalPhone: phone,
+        originalSpecialties: List.of(specialties),
+        originalServiceLatitude: serviceLat,
+        originalServiceLongitude: serviceLng,
+        originalServiceRadiusKm: serviceRadius,
       );
     } catch (e) {
       state = state.copyWith(
@@ -266,6 +350,15 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
   void setPendingAvatar(XFile file) =>
       state = state.copyWith(pendingAvatar: file);
 
+  void setServiceLatitude(double? value) =>
+      state = state.copyWith(serviceLatitude: value);
+
+  void setServiceLongitude(double? value) =>
+      state = state.copyWith(serviceLongitude: value);
+
+  void setServiceRadiusKm(double value) =>
+      state = state.copyWith(serviceRadiusKm: value);
+
   void clearPendingAvatar() => state = state.copyWith(pendingAvatar: null);
 
   void addLocation(String location) {
@@ -278,6 +371,20 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
     if (index < 0 || index >= state.locations.length) return;
     final updated = List<String>.from(state.locations)..removeAt(index);
     state = state.copyWith(locations: updated);
+  }
+
+  void setPhone(String value) => state = state.copyWith(phone: value);
+
+  void addSpecialty(String value) {
+    if (value.trim().isEmpty) return;
+    final updated = List<String>.from(state.specialties)..add(value.trim());
+    state = state.copyWith(specialties: updated);
+  }
+
+  void removeSpecialty(int index) {
+    if (index < 0 || index >= state.specialties.length) return;
+    final updated = List<String>.from(state.specialties)..removeAt(index);
+    state = state.copyWith(specialties: updated);
   }
 
   // -- Save profile --
@@ -313,6 +420,12 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
         body['avatar_url'] = state.avatarUrl;
       }
 
+      // Phone
+      if (state.phone.isNotEmpty) body['phone'] = state.phone;
+
+      // Specialties
+      if (state.specialties.isNotEmpty) body['specialties'] = state.specialties;
+
       // Trainer-only fields
       if (state.isTrainer) {
         body['philosophy'] =
@@ -323,6 +436,9 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
             state.certifications.isEmpty ? null : state.certifications;
         body['qualifications'] =
             state.qualifications.isEmpty ? null : state.qualifications;
+        body['service_latitude'] = state.serviceLatitude;
+        body['service_longitude'] = state.serviceLongitude;
+        body['service_radius_km'] = state.serviceRadiusKm;
       }
 
       // 3. Save via PUT /trainer/settings
@@ -346,6 +462,11 @@ class ProfileSettingsNotifier extends StateNotifier<ProfileSettingsState> {
         originalQualifications: state.qualifications,
         originalHeight: state.height,
         originalWeight: state.weight,
+        originalPhone: state.phone,
+        originalSpecialties: List.of(state.specialties),
+        originalServiceLatitude: state.serviceLatitude,
+        originalServiceLongitude: state.serviceLongitude,
+        originalServiceRadiusKm: state.serviceRadiusKm,
       );
 
       return true;

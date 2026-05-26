@@ -1,36 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/core/services/language_manager.dart';
 import 'package:zirofit_fl/features/settings/providers/preferences_provider.dart';
-
-// ---------------------------------------------------------------------------
-// Language Picker Enum
-// ---------------------------------------------------------------------------
-
-/// Maps language codes to display metadata for the language picker.
-enum AppLanguagePicker {
-  english('en', '\u{1F1FA}\u{1F1F8}', 'English'),
-  spanish('es', '\u{1F1EA}\u{1F1F8}', 'Spanish'),
-  french('fr', '\u{1F1EB}\u{1F1F7}', 'French'),
-  german('de', '\u{1F1E9}\u{1F1EA}', 'German'),
-  portuguese('pt', '\u{1F1F5}\u{1F1F9}', 'Portuguese'),
-  italian('it', '\u{1F1EE}\u{1F1F9}', 'Italian'),
-  japanese('ja', '\u{1F1EF}\u{1F1F5}', 'Japanese'),
-  chinese('zh', '\u{1F1E8}\u{1F1F3}', 'Chinese');
-
-  final String code;
-  final String flag;
-  final String name;
-
-  const AppLanguagePicker(this.code, this.flag, this.name);
-
-  /// Look up an enum value by its language code.
-  static AppLanguagePicker fromCode(String code) {
-    return AppLanguagePicker.values.firstWhere(
-      (l) => l.code == code,
-      orElse: () => english,
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Language Settings Screen
@@ -38,7 +9,7 @@ enum AppLanguagePicker {
 
 /// Displays a list of available languages with flag icons and a checkmark
 /// on the currently selected language. Tapping a language immediately
-/// persists the choice via [preferencesProvider].
+/// persists the choice via [preferencesProvider] and [LanguageManager].
 class LanguageSettingsScreen extends ConsumerWidget {
   const LanguageSettingsScreen({super.key});
 
@@ -60,8 +31,8 @@ class LanguageSettingsScreen extends ConsumerWidget {
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                for (final language in AppLanguagePicker.values) ...[
-                  if (language != AppLanguagePicker.values.first)
+                for (final language in AppLanguage.values) ...[
+                  if (language != AppLanguage.values.first)
                     Divider(
                       height: 1,
                       indent: 72,
@@ -71,9 +42,14 @@ class LanguageSettingsScreen extends ConsumerWidget {
                     language: language,
                     isSelected: language.code == currentLanguage,
                     onTap: () {
+                      // Persist via preferences provider
                       ref
                           .read(preferencesProvider.notifier)
                           .setLanguage(language.code);
+                      // Also update the LanguageManager for immediate locale effect
+                      ref
+                          .read(languageManagerProvider.notifier)
+                          .setLanguage(language);
                     },
                   ),
                 ],
@@ -104,7 +80,7 @@ class LanguageSettingsScreen extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _LanguageTile extends StatelessWidget {
-  final AppLanguagePicker language;
+  final AppLanguage language;
   final bool isSelected;
   final VoidCallback onTap;
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,8 +60,8 @@ enum PermissionStatus { unknown, granted, denied }
 // Helpers
 // =============================================================================
 
-/// Returns the total number of onboarding steps (always 8 for this version).
-int onboardingTotalSteps(String? role) => 8;
+/// Returns the total number of onboarding steps (always 9 for this version).
+int onboardingTotalSteps(String? role) => 9;
 
 // =============================================================================
 // State
@@ -71,7 +73,10 @@ class OnboardingState {
 
   // Step 0 – Welcome (no fields)
 
-  // Step 1 – Map Location
+  // Step 1 – Language Selection
+  final String language;
+
+  // Step 2 – Map Location
   final double? latitude;
   final double? longitude;
   final String? address;
@@ -104,6 +109,7 @@ class OnboardingState {
   const OnboardingState({
     this.currentStep = 0,
     this.role,
+    this.language = 'en',
     this.latitude,
     this.longitude,
     this.address,
@@ -125,8 +131,8 @@ class OnboardingState {
     this.error,
   });
 
-  /// Total steps (always 8).
-  int get totalSteps => 8;
+  /// Total steps (always 9).
+  int get totalSteps => 9;
 
   /// Number of granted permissions.
   int get grantedPermissionsCount =>
@@ -138,6 +144,7 @@ class OnboardingState {
   OnboardingState copyWith({
     int? currentStep,
     String? role,
+    String? language,
     double? latitude,
     double? longitude,
     String? address,
@@ -157,6 +164,7 @@ class OnboardingState {
     return OnboardingState(
       currentStep: currentStep ?? this.currentStep,
       role: role ?? this.role,
+      language: language ?? this.language,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       address: address ?? this.address,
@@ -206,6 +214,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   // -- Field setters --
+
+  void setLanguage(String language) {
+    state = state.copyWith(language: language);
+  }
 
   void setLocation({double? latitude, double? longitude, String? address}) {
     state = state.copyWith(
@@ -263,35 +275,72 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      await _apiClient.post(
-        ApiConstants.completeOnboarding,
-        body: {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (state.avatarPath != null && state.avatarPath!.isNotEmpty) {
+        // Multipart upload with avatar as file
+        final formData = FormData.fromMap({
           'role': state.role ?? 'client',
-          'avatarPath': state.avatarPath,
-          'height': state.height,
-          'weight': state.weight,
-          'age': state.age,
+          'language': state.language,
+          'height': state.height?.toString(),
+          'weight': state.weight?.toString(),
+          'age': state.age?.toString(),
           'gender': state.gender,
           'experienceLevel': state.experienceLevel.name,
-          'goals': state.fitnessGoals.map((g) => g.name).toList(),
+          'goals': state.fitnessGoals.map((g) => g.name).join(','),
+          'avatar': await MultipartFile.fromFile(
+            state.avatarPath!,
+            filename: 'avatar.jpg',
+          ),
           if (state.latitude != null && state.longitude != null) ...{
-            'location': {
-              'lat': state.latitude,
-              'lng': state.longitude,
-              if (state.address != null) 'address': state.address,
-            },
+            'location_lat': state.latitude.toString(),
+            'location_lng': state.longitude.toString(),
+            if (state.address != null) 'location_address': state.address,
           },
           if (state.trainerId != null) 'trainerId': state.trainerId,
-          'permissions': {
+          'permissions': jsonEncode({
             for (final entry in state.permissions.entries)
               entry.key.name: entry.value.name,
-          },
-        },
-      );
+          }),
+        });
 
-      // Mark onboarding complete in shared prefs
-      final prefs = await SharedPreferences.getInstance();
+        await _apiClient.dio.post<Map<String, dynamic>>(
+          ApiConstants.completeOnboarding,
+          data: formData,
+        );
+      } else {
+        // JSON POST without avatar
+        await _apiClient.post(
+          ApiConstants.completeOnboarding,
+          body: {
+            'role': state.role ?? 'client',
+            'language': state.language,
+            'avatarPath': state.avatarPath,
+            'height': state.height,
+            'weight': state.weight,
+            'age': state.age,
+            'gender': state.gender,
+            'experienceLevel': state.experienceLevel.name,
+            'goals': state.fitnessGoals.map((g) => g.name).toList(),
+            if (state.latitude != null && state.longitude != null) ...{
+              'location': {
+                'lat': state.latitude,
+                'lng': state.longitude,
+                if (state.address != null) 'address': state.address,
+              },
+            },
+            if (state.trainerId != null) 'trainerId': state.trainerId,
+            'permissions': {
+              for (final entry in state.permissions.entries)
+                entry.key.name: entry.value.name,
+            },
+          },
+        );
+      }
+
+      // Mark onboarding complete + persist language
       await prefs.setBool('onboarding_complete', true);
+      await prefs.setString('pref_language', state.language);
 
       await _onComplete(state.role);
 

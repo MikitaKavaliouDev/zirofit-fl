@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/settings/providers/profile_settings_provider.dart';
+import 'package:zirofit_fl/features/trainer/screens/location_selection_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Profile Settings Screen
@@ -39,6 +40,9 @@ class _ProfileSettingsScreenState
   final _weightController = TextEditingController();
   final _locationController = TextEditingController();
 
+  final _phoneController = TextEditingController();
+  final _specialtyController = TextEditingController();
+
   final _imagePicker = ImagePicker();
 
   bool _initialized = false;
@@ -54,6 +58,8 @@ class _ProfileSettingsScreenState
     _heightController.dispose();
     _weightController.dispose();
     _locationController.dispose();
+    _phoneController.dispose();
+    _specialtyController.dispose();
     super.dispose();
   }
 
@@ -68,6 +74,7 @@ class _ProfileSettingsScreenState
         state.height > 0 ? state.height.toStringAsFixed(1) : '';
     _weightController.text =
         state.weight > 0 ? state.weight.toStringAsFixed(1) : '';
+    _phoneController.text = state.phone;
   }
 
   @override
@@ -221,6 +228,20 @@ class _ProfileSettingsScreenState
                                       .colorScheme.surfaceContainerHighest
                                       .withValues(alpha: 0.3),
                                 ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                decoration: const InputDecoration(
+                                  labelText: 'Phone',
+                                  prefixIcon: Icon(Icons.phone),
+                                ),
+                                onChanged: (v) {
+                                  ref
+                                      .read(profileSettingsProvider.notifier)
+                                      .setPhone(v);
+                                },
                               ),
                             ],
                           ),
@@ -394,6 +415,103 @@ class _ProfileSettingsScreenState
                                     .read(profileSettingsProvider.notifier)
                                     .setQualifications(v);
                               },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // -- Service Radius --
+                        const _SectionHeader(
+                          icon: Icons.radar_rounded,
+                          title: 'Service Radius',
+                        ),
+                        const SizedBox(height: 12),
+                        _ServiceRadiusCard(
+                          latitude: state.serviceLatitude,
+                          longitude: state.serviceLongitude,
+                          radiusKm: state.serviceRadiusKm,
+                          onOpenMap: () => _openLocationSelection(),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // -- Specialties --
+                        const _SectionHeader(
+                          icon: Icons.star_outline,
+                          title: 'Specialties',
+                        ),
+                        const SizedBox(height: 12),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (state.specialties.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Text(
+                                      'No specialties added yet',
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: List.generate(
+                                        state.specialties.length, (i) {
+                                      return InputChip(
+                                        label: Text(state.specialties[i]),
+                                        deleteIcon: const Icon(
+                                            Icons.close, size: 18),
+                                        onDeleted: () {
+                                          ref
+                                              .read(profileSettingsProvider
+                                                  .notifier)
+                                              .removeSpecialty(i);
+                                        },
+                                      );
+                                    }),
+                                  ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _specialtyController,
+                                        textCapitalization:
+                                            TextCapitalization.words,
+                                        decoration: const InputDecoration(
+                                          hintText: 'Add specialty',
+                                          border: OutlineInputBorder(),
+                                          isDense: true,
+                                          contentPadding: EdgeInsets
+                                              .symmetric(
+                                              horizontal: 12,
+                                              vertical: 10),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    FilledButton(
+                                      onPressed: () {
+                                        final value =
+                                            _specialtyController.text;
+                                        if (value.trim().isNotEmpty) {
+                                          ref
+                                              .read(profileSettingsProvider
+                                                  .notifier)
+                                              .addSpecialty(value);
+                                          _specialtyController.clear();
+                                        }
+                                      },
+                                      child: const Text('Add'),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -587,6 +705,31 @@ class _ProfileSettingsScreenState
 
     if (location != null && mounted) {
       ref.read(profileSettingsProvider.notifier).addLocation(location);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Location Selection (trainer service radius)
+  // --------------------------------------------------------------------------
+
+  Future<void> _openLocationSelection() async {
+    final state = ref.read(profileSettingsProvider);
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationSelectionScreen(
+          initialLatitude: state.serviceLatitude ?? 40.7128,
+          initialLongitude: state.serviceLongitude ?? -74.006,
+          initialRadiusKm: state.serviceRadiusKm,
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      final notifier = ref.read(profileSettingsProvider.notifier);
+      notifier.setServiceLatitude(result['latitude'] as double);
+      notifier.setServiceLongitude(result['longitude'] as double);
+      notifier.setServiceRadiusKm((result['radiusKm'] as num).toDouble());
     }
   }
 
@@ -963,6 +1106,120 @@ class _MessageBanner extends StatelessWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Service Radius Card
+// =============================================================================
+
+class _ServiceRadiusCard extends StatelessWidget {
+  final double? latitude;
+  final double? longitude;
+  final double radiusKm;
+  final VoidCallback onOpenMap;
+
+  const _ServiceRadiusCard({
+    required this.latitude,
+    required this.longitude,
+    required this.radiusKm,
+    required this.onOpenMap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final hasLocation = latitude != null && longitude != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Current status
+            Row(
+              children: [
+                Icon(
+                  Icons.radar_rounded,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hasLocation
+                            ? '${radiusKm.round()} km radius'
+                            : 'No service area set',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      if (hasLocation)
+                        Text(
+                          'Tap to adjust your service area on the map',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_location_rounded),
+                  onPressed: onOpenMap,
+                  tooltip: 'Set service area',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Radius bar visualization
+            if (hasLocation) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: radiusKm / 100.0,
+                  minHeight: 6,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '1 km',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    '100 km',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // Set location button
+            if (!hasLocation)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onOpenMap,
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: const Text('Set Service Area'),
+                ),
+              ),
           ],
         ),
       ),

@@ -9,7 +9,10 @@ import 'package:zirofit_fl/data/models/transformation_photo.dart';
 import 'package:zirofit_fl/data/models/testimonial.dart';
 import 'package:zirofit_fl/data/models/social_link.dart';
 import 'package:zirofit_fl/data/models/public_trainer_profile_data.dart';
+import 'package:zirofit_fl/data/models/external_link.dart';
 import 'package:zirofit_fl/features/explore/providers/explore_provider.dart';
+import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
+import 'package:zirofit_fl/core/constants/api_constants.dart';
 
 // ---------------------------------------------------------------------------
 // Public Trainer Profile Screen
@@ -36,17 +39,32 @@ class _PublicTrainerProfileScreenState
   String? _purchasingPackageId;
   late TabController _tabController;
 
+  // Schedule tab state
+  TrainerSchedule? _trainerSchedule;
+  bool _isLoadingSchedule = false;
+  String _selectedDayName = 'Monday';
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadFullProfile();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.index == 4 &&
+        _trainerSchedule == null &&
+        !_isLoadingSchedule) {
+      _fetchSchedule();
+    }
   }
 
   Future<void> _loadFullProfile() async {
@@ -109,6 +127,208 @@ class _PublicTrainerProfileScreenState
     context.push('/client/bookings/${widget.trainer.userId}');
   }
 
+  Future<void> _fetchSchedule() async {
+    if (_profileData == null) return;
+    setState(() => _isLoadingSchedule = true);
+    try {
+      final apiClient = ref.read(apiClientProvider);
+      final response = await apiClient.get<Map<String, dynamic>>(
+        ApiConstants.trainerSchedule(widget.trainer.userId),
+      );
+      final data = response['data'] as Map<String, dynamic>? ?? response;
+      if (!mounted) return;
+      setState(() {
+        _trainerSchedule = TrainerSchedule.fromJson(data);
+        _isLoadingSchedule = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingSchedule = false);
+    }
+  }
+
+  Widget _buildScheduleTab() {
+    if (_isLoadingSchedule) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (_trainerSchedule == null) {
+      return const Center(child: Text('No schedule available'));
+    }
+
+    final schedule = _trainerSchedule!;
+    final days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Weekly Booking Slots
+        const Text(
+          'Weekly Booking Slots',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        const SizedBox(height: 18),
+
+        // Horizontal day selector
+        SizedBox(
+          height: 60,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: days.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final day = days[index];
+              final isSelected = _selectedDayName == day;
+              final hasSlots =
+                  schedule.availability[day]?.isNotEmpty ?? false;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedDayName = day),
+                child: Container(
+                  width: 54,
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            colors: [Colors.blue, Colors.purple],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: isSelected
+                        ? null
+                        : Colors.grey.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        day.substring(0, 3).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: isSelected ? Colors.white : null,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: hasSlots ? Colors.green : Colors.transparent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Available slots for selected day
+        Text(
+          'Available on $_selectedDayName',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        if (schedule.availability[_selectedDayName]?.isNotEmpty ?? false)
+          ...schedule.availability[_selectedDayName]!.map(
+            (slot) => Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.blue.withOpacity(0.12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.access_time, size: 12, color: Colors.blue),
+                    const SizedBox(width: 4),
+                    Text(
+                      slot,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: const Center(
+              child: Text(
+                'Fully booked or unavailable',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ),
+
+        // Upcoming Booked Sessions
+        if (schedule.bookings.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const Text(
+            'Upcoming Booked Sessions',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          ...schedule.bookings.take(3).map(
+                (booking) => _buildBookingCard(booking),
+              ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildBookingCard(TimeSlot booking) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue.withOpacity(0.12),
+          child: const Icon(Icons.calendar_today, size: 18),
+        ),
+        title: Text(
+          '${booking.startTime.day}/${booking.startTime.month}/${booking.startTime.year} at ${booking.startTime.hour}:${booking.startTime.minute.toString().padLeft(2, '0')}',
+        ),
+        subtitle: booking.clientName != null
+            ? Text(booking.clientName!)
+            : null,
+      ),
+    );
+  }
+
   Future<void> _handlePurchase(Package package) async {
     setState(() => _purchasingPackageId = package.id);
 
@@ -152,6 +372,7 @@ class _PublicTrainerProfileScreenState
     final transformations = _profileData?.transformations ?? [];
     final testimonials = _profileData?.testimonials ?? [];
     final socialLinks = _profileData?.socialLinks ?? [];
+    final externalLinks = _profileData?.externalLinks ?? [];
 
     return Scaffold(
       body: Column(
@@ -229,6 +450,7 @@ class _PublicTrainerProfileScreenState
                       Tab(text: 'Packages'),
                       Tab(text: 'Photos'),
                       Tab(text: 'Reviews'),
+                      Tab(text: 'Schedule'),
                     ],
                   ),
                 ),
@@ -242,6 +464,7 @@ class _PublicTrainerProfileScreenState
                         profile: profile,
                         services: services,
                         socialLinks: socialLinks,
+                        externalLinks: externalLinks,
                       ),
                       _PackagesTab(
                         packages: packages,
@@ -251,6 +474,7 @@ class _PublicTrainerProfileScreenState
                       ),
                       _PhotosTab(transformations: transformations),
                       _ReviewsTab(testimonials: testimonials),
+                      _buildScheduleTab(),
                     ],
                   ),
                 ),
@@ -342,7 +566,7 @@ class _BannerHeader extends StatelessWidget {
             Image.network(
               bannerUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildFallbackBanner(context),
+              errorBuilder: (_, _, _) => _buildFallbackBanner(context),
             )
           else
             _buildFallbackBanner(context),
@@ -677,11 +901,13 @@ class _AboutTab extends StatefulWidget {
   final Profile profile;
   final List<Service> services;
   final List<SocialLink> socialLinks;
+  final List<ExternalLink> externalLinks;
 
   const _AboutTab({
     required this.profile,
     required this.services,
     required this.socialLinks,
+    required this.externalLinks,
   });
 
   @override
@@ -701,7 +927,7 @@ class _AboutTabState extends State<_AboutTab> {
         // Bio (collapsible)
         if (widget.profile.aboutMe != null &&
             widget.profile.aboutMe!.isNotEmpty) ...[
-          _SectionTitle(title: 'About'),
+          const _SectionTitle(title: 'About'),
           const SizedBox(height: 8),
           _CollapsibleText(
             text: widget.profile.aboutMe!,
@@ -714,7 +940,7 @@ class _AboutTabState extends State<_AboutTab> {
         // Philosophy
         if (widget.profile.philosophy != null &&
             widget.profile.philosophy!.isNotEmpty) ...[
-          _SectionTitle(title: 'Philosophy'),
+          const _SectionTitle(title: 'Philosophy'),
           const SizedBox(height: 8),
           Text(
             widget.profile.philosophy!,
@@ -728,7 +954,7 @@ class _AboutTabState extends State<_AboutTab> {
         // Methodology
         if (widget.profile.methodology != null &&
             widget.profile.methodology!.isNotEmpty) ...[
-          _SectionTitle(title: 'Methodology'),
+          const _SectionTitle(title: 'Methodology'),
           const SizedBox(height: 8),
           Text(
             widget.profile.methodology!,
@@ -741,7 +967,7 @@ class _AboutTabState extends State<_AboutTab> {
 
         // Specialties
         if (widget.profile.specialties.isNotEmpty) ...[
-          _SectionTitle(title: 'Specialties'),
+          const _SectionTitle(title: 'Specialties'),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -765,7 +991,7 @@ class _AboutTabState extends State<_AboutTab> {
         // Certifications
         if (widget.profile.certifications != null &&
             widget.profile.certifications!.isNotEmpty) ...[
-          _SectionTitle(title: 'Certifications'),
+          const _SectionTitle(title: 'Certifications'),
           const SizedBox(height: 8),
           Text(
             widget.profile.certifications!,
@@ -781,7 +1007,7 @@ class _AboutTabState extends State<_AboutTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _SectionTitle(title: 'Services'),
+              const _SectionTitle(title: 'Services'),
               if (widget.services.length > 3)
                 TextButton(
                   onPressed: () {
@@ -802,9 +1028,17 @@ class _AboutTabState extends State<_AboutTab> {
 
         // External / Social Links
         if (widget.socialLinks.isNotEmpty) ...[
-          _SectionTitle(title: 'Connect Online'),
+          const _SectionTitle(title: 'Connect Online'),
           const SizedBox(height: 8),
           ...widget.socialLinks.map((l) => _SocialLinkTile(link: l)),
+          const SizedBox(height: 24),
+        ],
+
+        // External Links
+        if (widget.externalLinks.isNotEmpty) ...[
+          const _SectionTitle(title: 'External Links'),
+          const SizedBox(height: 8),
+          ...widget.externalLinks.map((link) => _ExternalLinkTile(link: link)),
           const SizedBox(height: 24),
         ],
 
@@ -1226,7 +1460,7 @@ class _TransformationGridCard extends StatelessWidget {
                     photo.imagePath,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Center(
+                    errorBuilder: (_, _, _) => Center(
                       child: Icon(Icons.broken_image,
                           color: theme.colorScheme.onSurfaceVariant),
                     ),
@@ -1429,3 +1663,98 @@ class _SocialLinkTile extends StatelessWidget {
     );
   }
 }
+
+// ===========================================================================
+// External Link Tile
+// ===========================================================================
+
+class _ExternalLinkTile extends StatelessWidget {
+  final ExternalLink link;
+
+  const _ExternalLinkTile({required this.link});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        radius: 16,
+        backgroundColor: theme.colorScheme.primaryContainer,
+        child: const Icon(Icons.link, size: 16),
+      ),
+      title: Text(
+        link.label,
+        style: theme.textTheme.bodyMedium,
+      ),
+      subtitle: Text(
+        link.linkUrl,
+        style: theme.textTheme.bodySmall,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.open_in_new, size: 16),
+        onPressed: () => launchUrl(Uri.parse(link.linkUrl)),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// Trainer Schedule Model (private)
+// ===========================================================================
+
+class TrainerSchedule {
+  final Map<String, List<String>> availability;
+  final List<TimeSlot> bookings;
+
+  const TrainerSchedule({required this.availability, this.bookings = const []});
+
+  factory TrainerSchedule.fromJson(Map<String, dynamic> json) {
+    final rawAvailability = json['availability'] as Map<String, dynamic>?;
+    final Map<String, List<String>> availability;
+    if (rawAvailability != null) {
+      availability = rawAvailability.map(
+        (key, value) => MapEntry(key, List<String>.from(value as List)),
+      );
+    } else {
+      availability = {};
+    }
+
+    final List<TimeSlot> bookings;
+    final rawBookings = json['bookings'] as List?;
+    if (rawBookings != null) {
+      bookings = rawBookings
+          .map((e) => TimeSlot.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else {
+      bookings = [];
+    }
+
+    return TrainerSchedule(availability: availability, bookings: bookings);
+  }
+}
+
+class TimeSlot {
+  final DateTime startTime;
+  final DateTime endTime;
+  final String? clientName;
+
+  const TimeSlot({
+    required this.startTime,
+    required this.endTime,
+    this.clientName,
+  });
+
+  factory TimeSlot.fromJson(Map<String, dynamic> json) {
+    return TimeSlot(
+      startTime: DateTime.parse(json['start_time'] as String),
+      endTime: DateTime.parse(json['end_time'] as String),
+      clientName: json['client_name'] as String?,
+    );
+  }
+}
+
+

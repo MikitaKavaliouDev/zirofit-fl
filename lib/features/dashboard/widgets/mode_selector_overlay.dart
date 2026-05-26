@@ -222,7 +222,7 @@ class _ModeSelectorOverlayState extends State<ModeSelectorOverlay>
           animation: _glowAnimation,
           builder: (context, child) {
             return Container(
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 left: 12,
                 right: 12,
                 top: 12,

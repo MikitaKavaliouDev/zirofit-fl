@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:zirofit_fl/features/progress/providers/analytics_event_bus.dart';
 import 'package:zirofit_fl/features/progress/providers/analytics_provider.dart';
+import 'package:zirofit_fl/features/progress/utils/trend_calculator.dart';
 
 import 'package:zirofit_fl/data/models/client_analytics.dart';
 import 'package:zirofit_fl/data/models/fitness_goal.dart';
@@ -39,6 +41,27 @@ class PersonalAnalyticsScreen extends ConsumerStatefulWidget {
 class _PersonalAnalyticsScreenState
     extends ConsumerState<PersonalAnalyticsScreen> {
   bool _initialLoadDone = false;
+  int _selectedDays = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsEventBus().onWorkoutCompleted.addListener(_onAutoRefresh);
+      AnalyticsEventBus().onCheckInSubmitted.addListener(_onAutoRefresh);
+    });
+  }
+
+  @override
+  void dispose() {
+    AnalyticsEventBus().onWorkoutCompleted.removeListener(_onAutoRefresh);
+    AnalyticsEventBus().onCheckInSubmitted.removeListener(_onAutoRefresh);
+    super.dispose();
+  }
+
+  Future<void> _onAutoRefresh() async {
+    await ref.read(analyticsProvider.notifier).loadAll(days: _selectedDays);
+  }
 
   @override
   void didChangeDependencies() {
@@ -50,14 +73,14 @@ class _PersonalAnalyticsScreenState
         // Defer to after the current frame to avoid modifying provider state
         // during widget tree building, which Riverpod forbids.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(analyticsProvider.notifier).loadAll();
+          ref.read(analyticsProvider.notifier).loadAll(days: _selectedDays);
         });
       }
     }
   }
 
   Future<void> _onRefresh() async {
-    await ref.read(analyticsProvider.notifier).loadAll();
+    await ref.read(analyticsProvider.notifier).loadAll(days: _selectedDays);
   }
 
   @override
@@ -75,6 +98,30 @@ class _PersonalAnalyticsScreenState
       appBar: AppBar(
         title: const Text('Analytics'),
         actions: [
+          // Date range segment selector
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: '7', label: Text('7D')),
+                ButtonSegment(value: '14', label: Text('14D')),
+                ButtonSegment(value: '30', label: Text('30D')),
+                ButtonSegment(value: '90', label: Text('90D')),
+              ],
+              selected: {_selectedDays.toString()},
+              onSelectionChanged: (value) {
+                final days = int.parse(value.first);
+                setState(() => _selectedDays = days);
+                ref
+                    .read(analyticsProvider.notifier)
+                    .loadAll(days: days);
+              },
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.edit_note),
             tooltip: 'Measurements',
@@ -209,14 +256,16 @@ class _PersonalAnalyticsScreenState
                   currentStreak: _calculateStreak(analytics.heatmapDates),
                   longestStreak: _calculateLongestStreak(
                       analytics.heatmapDates),
-                  volumeTrend: _calculateTrend(
-                      analytics.volumeHistory, 0.1),
+                  volumeTrend:
+                      TrendCalculator.calculateVolumeTrend(
+                          analytics.volumeHistory, 0.1, _selectedDays),
                   consistencyTrend: 0,
-                  frequencyTrend: _calculateFrequencyTrend(
-                      analytics.volumeHistory, 0.1),
+                  frequencyTrend:
+                      TrendCalculator.calculateFrequencyTrend(
+                          analytics.volumeHistory, 0.1, _selectedDays),
                   averageVolumeTrend:
-                      _calculateAvgVolumeTrend(
-                          analytics.volumeHistory, 0.1),
+                      TrendCalculator.calculateAvgVolumeTrend(
+                          analytics.volumeHistory, 0.1, _selectedDays),
                 ),
               ),
 
@@ -327,6 +376,11 @@ class _PersonalAnalyticsScreenState
                     ),
                   ],
                 ),
+                // Trend badge
+                if (analytics != null) ...[
+                  const SizedBox(height: 6),
+                  _buildTrendBadge(config.type, analytics),
+                ],
                 const SizedBox(height: 12),
                 // Widget content
                 _buildWidgetContent(context, config.type, analytics,
@@ -450,14 +504,44 @@ class _PersonalAnalyticsScreenState
             ),
           );
         }
-        final goal = goalsState.goals.first;
-        return FitnessGoalCard(
-          title: goal.type.name.toUpperCase(),
-          subtitle: goal.exerciseName ?? 'Weekly Tracking',
-          currentValue: goal.currentValue,
-          targetValue: goal.targetValue,
-          progress: goal.progress,
-          unitLabel: _goalUnitLabel(goal.type),
+        final goals = goalsState.goals;
+        return Column(
+          children: [
+            ...goals.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final goal = entry.value;
+              return Padding(
+                padding: EdgeInsets.only(top: idx > 0 ? 16 : 0),
+                child: Column(
+                  children: [
+                    if (idx > 0)
+                      const Divider(),
+                    FitnessGoalCard(
+                      title: goal.type.name.toUpperCase(),
+                      subtitle: goal.exerciseName ?? 'Weekly Tracking',
+                      currentValue: goal.currentValue,
+                      targetValue: goal.targetValue,
+                      progress: goal.progress,
+                      unitLabel: _goalUnitLabel(goal.type),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            if (goals.length < GoalType.values.length) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Goal setting coming soon')),
+                  );
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Add Another Goal'),
+              ),
+            ],
+          ],
         );
 
       case AnalyticsWidgetType.recovery:
@@ -484,6 +568,70 @@ class _PersonalAnalyticsScreenState
       case GoalType.pr:
         return 'kg';
     }
+  }
+
+  /// Computes a trend value and display color for the given widget type.
+  ///
+  /// Returns `null` for widget types that do not have a meaningful trend.
+  /// Positive trends are shown in green, negative in red, zero in grey.
+  ({double? value, Color? color})? _computeWidgetTrend(
+    AnalyticsWidgetType type,
+    ClientAnalytics? analytics,
+  ) {
+    if (analytics == null) return null;
+
+    double? trendValue;
+    switch (type) {
+      case AnalyticsWidgetType.volumeProgression:
+        trendValue = TrendCalculator.calculateVolumeTrend(
+            analytics.volumeHistory, 0, _selectedDays);
+        break;
+      case AnalyticsWidgetType.workoutsPerWeek:
+        trendValue = TrendCalculator.calculateFrequencyTrend(
+            analytics.volumeHistory, 0, _selectedDays);
+        break;
+      case AnalyticsWidgetType.consistency:
+        trendValue = TrendCalculator.calculateAvgVolumeTrend(
+            analytics.volumeHistory, 0, _selectedDays);
+        break;
+      default:
+        return null;
+    }
+
+    if (trendValue == 0) return (value: 0.0, color: Colors.grey);
+    return (
+      value: trendValue,
+      color: trendValue > 0 ? Colors.green : Colors.red,
+    );
+  }
+
+  /// Builds a small pill-shaped trend badge for the given widget type.
+  ///
+  /// Mirrors iOS [AnalyticsWidgetContainer]'s trend label styling:
+  /// green for positive, red for negative, grey for zero.
+  Widget _buildTrendBadge(AnalyticsWidgetType type, ClientAnalytics analytics) {
+    final trend = _computeWidgetTrend(type, analytics);
+    if (trend == null || trend.value == null) return const SizedBox.shrink();
+
+    final trendStr = trend.value! >= 0
+        ? '+${trend.value!.toInt()}%'
+        : '${trend.value!.toInt()}%';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: trend.color!.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        trendStr,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: trend.color,
+        ),
+      ),
+    );
   }
 
   // ---- Helper calculations (mirroring iOS logic) ----
@@ -540,42 +688,5 @@ class _PersonalAnalyticsScreenState
     return longest;
   }
 
-  double _calculateTrend(List<VolumePoint> data, double fallback) {
-    if (data.length < 4) return fallback;
-    final half = data.length ~/ 2;
-    final firstHalf =
-        data.sublist(0, half).fold<double>(0, (s, p) => s + p.volume);
-    final secondHalf =
-        data.sublist(half).fold<double>(0, (s, p) => s + p.volume);
-    if (firstHalf == 0) return fallback;
-    return ((secondHalf - firstHalf) / firstHalf) * 100;
-  }
 
-  double _calculateFrequencyTrend(
-      List<VolumePoint> data, double fallback) {
-    if (data.length < 4) return fallback;
-    final half = data.length ~/ 2;
-    final firstCount = half;
-    final secondCount = data.length - half;
-    if (firstCount == 0) return fallback;
-    return ((secondCount - firstCount) / firstCount) * 100;
-  }
-
-  double _calculateAvgVolumeTrend(
-      List<VolumePoint> data, double fallback) {
-    if (data.length < 4) return fallback;
-    final half = data.length ~/ 2;
-    final firstHalf = data.sublist(0, half);
-    final secondHalf = data.sublist(half);
-    final firstAvg = firstHalf.isEmpty
-        ? 0
-        : firstHalf.fold<double>(0, (s, p) => s + p.volume) /
-            firstHalf.length;
-    final secondAvg = secondHalf.isEmpty
-        ? 0
-        : secondHalf.fold<double>(0, (s, p) => s + p.volume) /
-            secondHalf.length;
-    if (firstAvg == 0) return fallback;
-    return ((secondAvg - firstAvg) / firstAvg) * 100;
-  }
 }

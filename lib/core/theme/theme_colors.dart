@@ -20,25 +20,45 @@ class ThemeColors {
 
   bool get _isDark => Theme.of(context).brightness == Brightness.dark;
 
-  /// Primary text color: near-black in light mode, white in dark mode.
+  // -- Static brand colors (same in light & dark) --
+
+  /// Accent color: iOS accent blue (#0083FF), static across themes.
+  static const Color accentColor = Color(0xFF0083FF);
+
+  /// Emerald green (#10B981) for progress bars / success states — NOT the accent.
+  static const Color emeraldColor = Color(0xFF10B981);
+
+  /// Secondary text color: iOS system gray (#8E8E93), static across themes.
+  static const Color textSecondary = Color(0xFF8E8E93);
+
+  // -- Dynamic colors (light / dark) --
+
+  /// Primary text color: black in light mode, white in dark mode.
   Color get textPrimary =>
-      _isDark ? Colors.white : const Color(0xFF1F2937);
+      _isDark ? Colors.white : const Color(0xFF000000);
 
-  /// Primary background: white in light mode, dark navy in dark mode.
+  /// Primary background: systemGray6 in light, systemGroupedBackground in dark.
   Color get backgroundPrimary =>
-      _isDark ? const Color(0xFF12121E) : Colors.white;
+      _isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F2);
 
-  /// Secondary background: light gray in light mode, dark surface in dark mode.
+  /// Secondary background: white in light, secondarySystemGroupedBackground in dark.
   Color get backgroundSecondary =>
-      _isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF3F4F6);
+      _isDark ? const Color(0xFF2C2C2E) : Colors.white;
 
-  /// Tertiary background: slightly darker gray in light mode, mid-tone in dark.
+  /// Tertiary background: slightly darker gray in light, tertiarySystemGroupedBackground in dark.
   Color get backgroundTertiary =>
-      _isDark ? const Color(0xFF2A2A3E) : const Color(0xFFE5E7EB);
+      _isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE6E6E6);
 
-  /// Accent color: emerald green matching [AppTheme] brand colors.
-  Color get accent =>
-      _isDark ? const Color(0xFF34D399) : const Color(0xFF10B981);
+  /// Card background: white in light, secondarySystemGroupedBackground in dark.
+  Color get cardBackground =>
+      _isDark ? const Color(0xFF2C2C2E) : Colors.white;
+
+  /// Content area background: systemGray6 in light, tertiarySystemGroupedBackground in dark.
+  Color get contentBackground =>
+      _isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF2F2F2);
+
+  /// Accent color: iOS accent blue (#0083FF), static across themes.
+  Color get accent => accentColor;
 }
 
 // =============================================================================

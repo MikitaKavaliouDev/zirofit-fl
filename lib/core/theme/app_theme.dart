@@ -104,20 +104,27 @@ class _AppThemeColors {
 
   bool get _isDark => context.isDarkMode;
 
+  static const Color accentColor = Color(0xFF0083FF);
+
   Color get textPrimary =>
-      _isDark ? Colors.white : const Color(0xFF1F2937);
+      _isDark ? Colors.white : const Color(0xFF000000);
 
   Color get backgroundPrimary =>
-      _isDark ? const Color(0xFF12121E) : Colors.white;
+      _isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F2);
 
   Color get backgroundSecondary =>
-      _isDark ? const Color(0xFF1E1E2C) : const Color(0xFFF3F4F6);
+      _isDark ? const Color(0xFF2C2C2E) : Colors.white;
 
   Color get backgroundTertiary =>
-      _isDark ? const Color(0xFF2A2A3E) : const Color(0xFFE5E7EB);
+      _isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE6E6E6);
 
-  Color get accent =>
-      _isDark ? const Color(0xFF34D399) : const Color(0xFF10B981);
+  Color get cardBackground =>
+      _isDark ? const Color(0xFF2C2C2E) : Colors.white;
+
+  Color get contentBackground =>
+      _isDark ? const Color(0xFF3A3A3C) : const Color(0xFFF2F2F2);
+
+  Color get accent => accentColor;
 }
 
 /// Extension to access theme color constants.
@@ -134,12 +141,15 @@ class AppTheme {
   AppTheme._();
 
   // -- Brand Colors --
-  static const Color _primaryLight = Color(0xFF10B981); // Emerald green
-  static const Color _primaryDark = Color(0xFF34D399);
+  static const Color _primaryLight = Color(0xFF0083FF); // iOS accent blue
+  static const Color _primaryDark = Color(0xFF0083FF); // Static accent
   static const Color _secondaryLight = Color(0xFF3B82F6); // Blue accent
   static const Color _secondaryDark = Color(0xFF60A5FA);
-  static const Color _surfaceDark = Color(0xFF1E1E2C);
-  static const Color _backgroundDark = Color(0xFF12121E);
+  static const Color _surfaceDark = Color(0xFF2C2C2E); // backgroundSecondary dark
+  static const Color _backgroundDark = Color(0xFF1C1C1E); // backgroundPrimary dark
+
+  /// Named emerald color (#10B981) for progress bars / success states.
+  static const Color emeraldColor = Color(0xFF10B981);
 
   // -- Light Theme --
   static ThemeData get light => ThemeData(
@@ -150,6 +160,7 @@ class AppTheme {
           brightness: Brightness.light,
           secondary: _secondaryLight,
         ),
+        scaffoldBackgroundColor: const Color(0xFFF2F2F2),
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,

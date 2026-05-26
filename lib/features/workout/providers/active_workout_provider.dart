@@ -1,10 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/core/database/app_database.dart' as db;
+import 'package:zirofit_fl/core/database/database_provider.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
+import 'package:zirofit_fl/data/sync/connectivity_manager.dart';
+import 'package:zirofit_fl/data/sync/sync_engine.dart';
+import 'package:zirofit_fl/data/sync/sync_models.dart';
+import 'package:zirofit_fl/data/sync/sync_provider.dart';
 import 'package:zirofit_fl/features/workout/data/workout_remote_source.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/rest_timer_manager_provider.dart';
@@ -31,9 +39,15 @@ enum FinishOption {
 final activeWorkoutProvider = StateNotifierProvider<
     ActiveWorkoutNotifier, ActiveWorkoutState>((ref) {
   final remoteSource = ref.watch(workoutRemoteSourceProvider);
+  final syncEngine = ref.watch(syncEngineProvider);
+  final connectivity = ref.watch(connectivityManagerProvider);
+  final database = ref.watch(databaseProvider);
   return ActiveWorkoutNotifier(
     remoteSource: remoteSource,
     ref: ref,
+    syncEngine: syncEngine,
+    connectivity: connectivity,
+    database: database,
   );
 });
 
@@ -64,6 +78,14 @@ class ActiveWorkoutState {
   final bool showFinishWorkoutAlert;
   final bool showExerciseSelection;
 
+  /// Whether the exercise library is currently syncing from the server.
+  /// UI can show a small inline indicator (not full-screen overlay).
+  final bool isSyncingLibrary;
+
+  /// Whether the current workout session data is syncing to the server.
+  /// UI can show a small inline indicator during save operations.
+  final bool isSyncingWorkout;
+
   const ActiveWorkoutState({
     this.session,
     this.logs = const [],
@@ -86,6 +108,8 @@ class ActiveWorkoutState {
     this.activeVideoUrl,
     this.showFinishWorkoutAlert = false,
     this.showExerciseSelection = false,
+    this.isSyncingLibrary = false,
+    this.isSyncingWorkout = false,
   });
 
   ActiveWorkoutState copyWith({
@@ -110,6 +134,8 @@ class ActiveWorkoutState {
     String? activeVideoUrl,
     bool? showFinishWorkoutAlert,
     bool? showExerciseSelection,
+    bool? isSyncingLibrary,
+    bool? isSyncingWorkout,
     bool clearError = false,
   }) {
     return ActiveWorkoutState(
@@ -134,6 +160,8 @@ class ActiveWorkoutState {
       activeVideoUrl: activeVideoUrl ?? this.activeVideoUrl,
       showFinishWorkoutAlert: showFinishWorkoutAlert ?? this.showFinishWorkoutAlert,
       showExerciseSelection: showExerciseSelection ?? this.showExerciseSelection,
+      isSyncingLibrary: isSyncingLibrary ?? this.isSyncingLibrary,
+      isSyncingWorkout: isSyncingWorkout ?? this.isSyncingWorkout,
     );
   }
 
@@ -174,11 +202,22 @@ class ActiveWorkoutState {
 class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
   final WorkoutRemoteSource _remoteSource;
   final Ref _ref;
+  final SyncEngine? _syncEngine;
+  final ConnectivityManager? _connectivity;
+  final db.AppDatabase? _db;
   final NewRecordDetectionService _newRecordDetectionService;
 
-  ActiveWorkoutNotifier({required WorkoutRemoteSource remoteSource, required Ref ref})
-      : _remoteSource = remoteSource,
+  ActiveWorkoutNotifier({
+    required WorkoutRemoteSource remoteSource,
+    required Ref ref,
+    SyncEngine? syncEngine,
+    ConnectivityManager? connectivity,
+    db.AppDatabase? database,
+  }) : _remoteSource = remoteSource,
         _ref = ref,
+        _syncEngine = syncEngine,
+        _connectivity = connectivity,
+        _db = database,
         _newRecordDetectionService = NewRecordDetectionService(
           getHistoricalLogs: (exerciseId) async {
             return ref.read(exerciseStatsProvider.notifier).getHistoricalLogs(exerciseId);
@@ -220,9 +259,124 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     });
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  // ---------------------------------------------------------------------------
+  // Offline sync helpers
+  // ---------------------------------------------------------------------------
+
+  /// Convert a Dart value to a Drift Variable for raw SQL.
+  static Variable _toVariable(dynamic value) {
+    if (value == null) return const Variable(null);
+    if (value is int) return Variable.withInt(value);
+    if (value is double) return Variable.withReal(value);
+    if (value is bool) return Variable.withInt(value ? 1 : 0);
+    if (value is String) return Variable.withString(value);
+    return Variable.withString(jsonEncode(value));
+  }
+
+  /// Upsert a record into any local Drift table.
+  Future<void> _upsertLocal(String tableName, Map<String, dynamic> data) async {
+    final db = _db;
+    if (db == null) return;
+    final columns = data.keys.map((k) => '"$k"').join(', ');
+    final placeholders = data.keys.map((_) => '?').join(', ');
+    final variables = data.values.map((v) => _toVariable(v)).toList();
+    await db.customInsert(
+      'INSERT OR REPLACE INTO "$tableName" ($columns) VALUES ($placeholders)',
+      variables: variables,
+    );
+  }
+
+  /// Update specific fields on a local Drift record.
+  Future<void> _updateLocal(String tableName, String recordId, Map<String, dynamic> fields) async {
+    final db = _db;
+    if (db == null) return;
+    final setClauses = <String>[];
+    final variables = <Variable>[];
+    for (final entry in fields.entries) {
+      if (entry.value == null) {
+        setClauses.add('"${entry.key}" = NULL');
+      } else {
+        setClauses.add('"${entry.key}" = ?');
+        variables.add(_toVariable(entry.value));
+      }
+    }
+    variables.add(Variable.withString(recordId));
+    await db.customUpdate(
+      'UPDATE "$tableName" SET ${setClauses.join(', ')} WHERE "id" = ?',
+      variables: variables,
+    );
+  }
+
+  /// Soft-delete a local Drift record.
+  Future<void> _softDeleteLocal(String tableName, String recordId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _updateLocal(tableName, recordId, {
+      'deleted_at': now,
+      'updated_at': now,
+      'sync_status': 3, // PENDING_DELETE
+    });
+  }
+
+  /// Insert a ClientExerciseLog into the local Drift DB with sync status.
+  Future<void> _insertLogLocal(ClientExerciseLog log, {int syncStatus = 1}) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final data = <String, dynamic>{
+      'id': log.id,
+      'client_id': log.clientId,
+      'exercise_id': log.exerciseId,
+      'workout_session_id': log.workoutSessionId,
+      'side': log.side,
+      'created_at': log.createdAt.millisecondsSinceEpoch,
+      'updated_at': log.updatedAt?.millisecondsSinceEpoch ?? now,
+      'sync_status': syncStatus,
+    };
+    if (log.reps != null) data['reps'] = log.reps;
+    if (log.weight != null) data['weight'] = log.weight;
+    if (log.isCompleted != null) data['is_completed'] = log.isCompleted;
+    if (log.order != null) data['order'] = log.order;
+    if (log.tempo != null) data['tempo'] = log.tempo;
+    if (log.supersetKey != null) data['superset_key'] = log.supersetKey;
+    if (log.orderInSuperset != null) data['order_in_superset'] = log.orderInSuperset;
+    if (log.sets != null) data['sets'] = jsonEncode(log.sets);
+    if (log.deletedAt != null) data['deleted_at'] = log.deletedAt!.millisecondsSinceEpoch;
+    await _upsertLocal('client_exercise_logs', data);
+  }
+
+  /// Persist the full currently-in-memory log to local DB and enqueue for sync.
+  Future<void> _persistLogUpdate(String logId) async {
+    final syncEngine = _syncEngine;
+    if (syncEngine == null) return;
+    final log = state.logs.firstWhere((l) => l.id == logId);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    await _updateLocal('client_exercise_logs', logId, {
+      'updated_at': nowMs,
+      'sync_status': 2, // PENDING_UPDATE
+    });
+    await syncEngine.queueMutation(
+      tableName: 'client_exercise_logs',
+      recordId: logId,
+      operation: SyncOperation.update,
+      data: log.toJson(),
+    );
+  }
+
+  /// Persist the current session to local DB and enqueue for sync.
+  Future<void> _persistSessionUpdate(String sessionId) async {
+    final syncEngine = _syncEngine;
+    if (syncEngine == null) return;
+    final session = state.session;
+    if (session == null) return;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    await _updateLocal('workout_sessions', sessionId, {
+      'updated_at': nowMs,
+      'sync_status': 2, // PENDING_UPDATE
+    });
+    await syncEngine.queueMutation(
+      tableName: 'workout_sessions',
+      recordId: sessionId,
+      operation: SyncOperation.update,
+      data: session.toJson(),
+    );
   }
 
   /// POST /api/workout-sessions/start
@@ -307,6 +461,62 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         isLoading: false,
         error: e.toString(),
       );
+    }
+  }
+
+  /// Checks the local Drift database for an in-progress workout session.
+  ///
+  /// If one exists, restores it into [state.session] so the mini-player or
+  /// full workout UI appears automatically on app restart (ghost session
+  /// recovery).  Does NOT touch the API — purely local database check.
+  ///
+  /// Returns `true` if an in-progress session was restored, `false` otherwise.
+  Future<bool> checkForActiveSession() async {
+    try {
+      final db = _db;
+      if (db == null) return false;
+
+      final result = await db.customSelect(
+        'SELECT * FROM "workout_sessions" '
+        'WHERE "status" = ? AND "deleted_at" IS NULL '
+        'ORDER BY "start_time" DESC LIMIT 1',
+        variables: [Variable.withString('IN_PROGRESS')],
+      ).get();
+
+      if (result.isEmpty) return false;
+
+      final row = result.first.data;
+
+      // Build a JSON-compatible map that WorkoutSession.fromJson can parse.
+      // Drift returns int64 timestamps, which readDateTime accepts as ms.
+      final json = <String, dynamic>{
+        'id': row['id'] as String,
+        'client_id': row['client_id'] as String,
+        'name': row['name'] as String?,
+        'start_time': row['start_time'] as int,
+        'end_time': row['end_time'] as int?,
+        'status': (row['status'] as String?) ?? 'IN_PROGRESS',
+        'notes': row['notes'] as String?,
+        'rest_started_at': row['rest_started_at'] as int?,
+        'workout_template_id': row['workout_template_id'] as String?,
+        'planned_date': row['planned_date'] as int?,
+        'client_package_id': row['client_package_id'] as String?,
+        'is_trainer_led': (row['is_trainer_led'] as bool?) ?? false,
+        'reminder_time': row['reminder_time'] as int?,
+        'trainer_reminder_sent':
+            (row['trainer_reminder_sent'] as bool?) ?? false,
+        'created_at': row['created_at'] as int,
+        'updated_at': row['updated_at'] as int,
+        'deleted_at': row['deleted_at'] as int?,
+      };
+
+      final session = WorkoutSession.fromJson(json);
+      state = state.copyWith(session: session);
+      return true;
+    } catch (e, st) {
+      debugPrint('CHECK_ACTIVE_SESSION_ERROR: $e');
+      debugPrint('STACKTRACE: $st');
+      return false;
     }
   }
 
@@ -395,10 +605,44 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: save to local DB + enqueue for sync
+        final tempLog = ClientExerciseLog(
+          id: logId ?? 'log-${DateTime.now().millisecondsSinceEpoch}',
+          clientId: state.session!.clientId,
+          exerciseId: exerciseId,
+          reps: reps,
+          weight: weight,
+          isCompleted: isCompleted,
+          order: state.logs.length + 1,
+          workoutSessionId: state.session!.id,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        await _insertLogLocal(tempLog, syncStatus: 1);
+        await _syncEngine?.queueMutation(
+          tableName: 'client_exercise_logs',
+          recordId: tempLog.id,
+          operation: SyncOperation.create,
+          data: tempLog.toJson(),
+        );
+        if (logId != null) {
+          final updatedLogs = state.logs.map((l) {
+            return l.id == logId ? tempLog : l;
+          }).toList();
+          state = state.copyWith(isLoading: false, logs: updatedLogs);
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            logs: [...state.logs, tempLog],
+          );
+        }
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        );
+      }
     }
   }
 
@@ -485,11 +729,31 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       debugPrint('COMPLETE_SET_ERROR: $e');
       debugPrint('STACKTRACE: $st');
       
-      // ROLLBACK: Restore previous state on API failure
-      state = state.copyWith(
-        logs: previousLogs,
-        error: e.toString(),
-      );
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: keep optimistic update, persist locally
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        await _updateLocal('client_exercise_logs', actualLogId, {
+          'is_completed': true,
+          'updated_at': nowMs,
+          'sync_status': 2, // PENDING_UPDATE
+        });
+        // Use current state log (has optimistic update applied)
+        final updatedLog = state.logs.firstWhere((l) => l.id == actualLogId);
+        await _syncEngine?.queueMutation(
+          tableName: 'client_exercise_logs',
+          recordId: actualLogId,
+          operation: SyncOperation.update,
+          data: updatedLog.toJson(),
+        );
+        // Start rest timer locally
+        startRest();
+      } else {
+        // ROLLBACK: Restore previous state on API failure
+        state = state.copyWith(
+          logs: previousLogs,
+          error: e.toString(),
+        );
+      }
     }
   }
 
@@ -510,11 +774,40 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
-      return null;
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: save session as finished locally
+        final currentSession = state.session;
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        await _updateLocal('workout_sessions', sessionId, {
+          'status': 'COMPLETED',
+          'end_time': nowMs,
+          'updated_at': nowMs,
+          'sync_status': 2, // PENDING_UPDATE
+        });
+        await _syncEngine?.queueMutation(
+          tableName: 'workout_sessions',
+          recordId: sessionId,
+          operation: SyncOperation.update,
+          data: currentSession!.toJson(),
+        );
+        // Queue all pending logs for sync
+        for (final log in state.logs) {
+          await _syncEngine?.queueMutation(
+            tableName: 'client_exercise_logs',
+            recordId: log.id,
+            operation: SyncOperation.create,
+            data: log.toJson(),
+          );
+        }
+        state = const ActiveWorkoutState();
+        return currentSession;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        );
+        return null;
+      }
     }
   }
 
@@ -537,10 +830,28 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: save as cancelled locally
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        await _updateLocal('workout_sessions', sessionId, {
+          'status': 'CANCELLED',
+          'end_time': nowMs,
+          'updated_at': nowMs,
+          'sync_status': 2, // PENDING_UPDATE
+        });
+        await _syncEngine?.queueMutation(
+          tableName: 'workout_sessions',
+          recordId: sessionId,
+          operation: SyncOperation.update,
+          data: state.session!.toJson(),
+        );
+        state = const ActiveWorkoutState();
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        );
+      }
     }
   }
 
@@ -562,7 +873,20 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     } catch (e, st) {
       debugPrint('REST_TIMER_ERROR: $e');
       debugPrint('STACKTRACE: $st');
-      state = state.copyWith(error: e.toString());
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: update rest_started_at locally
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        await _updateLocal('workout_sessions', sessionId, {
+          'rest_started_at': nowMs,
+          'updated_at': nowMs,
+          'sync_status': 2, // PENDING_UPDATE
+        });
+        await _persistSessionUpdate(sessionId);
+        // Still start the rest timer locally
+        _ref.read(restTimerManagerProvider.notifier).start(duration: 90);
+      } else {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -585,7 +909,19 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     } catch (e, st) {
       debugPrint('REST_TIMER_ERROR: $e');
       debugPrint('STACKTRACE: $st');
-      state = state.copyWith(error: e.toString());
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: clear rest_started_at locally
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        await _updateLocal('workout_sessions', sessionId, {
+          'rest_started_at': null,
+          'updated_at': nowMs,
+          'sync_status': 2, // PENDING_UPDATE
+        });
+        await _persistSessionUpdate(sessionId);
+        _ref.read(restTimerManagerProvider.notifier).stop();
+      } else {
+        state = state.copyWith(error: e.toString());
+      }
     }
   }
 
@@ -620,10 +956,25 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      if (_connectivity?.isOnline != true) {
+        // Offline fallback: soft delete locally
+        await _softDeleteLocal('client_exercise_logs', logId);
+        await _syncEngine?.queueMutation(
+          tableName: 'client_exercise_logs',
+          recordId: logId,
+          operation: SyncOperation.delete,
+          data: {'id': logId},
+        );
+        state = state.copyWith(
+          isLoading: false,
+          logs: state.logs.where((log) => log.id != logId).toList(),
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        );
+      }
     }
   }
 
@@ -665,7 +1016,7 @@ try {
               rir: log.rir,
               exerciseName: log.exerciseName,
               createdAt: log.createdAt,
-              updatedAt: log.updatedAt,
+              updatedAt: DateTime.now(),
               deletedAt: log.deletedAt,
             );
           }
@@ -676,6 +1027,17 @@ try {
         isLoading: false,
         logs: updatedLogs,
       );
+
+      // Persist locally for offline sync
+      try {
+        await _updateLocal('client_exercise_logs', logId, {
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+          'sync_status': 2, // PENDING_UPDATE
+        });
+        await _persistLogUpdate(logId);
+      } catch (persistError) {
+        debugPrint('LOCAL_PERSIST_ERROR: $persistError');
+      }
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -687,7 +1049,7 @@ try {
   }
 
   /// Update RPE for a specific set in local state.
-  void updateSetRpe(String logId, double rpe) {
+  Future<void> updateSetRpe(String logId, double rpe) async {
     final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     // Update local state - TODO: Add API call when endpoint available
     final updatedLogs = state.logs.map((log) {
@@ -710,7 +1072,7 @@ try {
           rir: log.rir,
           exerciseName: log.exerciseName,
           createdAt: log.createdAt,
-          updatedAt: log.updatedAt,
+          updatedAt: DateTime.now(),
           deletedAt: log.deletedAt,
         );
       }
@@ -718,11 +1080,23 @@ try {
     }).toList();
     
     state = state.copyWith(logs: updatedLogs);
+
+    // Persist locally for offline sync (rpe column not in Drift table, so
+    // just mark the row as pending and enqueue the full log data)
+    try {
+      await _updateLocal('client_exercise_logs', actualLogId, {
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'sync_status': 2, // PENDING_UPDATE
+      });
+      await _persistLogUpdate(actualLogId);
+    } catch (e) {
+      debugPrint('LOCAL_PERSIST_ERROR: $e');
+    }
   }
 
   /// Update weight for a specific set in local state (optimistic, no API call).
   /// Mirrors iOS manager.updateSetWeight(setId:weight:).
-  void updateSetWeight(String logId, double weight) {
+  Future<void> updateSetWeight(String logId, double weight) async {
     final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     final updatedLogs = state.logs.map((log) {
       if (log.id == actualLogId) {
@@ -752,11 +1126,23 @@ try {
     }).toList();
 
     state = state.copyWith(logs: updatedLogs);
+
+    // Persist locally for offline sync
+    try {
+      await _updateLocal('client_exercise_logs', actualLogId, {
+        'weight': weight,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'sync_status': 2, // PENDING_UPDATE
+      });
+      await _persistLogUpdate(actualLogId);
+    } catch (e) {
+      debugPrint('LOCAL_PERSIST_ERROR: $e');
+    }
   }
 
   /// Update reps for a specific set in local state (optimistic, no API call).
   /// Mirrors iOS manager.updateSetReps(setId:reps:).
-  void updateSetReps(String logId, int reps) {
+  Future<void> updateSetReps(String logId, int reps) async {
     final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     final updatedLogs = state.logs.map((log) {
       if (log.id == actualLogId) {
@@ -786,11 +1172,23 @@ try {
     }).toList();
 
     state = state.copyWith(logs: updatedLogs);
+
+    // Persist locally for offline sync
+    try {
+      await _updateLocal('client_exercise_logs', actualLogId, {
+        'reps': reps,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'sync_status': 2, // PENDING_UPDATE
+      });
+      await _persistLogUpdate(actualLogId);
+    } catch (e) {
+      debugPrint('LOCAL_PERSIST_ERROR: $e');
+    }
   }
 
   /// Update tempo for a specific set in local state (optimistic, no API call).
   /// Mirrors iOS manager.updateSetTempo(setId:tempo:).
-  void updateSetTempo(String logId, String tempo) {
+  Future<void> updateSetTempo(String logId, String tempo) async {
     final actualLogId = logId.contains('-set-') ? logId.split('-set-')[0] : logId;
     final updatedLogs = state.logs.map((log) {
       if (log.id == actualLogId) {
@@ -820,6 +1218,18 @@ try {
     }).toList();
 
     state = state.copyWith(logs: updatedLogs);
+
+    // Persist locally for offline sync
+    try {
+      await _updateLocal('client_exercise_logs', actualLogId, {
+        'tempo': tempo,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'sync_status': 2, // PENDING_UPDATE
+      });
+      await _persistLogUpdate(actualLogId);
+    } catch (e) {
+      debugPrint('LOCAL_PERSIST_ERROR: $e');
+    }
   }
 
   /// Update focus metric for an exercise in local state.
@@ -914,10 +1324,25 @@ try {
   /// from remote source and pre-populate the session's exercises list.
   Future<void> _populateTemplateExercises(String sessionId, String templateId) async {
     try {
-      // TODO: Implement when template exercise endpoint is available
-      // For now, this is a placeholder that follows the existing pattern
-      await _remoteSource.fetchSession(templateId); // Using fetchSession as placeholder
-      // In a real implementation, we would fetch template exercises and add them to the session
+      final exercises = await _remoteSource.fetchTemplateExercises(templateId);
+      final List<ClientExerciseLog> newLogs = [];
+      for (final ex in exercises) {
+        if (ex.exerciseId != null && ex.exerciseId!.isNotEmpty) {
+          try {
+            final log = await _remoteSource.addExerciseToSession(
+              sessionId: sessionId,
+              exerciseId: ex.exerciseId!,
+            );
+            newLogs.add(log);
+          } catch (e) {
+            debugPrint('Failed to add exercise ${ex.exerciseId}: $e');
+            // Continue with next exercise — don't fail the whole template load
+          }
+        }
+      }
+      if (newLogs.isNotEmpty) {
+        state = state.copyWith(logs: [...state.logs, ...newLogs]);
+      }
     } catch (e, st) {
       debugPrint('TEMPLATE_PREPOPULATION_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -1006,8 +1431,35 @@ try {
   }
 
   /// Resets to idle state.
+  ///
+  /// Mirrors iOS `WorkoutManager.reset()`:
+  /// - Stops the workout and rest timers
+  /// - Clears session, logs, and all caches
+  /// - Sets `isSessionActive = false` (implied by null session)
   void reset() {
+    // Stop workout timer
+    try {
+      _ref.read(workoutTimerProvider.notifier).stop();
+    } catch (_) {}
+    // Stop rest timer
+    try {
+      _ref.read(restTimerManagerProvider.notifier).stop();
+    } catch (_) {}
     state = const ActiveWorkoutState();
+  }
+
+  /// Sets the [isSyncingLibrary] flag.
+  /// Used by exercise library sync operations to show/hide an inline
+  /// loading indicator — NOT a full-screen overlay.
+  void setSyncingLibrary(bool value) {
+    state = state.copyWith(isSyncingLibrary: value);
+  }
+
+  /// Sets the [isSyncingWorkout] flag.
+  /// Used during workout-save operations to show/hide an inline
+  /// loading indicator — NOT a full-screen overlay.
+  void setSyncingWorkout(bool value) {
+    state = state.copyWith(isSyncingWorkout: value);
   }
 
   /// Saves the current workout session as a template for reuse.

@@ -520,7 +520,7 @@ void main() {
     });
 
     group('fetchUsers', () {
-      Map<String, dynamic> _userJson({
+      Map<String, dynamic> userJson({
         String id = 'user-1',
         String name = 'Test User',
         String role = 'client',
@@ -536,7 +536,7 @@ void main() {
           };
 
       test('populates users on success', () async {
-        final users = [_userJson(id: 'u1'), _userJson(id: 'u2', name: 'Second')];
+        final users = [userJson(id: 'u1'), userJson(id: 'u2', name: 'Second')];
 
         when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
               ApiConstants.adminUsers,
@@ -568,7 +568,7 @@ void main() {
               queryParams: any(named: 'queryParams'),
             )).thenAnswer((_) async => {
               'data': {
-                'users': [_userJson(id: 'u1', role: 'trainer')],
+                'users': [userJson(id: 'u1', role: 'trainer')],
                 'total': 1,
                 'page': 1,
                 'limit': 20,
@@ -610,7 +610,7 @@ void main() {
     });
 
     group('fetchErrors', () {
-      Map<String, dynamic> _errorJson({
+      Map<String, dynamic> errorJson({
         String id = 'err-1',
         String severity = 'error',
       }) =>
@@ -628,7 +628,7 @@ void main() {
           };
 
       test('populates errors on success', () async {
-        final errors = [_errorJson(), _errorJson(id: 'err-2', severity: 'warning')];
+        final errors = [errorJson(), errorJson(id: 'err-2', severity: 'warning')];
 
         when<Future<Map<String, dynamic>>>(() => mockApiClient.get(
               ApiConstants.adminErrors,
@@ -660,7 +660,7 @@ void main() {
               queryParams: any(named: 'queryParams'),
             )).thenAnswer((_) async => {
               'data': {
-                'errors': [_errorJson(severity: 'warning')],
+                'errors': [errorJson(severity: 'warning')],
                 'total': 1,
                 'page': 1,
                 'limit': 20,

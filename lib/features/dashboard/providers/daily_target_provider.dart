@@ -413,7 +413,7 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
     // Best-effort API call
     if (_apiClient != null) {
       try {
-        await _apiClient!.post(
+        await _apiClient.post(
           ApiConstants.dailyTargets,
           body: target.toJson(),
         );
@@ -442,7 +442,7 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
     // Best-effort API call
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           '${ApiConstants.dailyTargets}/$id',
           body: {'current_value': value},
         );
@@ -474,7 +474,7 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
     // Best-effort API call
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           '${ApiConstants.dailyTargets}/$id',
           body: {'toggle_completed': true}, // server flips the completed state
         );
@@ -507,7 +507,7 @@ class DailyTargetNotifier extends StateNotifier<DailyTargetState> {
     // Best-effort API call
     if (_apiClient != null) {
       try {
-        await _apiClient!.delete('${ApiConstants.dailyTargets}/$id');
+        await _apiClient.delete('${ApiConstants.dailyTargets}/$id');
       } catch (_) {
         // API unavailable — proceed with local-only remove
       }

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zirofit_fl/core/services/app_event_bus.dart';
 
 /// Represents the current display mode.
 ///
@@ -55,6 +56,10 @@ class ModeSwitchNotifier extends StateNotifier<AppMode> {
   Future<void> switchMode() async {
     final newMode =
         state == AppMode.trainer ? AppMode.personal : AppMode.trainer;
+
+    // Notify listeners before changing state (iOS .appUserContextWillChange)
+    AppEventBus().notifyAppUserContextWillChange();
+
     state = newMode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_mode', newMode.name);
@@ -63,6 +68,10 @@ class ModeSwitchNotifier extends StateNotifier<AppMode> {
   /// Force-set the display mode to match [mode].
   Future<void> setMode(AppMode mode) async {
     if (state == mode) return;
+
+    // Notify listeners before changing state (iOS .appUserContextWillChange)
+    AppEventBus().notifyAppUserContextWillChange();
+
     state = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_mode', mode.name);

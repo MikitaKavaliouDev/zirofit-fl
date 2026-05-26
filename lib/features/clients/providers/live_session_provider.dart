@@ -156,8 +156,8 @@ class LiveSessionNotifier extends StateNotifier<LiveSessionState> {
                 return ClientExerciseLog.fromJson(
                   {
                     ...logJson,
-                    if (exerciseId != null) 'exerciseId': exerciseId,
-                    if (exerciseName != null) 'exerciseName': exerciseName,
+                    'exerciseId': ?exerciseId,
+                    'exerciseName': ?exerciseName,
                   },
                   sessionClientId: sessionClientId,
                   workoutSessionId: session.id,

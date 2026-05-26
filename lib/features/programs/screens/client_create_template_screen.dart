@@ -361,7 +361,7 @@ class _ClientCreateTemplateScreenState
   Widget _buildProgramDropdown(ClientProgramsState state) {
     final programs = state.library?.personalPrograms ?? [];
     return DropdownButtonFormField<String>(
-      value: _selectedProgramId.isEmpty ? null : _selectedProgramId,
+      initialValue: _selectedProgramId.isEmpty ? null : _selectedProgramId,
       decoration: const InputDecoration(
         labelText: 'Program',
         hintText: 'Select a program',
@@ -630,7 +630,7 @@ class _AddExerciseDialogState extends State<_AddExerciseDialog> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _category,
+              initialValue: _category,
               decoration: const InputDecoration(
                 labelText: 'Category',
               ),

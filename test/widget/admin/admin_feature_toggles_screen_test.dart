@@ -68,7 +68,7 @@ void main() {
       const AdminFeatureTogglesScreen(),
       overrides: [
         adminProvider.overrideWith((ref) => FakeAdminNotifier(
-              AdminState(
+              const AdminState(
                 featureToggles: {
                   'freeAccessMode': false,
                   'customDomains': true,
@@ -89,7 +89,7 @@ void main() {
       const AdminFeatureTogglesScreen(),
       overrides: [
         adminProvider.overrideWith((ref) => FakeAdminNotifier(
-              AdminState(
+              const AdminState(
                 featureToggles: {
                   'freeAccessMode': false,
                   'customDomains': true,

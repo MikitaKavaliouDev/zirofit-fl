@@ -1,6 +1,18 @@
 {
-  "active_plan": "V:\\zirofit-fl\\.sisyphus\\plans\\workout-bottom-sheet.md",
-  "started_at": "2026-05-11T13:03:00.000Z",
-  "session_ids": ["ses_1e94fa0a8ffe7IAKpbskDkTizO"],
-  "plan_name": "workout-bottom-sheet"
+  "active_plan": "V:\\zirofit-fl\\.sisyphus\\plans\\full-ios-parity-plan.md",
+  "started_at": "2026-05-25T06:35:00.000Z",
+  "session_ids": [
+    "ses_1a71d6fcaffekXWXfUmmEWUTVo",
+    "ses_1a1037ef2ffe8RvmsTn3GbZwOJ",
+    "ses_1a1037b8affe9kiIy3hkLxTxZJ",
+    "ses_1a1037839ffe4N34AwgOMnH9o0"
+  ],
+  "plan_name": "full-ios-parity-plan",
+  "session_origins": {
+    "ses_1a71d6fcaffekXWXfUmmEWUTVo": "direct",
+    "ses_1a1037ef2ffe8RvmsTn3GbZwOJ": "appended",
+    "ses_1a1037b8affe9kiIy3hkLxTxZJ": "appended",
+    "ses_1a1037839ffe4N34AwgOMnH9o0": "appended"
+  },
+  "task_sessions": {}
 }

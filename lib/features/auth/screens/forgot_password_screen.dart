@@ -99,7 +99,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Reset link sent! Please check your email inbox.',
+                              'Password reset email sent if the account exists.',
                               style: TextStyle(color: Colors.green.shade700),
                             ),
                           ),

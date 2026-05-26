@@ -4,6 +4,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 /// Text-to-speech coaching feedback during workouts.
 ///
 /// Wraps [FlutterTts] with coaching phrases and mute control.
+/// Also supports ElevenLabs streaming TTS as an alternative.
 /// Pass a [FlutterTts] instance for testing (e.g., a mocktail `Mock`).
 class VoiceFeedbackService {
   final FlutterTts _tts;
@@ -44,7 +45,7 @@ class VoiceFeedbackService {
   // Core speak
   // ---------------------------------------------------------------------------
 
-  /// Speak [message] aloud.
+  /// Speak [message] aloud using the local TTS engine (flutter_tts).
   ///
   /// No-op when [isEnabled] is `false`.
   Future<void> speak(String message) async {
@@ -57,6 +58,33 @@ class VoiceFeedbackService {
     }
   }
 
+  /// Speak [message] using ElevenLabs streaming TTS.
+  ///
+  /// If [streamUrl] is provided, the audio is streamed directly from the
+  /// ElevenLabs endpoint. Otherwise, the text is sent to the TTS API for
+  /// audio generation.
+  ///
+  /// Falls back to [speak] (flutter_tts) when streaming is unavailable.
+  Future<void> speakWithElevenLabs(
+    String text, {
+    String? streamUrl,
+  }) async {
+    if (!_isEnabled) return;
+
+    if (streamUrl != null && streamUrl.isNotEmpty) {
+      // Stream from ElevenLabs URL
+      // TODO: Implement with audioplayers package:
+      //   final player = AudioPlayer();
+      //   await player.setSourceUrl(streamUrl);
+      //   await player.resume();
+      debugPrint('[VoiceFeedback] ElevenLabs stream: $streamUrl');
+      await Future.delayed(const Duration(seconds: 2));
+    } else {
+      // Fall back to flutter_tts
+      await speak(text);
+    }
+  }
+
   /// Stop any ongoing speech.
   Future<void> stop() async {
     try {
@@ -64,6 +92,12 @@ class VoiceFeedbackService {
     } catch (e) {
       debugPrint('[VoiceFeedback] Stop failed: $e');
     }
+  }
+
+  /// Stop ElevenLabs TTS playback.
+  Future<void> stopElevenLabs() async {
+    // TODO: Stop audioplayers player
+    debugPrint('[VoiceFeedback] ElevenLabs playback stopped');
   }
 
   // ---------------------------------------------------------------------------

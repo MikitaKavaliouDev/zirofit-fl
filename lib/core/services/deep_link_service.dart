@@ -17,6 +17,9 @@ enum DeepLinkRouteType {
 
   /// zirofitapp://stripe-return?success=true&account_id=acct_xxx
   stripeReturn,
+
+  /// zirofitapp://auth/update-password?token=xxx
+  authUpdatePassword,
 }
 
 /// A parsed deep link route containing the route type and extracted parameters.
@@ -53,6 +56,12 @@ class DeepLinkRoute {
   /// Error message from stripe-return deep link (zirofitapp://stripe-return).
   String? get stripeError => params['error'];
 
+  /// Refresh token from auth callback URL (?refresh_token=xxx).
+  String? get refreshToken => params['refresh_token'];
+
+  /// Reset token from password reset deep link (zirofitapp://auth/update-password?token=xxx).
+  String? get resetToken => params['token'];
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -81,6 +90,7 @@ bool _mapEquals(Map<String, String> a, Map<String, String> b) {
 /// Parses incoming deep link URLs and provides them via [onRoute] stream.
 /// Supports the following route patterns:
 /// - `zirofitapp://auth/callback?access_token=xxx` → [DeepLinkRouteType.authCallback]
+/// - `zirofitapp://auth/update-password?token=xxx` → [DeepLinkRouteType.authUpdatePassword]
 /// - `zirofitapp://events/{id}` → [DeepLinkRouteType.eventDetail]
 /// - `zirofitapp://trainer/{id}` → [DeepLinkRouteType.trainerProfile]
 /// - `zirofitapp://workout/{id}` → [DeepLinkRouteType.workout]
@@ -146,17 +156,33 @@ class DeepLinkService {
 
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
 
-    // zirofitapp://auth/callback?access_token=xxx
+    // zirofitapp://auth/callback?access_token=xxx&refresh_token=xxx
     if (host == 'auth') {
       if (segments.isNotEmpty && segments[0] == 'callback') {
         final token = uri.queryParameters['access_token'];
         if (token == null || token.isEmpty) return null;
         return DeepLinkRoute(
           type: DeepLinkRouteType.authCallback,
-          params: {'access_token': token},
+          params: {
+            'access_token': token,
+            if (uri.queryParameters['refresh_token'] != null)
+              'refresh_token': uri.queryParameters['refresh_token']!,
+          },
           rawUri: uri,
         );
       }
+
+      // zirofitapp://auth/update-password?token=xxx
+      if (segments.isNotEmpty && segments[0] == 'update-password') {
+        final token = uri.queryParameters['token'];
+        if (token == null || token.isEmpty) return null;
+        return DeepLinkRoute(
+          type: DeepLinkRouteType.authUpdatePassword,
+          params: {'token': token},
+          rawUri: uri,
+        );
+      }
+
       return null;
     }
 

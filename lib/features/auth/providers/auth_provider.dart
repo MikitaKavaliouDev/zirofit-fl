@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
+import 'package:zirofit_fl/core/network/auth_interceptor.dart';
 import 'package:zirofit_fl/core/network/secure_storage.dart';
+import 'package:zirofit_fl/core/services/subscription_manager.dart';
+import 'package:zirofit_fl/features/auth/services/apple_sign_in_helper.dart';
 
 // ---------------------------------------------------------------------------
 // User model
@@ -53,6 +56,7 @@ class AuthState {
   final String? role;
   final bool hasCompletedOnboarding;
   final bool isFreeAccessMode;
+  final bool isPro;
   final String? error;
   final String? tier;
 
@@ -74,6 +78,7 @@ class AuthState {
     this.role,
     this.hasCompletedOnboarding = false,
     this.isFreeAccessMode = false,
+    this.isPro = true, // Hardcoded true for BETA period
     this.error,
     this.tier,
   });
@@ -84,6 +89,7 @@ class AuthState {
     String? role,
     bool? hasCompletedOnboarding,
     bool? isFreeAccessMode,
+    bool? isPro,
     String? error,
     String? tier,
     bool clearError = false,
@@ -95,6 +101,7 @@ class AuthState {
       hasCompletedOnboarding:
           hasCompletedOnboarding ?? this.hasCompletedOnboarding,
       isFreeAccessMode: isFreeAccessMode ?? this.isFreeAccessMode,
+      isPro: isPro ?? this.isPro,
       error: clearError ? null : (error ?? this.error),
       tier: tier ?? this.tier,
     );
@@ -126,6 +133,8 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 class AuthNotifier extends StateNotifier<AuthState> {
   final ApiClient _apiClient;
   final SecureStorage _secureStorage;
+  User? _cachedTrainerUser;
+  User? _cachedClientUser;
 
   AuthNotifier({
     required ApiClient apiClient,
@@ -134,7 +143,63 @@ class AuthNotifier extends StateNotifier<AuthState> {
        _secureStorage = secureStorage,
        super(const AuthState());
 
-  // -- Initialize: check stored tokens, attempt auto-login --
+  // ========================================================================
+  // Role detection
+  // ========================================================================
+
+  /// Maps a raw role string from the backend to the app's internal role.
+  ///
+  /// The following roles are treated as `trainer`:
+  ///   trainer, coach, instructor, admin, staff, owner
+  ///
+  /// Everything else maps to `client`.
+  static String detectRole(String role) {
+    final normalized = role.toLowerCase().trim();
+    const trainerRoles = {
+      'trainer',
+      'coach',
+      'instructor',
+      'admin',
+      'staff',
+      'owner',
+    };
+    if (trainerRoles.contains(normalized)) return 'trainer';
+    return 'client';
+  }
+
+  /// Migrates stored role tokens from an old role key to a new one, so
+  /// account switching works correctly even when the backend changes its
+  /// role naming.
+  Future<void> _migrateRoleTokensIfNeeded(
+    String detectedRole,
+    String accessToken,
+    String refreshToken,
+  ) async {
+    final currentRole = state.role;
+    if (currentRole != null && currentRole != detectedRole) {
+      // Save tokens under the newly detected role so account-switching
+      // keys are consistent.
+      await _secureStorage.saveRoleTokens(
+        detectedRole,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+    }
+  }
+
+  // ========================================================================
+  // JWT helpers
+  // ========================================================================
+
+  /// Decodes the payload segment of a JWT (base64-encoded JSON) and returns
+  /// it as a [Map]. Returns an empty map on failure.
+  static Map<String, dynamic> decodeJwtPayload(String token) {
+    return AuthInterceptor.decodeJwtPayload(token);
+  }
+
+  // ========================================================================
+  // Initialize: check stored tokens, attempt auto-login
+  // ========================================================================
 
   Future<void> initialize() async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
@@ -159,7 +224,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Login --
+  // ========================================================================
+  // Login
+  // ========================================================================
 
   Future<AsyncValue<User>> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
@@ -187,7 +254,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Fetch extended profile
       final meData = await fetchMe();
 
-      final resolvedRole = role ?? meData['role'] as String?;
+      final rawRole = role ?? meData['role'] as String?;
+      final resolvedRole = rawRole != null ? detectRole(rawRole) : null;
 
       // Save tokens under the resolved role for later account switching.
       if (resolvedRole != null) {
@@ -205,8 +273,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         hasCompletedOnboarding:
             meData['hasCompletedOnboarding'] as bool? ?? false,
         isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
+        isPro: SubscriptionManager().isPro,
         tier: meData['tier'] as String?,
       );
+
+      // Set auth mode based on the resolved role.
+      _apiClient.setMode(resolvedRole == 'trainer');
+      _cacheCurrentUser();
 
       return AsyncValue.data(user);
     } catch (e, st) {
@@ -219,7 +292,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Register --
+  // ========================================================================
+  // Register
+  // ========================================================================
 
   Future<AsyncValue<void>> register(
     String name,
@@ -253,11 +328,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- OAuth --
+  // ========================================================================
+  // OAuth
+  // ========================================================================
 
   Future<void> signInWithOAuth(String provider) async {
-    // Opens the mobile-signin URL in the browser.
-    // The OAuth callback is handled via deep link → AuthCallbackScreen.
+    if (provider == 'apple') {
+      await _signInWithApple();
+      return;
+    }
+
+    // Google OAuth — opens the mobile-signin URL in the system browser.
+    // The server redirects back to zirofitapp://auth/callback?access_token=...
+    // which is handled by the deep link service and AuthCallbackScreen.
     final uri = Uri.parse(
       '${ApiConstants.baseUrl}/auth/mobile-signin',
     ).replace(queryParameters: {'provider': provider});
@@ -265,7 +348,85 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _launchUrl(uri.toString());
   }
 
-  // -- Account Switching --
+  /// Native Apple Sign In via [AppleSignInHelper].
+  Future<void> _signInWithApple() async {
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
+
+    try {
+      const helper = AppleSignInHelper();
+      final result = await helper.signIn();
+
+      // User cancelled the native dialog — return to unauthenticated state
+      // without an error.
+      if (result == null) {
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+        return;
+      }
+
+      // Exchange the Apple identity token for our JWT tokens.
+      final Map<String, dynamic> response = await _apiClient.post(
+        ApiConstants.mobileSignin,
+        body: {
+          'provider': 'apple',
+          'id_token': result.identityToken,
+        },
+      );
+
+      final data = response['data'] as Map<String, dynamic>;
+      final accessToken = data['accessToken'] as String;
+      final refreshToken = data['refreshToken'] as String;
+      final userData = data['user'] as Map<String, dynamic>;
+      final role = data['role'] as String?;
+
+      // Persist tokens
+      await _secureStorage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+
+      final user = User.fromJson(userData);
+
+      // Fetch extended profile
+      final meData = await fetchMe();
+
+      final rawRole = role ?? meData['role'] as String?;
+      final resolvedRole = rawRole != null ? detectRole(rawRole) : null;
+
+      // Save tokens under the resolved role for later account switching.
+      if (resolvedRole != null) {
+        await _secureStorage.saveRoleTokens(
+          resolvedRole,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+        );
+      }
+
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: user,
+        role: resolvedRole,
+        hasCompletedOnboarding:
+            meData['hasCompletedOnboarding'] as bool? ?? false,
+        isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
+        isPro: SubscriptionManager().isPro,
+        tier: meData['tier'] as String?,
+      );
+
+      // Set auth mode based on the resolved role.
+      _apiClient.setMode(resolvedRole == 'trainer');
+      _cacheCurrentUser();
+    } catch (e) {
+      final message = _extractErrorMessage(e);
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: message,
+      );
+    }
+  }
+
+  // ========================================================================
+  // Account Switching
+  // ========================================================================
 
   /// Saves the current session's tokens under the current role key
   /// so they can be restored when switching back.
@@ -294,20 +455,49 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// [targetRole]. Returns `false` if no saved tokens exist for the target
   /// role (caller should show a login flow instead).
   Future<bool> switchToRole(String targetRole) async {
-    // 1. Save the current session.
+    // 1. Cache the current user before switching.
+    _cacheCurrentUser();
+
+    // 2. Save the current session.
     await _saveCurrentRoleTokens();
 
-    // 2. Check for target role tokens.
+    // 3. Check for target role tokens.
     final targetTokens = await _secureStorage.getRoleTokens(targetRole);
     if (targetTokens == null) return false;
 
-    // 3. Overwrite active tokens with the target role's tokens.
+    // 4. Overwrite active tokens with the target role's tokens.
     await _secureStorage.saveTokens(
       accessToken: targetTokens['accessToken']!,
       refreshToken: targetTokens['refreshToken']!,
     );
 
-    // 4. Refresh the session — this updates auth state to the new role.
+    // 5. Switch the API client mode **before** refreshing so that the refresh
+    //    request uses the correct auth method (cookies for trainer, token for
+    //    client).
+    _apiClient.setMode(targetRole == 'trainer');
+
+    // 6. Use cached user data if available to avoid a network fetch.
+    final cachedUser = targetRole == 'trainer'
+        ? _cachedTrainerUser
+        : _cachedClientUser;
+    if (cachedUser != null) {
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: cachedUser,
+        role: targetRole,
+      );
+
+      // Fire a background refresh to keep tokens fresh — errors are non-fatal.
+      try {
+        await refreshSession();
+      } catch (_) {
+        // Silently ignore background refresh errors.
+      }
+
+      return true;
+    }
+
+    // 7. No cached user — fall back to the full refresh flow.
     await refreshSession();
 
     return state.isAuthenticated && state.role == targetRole;
@@ -321,7 +511,66 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static String roleLabel(String role) =>
       role == 'trainer' ? 'Professional' : role == 'client' ? 'Personal' : role;
 
-  // -- Sign Out --
+  // ========================================================================
+  // Mode-Specific Logout
+  // ========================================================================
+
+  /// Surgically logs out only the specified [mode] ('trainer' or 'client')
+  /// without affecting the other role's session.
+  ///
+  /// 1. Calls the server logout endpoint.
+  /// 2. Clears only the target mode's tokens from secure storage.
+  /// 3. Clears cookies for the target mode.
+  /// 4. Clears the relevant user cache.
+  /// 5. If [mode] matches the currently active role, resets auth state
+  ///    to unauthenticated.
+  Future<void> logout({required String mode}) async {
+    final isActiveMode = state.role == mode;
+
+    // 1. Call server logout (best-effort).
+    try {
+      // Switch API client mode temporarily so the signout request uses the
+      // correct auth method for the mode being logged out.
+      final wasTrainer = mode == 'trainer';
+      _apiClient.setMode(wasTrainer);
+      await _apiClient.post(ApiConstants.signout);
+    } catch (_) {
+      // Continue with local cleanup even if the backend call fails.
+    } finally {
+      // Restore API client mode if we're not logging out the active mode.
+      if (!isActiveMode && state.role != null) {
+        _apiClient.setMode(state.role == 'trainer');
+      }
+    }
+
+    // 2. Clear only the target mode's tokens.
+    await _secureStorage.clearRoleTokens(mode);
+
+    // 3. Clear cookies for the target mode.
+    try {
+      await _apiClient.clearCookiesForRole(mode);
+    } catch (_) {
+      // Best-effort.
+    }
+
+    // 4. Clear the relevant user cache.
+    if (mode == 'trainer') {
+      _cachedTrainerUser = null;
+    } else {
+      _cachedClientUser = null;
+    }
+
+    // 5. If logging out the active mode, reset the auth state.
+    if (isActiveMode) {
+      // Clear the active tokens too.
+      await _secureStorage.clearTokens();
+      state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  // ========================================================================
+  // Sign Out (full — clears everything)
+  // ========================================================================
 
   Future<void> signOut() async {
     try {
@@ -330,11 +579,58 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Continue with local cleanup even if the backend call fails
     }
 
+    // Clear cookies for the active role before wiping tokens.
+    if (state.role != null) {
+      await _apiClient.clearCookiesForRole(state.role!);
+    }
+
+    _cachedTrainerUser = null;
+    _cachedClientUser = null;
     await _secureStorage.clearTokens();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
-  // -- Delete Account --
+  // ========================================================================
+  // Session Expired Handler
+  // ========================================================================
+
+  /// Called when a 401 response could not be resolved by a token refresh
+  /// for the given [failingMode].
+  ///
+  /// Surgically clears only the failing mode's tokens. If the failing mode
+  /// is the currently active mode, it resets the auth state so the router
+  /// redirects the user to the login screen.
+  Future<void> handleUnauthorized(String failingMode) async {
+    // Clear the failing mode's role tokens.
+    await _secureStorage.clearRoleTokens(failingMode);
+
+    // Clear cookies for the failing mode.
+    try {
+      await _apiClient.clearCookiesForRole(failingMode);
+    } catch (_) {
+      // Best-effort.
+    }
+
+    // Clear the relevant user cache.
+    if (failingMode == 'trainer') {
+      _cachedTrainerUser = null;
+    } else {
+      _cachedClientUser = null;
+    }
+
+    // If the failing mode is the active mode, reset to unauthenticated.
+    if (state.role == failingMode) {
+      await _secureStorage.clearTokens();
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        error: 'Session expired. Please login again.',
+      );
+    }
+  }
+
+  // ========================================================================
+  // Delete Account
+  // ========================================================================
 
   Future<void> deleteAccount({String? reason}) async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
@@ -358,7 +654,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Refresh Session --
+  // ========================================================================
+  // Refresh Session
+  // ========================================================================
 
   Future<void> refreshSession() async {
     final refreshToken = await _secureStorage.getRefreshToken();
@@ -386,7 +684,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Fetch profile after successful refresh
       final meData = await fetchMe();
 
-      final refreshedRole = meData['role'] as String?;
+      final rawRole = meData['role'] as String?;
+      final refreshedRole = rawRole != null ? detectRole(rawRole) : null;
 
       // Save tokens under the resolved role for account switching.
       if (refreshedRole != null) {
@@ -394,6 +693,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
           refreshedRole,
           accessToken: newAccessToken,
           refreshToken: newRefreshToken,
+        );
+
+        // Migrate tokens if the detected role differs from current.
+        await _migrateRoleTokensIfNeeded(
+          refreshedRole,
+          newAccessToken,
+          newRefreshToken,
         );
       }
 
@@ -410,8 +716,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         hasCompletedOnboarding:
             meData['hasCompletedOnboarding'] as bool? ?? false,
         isFreeAccessMode: meData['isFreeAccessModeEnabled'] as bool? ?? false,
+        isPro: SubscriptionManager().isPro,
         tier: meData['tier'] as String?,
       );
+
+      // Sync API client mode with the refreshed role.
+      if (refreshedRole != null) {
+        _apiClient.setMode(refreshedRole == 'trainer');
+      }
+      _cacheCurrentUser();
     } catch (e, st) {
       debugPrint('AUTH_REFRESH_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -423,7 +736,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Forgot Password --
+  // ========================================================================
+  // Forgot Password
+  // ========================================================================
 
   Future<void> forgotPassword(String email) async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
@@ -443,7 +758,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Update Password --
+  // ========================================================================
+  // Update Password
+  // ========================================================================
 
   Future<void> updatePassword(String password) async {
     state = state.copyWith(status: AuthStatus.loading, clearError: true);
@@ -465,7 +782,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Complete Onboarding --
+  // ========================================================================
+  // Complete Onboarding
+  // ========================================================================
 
   Future<void> completeOnboarding({String? role}) async {
     try {
@@ -480,14 +799,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // -- Fetch Me --
+  // ========================================================================
+  // Fetch Me
+  // ========================================================================
 
   Future<Map<String, dynamic>> fetchMe() async {
     final Map<String, dynamic> response = await _apiClient.get(ApiConstants.me);
     return (response['data'] as Map<String, dynamic>?) ?? (response);
   }
 
-  // -- Helpers --
+  // ========================================================================
+  // Helpers
+  // ========================================================================
+
+  /// Caches the current [state.user] under the role-specific cache field
+  /// so that role switching can avoid a network fetch.
+  void _cacheCurrentUser() {
+    final user = state.user;
+    if (user == null) return;
+    switch (state.role) {
+      case 'trainer':
+        _cachedTrainerUser = user;
+      case 'client':
+        _cachedClientUser = user;
+    }
+  }
 
   String _extractErrorMessage(dynamic error) {
     if (error is DioException) {

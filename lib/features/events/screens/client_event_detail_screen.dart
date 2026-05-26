@@ -133,7 +133,7 @@ class _ClientEventDetailScreenState
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: 200,
-                    color: theme.colorScheme.surfaceVariant,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     child: const Center(child: Icon(Icons.broken_image)),
                   ),
                 ),
@@ -265,7 +265,7 @@ class _ClientEventDetailScreenState
                 child: LinearProgressIndicator(
                   value: capacityRatio.clamp(0.0, 1.0),
                   minHeight: 8,
-                  backgroundColor: theme.colorScheme.surfaceVariant,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     capacityRatio >= 0.8
                         ? Colors.red

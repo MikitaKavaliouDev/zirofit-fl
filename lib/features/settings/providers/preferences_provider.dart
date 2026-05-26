@@ -137,7 +137,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
       // Try API first
       if (_apiClient != null) {
         try {
-          final response = await _apiClient!.get<Map<String, dynamic>>(
+          final response = await _apiClient.get<Map<String, dynamic>>(
             ApiConstants.userPreferences,
           );
           final data = response['data'] ?? response;
@@ -267,7 +267,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'theme_mode': mode},
         );
@@ -289,7 +289,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'language': language},
         );
@@ -312,7 +312,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'push_notifications': enabled},
         );
@@ -333,7 +333,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'email_notifications': enabled},
         );
@@ -354,7 +354,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'workout_reminders': enabled},
         );
@@ -374,7 +374,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'booking_alerts': enabled},
         );
@@ -401,7 +401,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {
             'show_trainer_notifications_in_client_mode': enabled,
@@ -430,7 +430,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {
             'show_client_notifications_in_trainer_mode': enabled,
@@ -455,7 +455,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'is_custom_mode_enabled': enabled},
         );
@@ -476,7 +476,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'is_daily_targets_enabled': enabled},
         );
@@ -497,7 +497,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'is_voice_feedback_enabled': enabled},
         );
@@ -518,7 +518,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'is_routines_enabled': enabled},
         );
@@ -541,7 +541,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'sync_to_apple_calendar': enabled},
         );
@@ -564,7 +564,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'sharing_duration': duration},
         );

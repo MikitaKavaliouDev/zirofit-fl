@@ -3,6 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 
+/// Screen for setting a new password without requiring the current password.
+///
+/// This screen is intended for the password-reset flow (e.g., deep link from
+/// a "forgot password" email). The user is authenticated via a reset token
+/// that was saved to secure storage by the deep link handler before navigation.
+///
+/// Unlike the [ResetPasswordScreen] (which receives the token via URL param),
+/// this screen reads the already-persisted token from secure storage.
 class UpdatePasswordScreen extends ConsumerStatefulWidget {
   const UpdatePasswordScreen({super.key});
 
@@ -13,17 +21,14 @@ class UpdatePasswordScreen extends ConsumerStatefulWidget {
 
 class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
   @override
   void dispose() {
-    _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -32,10 +37,12 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
   Future<void> _handleUpdatePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final notifier = ref.read(authProvider.notifier);
+
     try {
-      await ref
-          .read(authProvider.notifier)
-          .updatePassword(_newPasswordController.text.trim());
+      // If the user arrived via a deep link from a forgot-password email,
+      // the reset token was already saved by the bootstrap handler.
+      await notifier.updatePassword(_newPasswordController.text.trim());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -83,12 +90,12 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Change your password',
+                    'Set a new password',
                     style: theme.textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Enter your current password and choose a new one.',
+                    'Enter your new password below.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade600,
@@ -122,31 +129,6 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-
-                  // Current password
-                  TextFormField(
-                    controller: _currentPasswordController,
-                    obscureText: _obscureCurrent,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'Current Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscureCurrent
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () =>
-                            setState(() => _obscureCurrent = !_obscureCurrent),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your current password';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
 
                   // New password
                   TextFormField(
@@ -189,8 +171,8 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
                         icon: Icon(_obscureConfirm
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined),
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
+                        onPressed: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm),
                       ),
                     ),
                     validator: (value) {

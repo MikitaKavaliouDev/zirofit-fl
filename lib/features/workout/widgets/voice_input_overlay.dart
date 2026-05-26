@@ -8,15 +8,18 @@ class VoiceInputOverlay extends StatefulWidget {
     super.key,
     required this.service,
     this.knownExercises = const [],
+    this.libraryExercises = const [],
   });
 
   final VoiceLogService service;
   final List<String> knownExercises;
+  final List<String> libraryExercises;
 
   static Future<ParsedVoiceInput?> show(
     BuildContext context, {
     required VoiceLogService service,
     List<String> knownExercises = const [],
+    List<String> libraryExercises = const [],
   }) {
     return showGeneralDialog<ParsedVoiceInput>(
       context: context,
@@ -27,6 +30,7 @@ class VoiceInputOverlay extends StatefulWidget {
       pageBuilder: (context, animation, secondaryAnimation) => VoiceInputOverlay(
         service: service,
         knownExercises: knownExercises,
+        libraryExercises: libraryExercises,
       ),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
@@ -98,6 +102,7 @@ class _VoiceInputOverlayState extends State<VoiceInputOverlay>
       final parsed = widget.service.parse(
         text,
         knownExercises: widget.knownExercises,
+        libraryExercises: widget.libraryExercises,
       );
 
       if (parsed == null) {

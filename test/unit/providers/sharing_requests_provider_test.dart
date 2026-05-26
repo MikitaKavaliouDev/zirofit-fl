@@ -21,7 +21,7 @@ void main() {
   // Fixtures
   // ---------------------------------------------------------------------------
 
-  Map<String, dynamic> _linkRequestJson({
+  Map<String, dynamic> linkRequestJson({
     String id = 'lr-1',
     String clientId = 'client-123',
     String clientName = 'John Doe',
@@ -40,7 +40,7 @@ void main() {
     };
   }
 
-  Map<String, dynamic> _responseWithData(List<Map<String, dynamic>> items) {
+  Map<String, dynamic> responseWithData(List<Map<String, dynamic>> items) {
     return <String, dynamic>{'data': items};
   }
 
@@ -63,8 +63,8 @@ void main() {
 
   group('fetchRequests', () {
     test('populates requests on success', () async {
-      final json1 = _linkRequestJson();
-      final json2 = _linkRequestJson(
+      final json1 = linkRequestJson();
+      final json2 = linkRequestJson(
         id: 'lr-2',
         clientId: 'client-456',
         clientName: 'Jane Smith',
@@ -74,7 +74,7 @@ void main() {
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([json1, json2]));
+          )).thenAnswer((_) async => responseWithData([json1, json2]));
 
       final future = notifier.fetchRequests();
       // Intermediate loading state
@@ -96,7 +96,7 @@ void main() {
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([]));
+          )).thenAnswer((_) async => responseWithData([]));
 
       await notifier.fetchRequests();
 
@@ -132,7 +132,7 @@ void main() {
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([]));
+          )).thenAnswer((_) async => responseWithData([]));
 
       await notifier.fetchRequests();
 
@@ -151,11 +151,11 @@ void main() {
     test('calls POST /trainer/clients/{id}/accept and removes request',
         () async {
       // Arrange: seed a request
-      final json = _linkRequestJson();
+      final json = linkRequestJson();
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([json]));
+          )).thenAnswer((_) async => responseWithData([json]));
       await notifier.fetchRequests();
       expect(notifier.state.requests.length, 1);
 
@@ -178,11 +178,11 @@ void main() {
 
     test('returns false on failure', () async {
       // Arrange: seed a request
-      final json = _linkRequestJson();
+      final json = linkRequestJson();
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([json]));
+          )).thenAnswer((_) async => responseWithData([json]));
       await notifier.fetchRequests();
       expect(notifier.state.requests.length, 1);
 
@@ -221,11 +221,11 @@ void main() {
     test('calls POST /trainer/clients/{id}/decline and removes request',
         () async {
       // Arrange: seed a request
-      final json = _linkRequestJson();
+      final json = linkRequestJson();
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([json]));
+          )).thenAnswer((_) async => responseWithData([json]));
       await notifier.fetchRequests();
       expect(notifier.state.requests.length, 1);
 
@@ -248,11 +248,11 @@ void main() {
 
     test('returns false on failure', () async {
       // Arrange: seed a request
-      final json = _linkRequestJson();
+      final json = linkRequestJson();
       when(() => mockApiClient.get<Map<String, dynamic>>(
             ApiConstants.notifications,
             queryParams: any(named: 'queryParams'),
-          )).thenAnswer((_) async => _responseWithData([json]));
+          )).thenAnswer((_) async => responseWithData([json]));
       await notifier.fetchRequests();
       expect(notifier.state.requests.length, 1);
 

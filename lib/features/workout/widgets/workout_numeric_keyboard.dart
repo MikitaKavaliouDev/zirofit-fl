@@ -105,7 +105,7 @@ class _WorkoutNumericKeyboardState extends State<WorkoutNumericKeyboard> {
   }
 
   void _onIncrement(bool positive) {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
 
     final current = double.tryParse(_value.replaceAll(',', '.')) ?? 0;
     double newValue;
@@ -132,7 +132,7 @@ class _WorkoutNumericKeyboardState extends State<WorkoutNumericKeyboard> {
   }
 
   void _onSubmit() {
-    HapticFeedback.heavyImpact();
+    HapticFeedback.mediumImpact();
     widget.onNext(_buildFormattedValue());
   }
 

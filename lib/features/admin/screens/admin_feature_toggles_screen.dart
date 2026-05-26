@@ -105,7 +105,7 @@ class _AdminFeatureTogglesScreenState
               ],
             ),
           ),
-          if (state.isLoading && toggles != null)
+          if (state.isLoading)
             const Padding(
               padding: EdgeInsets.only(top: 16),
               child: LinearProgressIndicator(),

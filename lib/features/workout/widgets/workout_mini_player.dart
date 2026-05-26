@@ -264,8 +264,8 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                               Container(
                                 width: 8,
                                 height: 8,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -275,7 +275,7 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
                                 timerData.formattedTime,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
-                                  fontFeatures: [FontFeature.tabularFigures()],
+                                  fontFeatures: [const FontFeature.tabularFigures()],
                                 ),
                               ),
                               // Exercise count with dot separator

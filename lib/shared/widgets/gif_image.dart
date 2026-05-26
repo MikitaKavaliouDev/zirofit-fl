@@ -113,7 +113,7 @@ class _GifImageState extends State<GifImage> {
         fit: widget.fit,
         alignment: widget.alignment,
         // Flutter renders animated GIFs automatically via Image.memory.
-        errorBuilder: (_, __, ___) => _buildError(),
+        errorBuilder: (_, _, _) => _buildError(),
       );
     }
 
@@ -134,7 +134,7 @@ class _GifImageState extends State<GifImage> {
         fit: widget.fit,
         alignment: widget.alignment,
         progressIndicatorBuilder: widget.progressIndicatorBuilder,
-        errorWidget: (_, __, ___) => _buildError(),
+        errorWidget: (_, _, _) => _buildError(),
         cacheKey: url,
       );
     }
@@ -145,8 +145,8 @@ class _GifImageState extends State<GifImage> {
       height: widget.height,
       fit: widget.fit,
       alignment: widget.alignment,
-      placeholder: (_, __) => _buildPlaceholder(),
-      errorWidget: (_, __, ___) => _buildError(),
+      placeholder: (_, _) => _buildPlaceholder(),
+      errorWidget: (_, _, _) => _buildError(),
       cacheKey: url,
     );
   }

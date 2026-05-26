@@ -64,6 +64,7 @@ class WorkoutSet {
   final int? restDuration;
   final FocusMetric focusMetric;
   final DateTime? completedAt;
+  final String? tempo;
 
   const WorkoutSet({
     required this.id,
@@ -74,8 +75,9 @@ class WorkoutSet {
     this.isCompleted = false,
     this.status = SetStatus.normal,
     this.restDuration,
-    this.focusMetric = FocusMetric.none,
+    this.focusMetric = FocusMetric.volume,
     this.completedAt,
+    this.tempo,
   });
 
   factory WorkoutSet.fromJson(Map<String, dynamic> json) => WorkoutSet(
@@ -89,6 +91,7 @@ class WorkoutSet {
         restDuration: json['rest_duration'] as int? ?? json['restDuration'] as int?,
         focusMetric: FocusMetric.fromJson(json['focus_metric'] as String?),
         completedAt: readDateTimeOrNull(json, 'completed_at', 'completedAt'),
+        tempo: json['tempo'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -102,6 +105,7 @@ class WorkoutSet {
         if (restDuration != null) 'rest_duration': restDuration,
         'focus_metric': focusMetric.toJson(),
         if (completedAt != null) 'completed_at': completedAt!.toIso8601String(),
+        if (tempo != null) 'tempo': tempo,
       };
 
   WorkoutSet copyWith({
@@ -115,6 +119,7 @@ class WorkoutSet {
     int? restDuration,
     FocusMetric? focusMetric,
     DateTime? completedAt,
+    String? tempo,
   }) =>
       WorkoutSet(
         id: id ?? this.id,
@@ -127,6 +132,7 @@ class WorkoutSet {
         restDuration: restDuration ?? this.restDuration,
         focusMetric: focusMetric ?? this.focusMetric,
         completedAt: completedAt ?? this.completedAt,
+        tempo: tempo ?? this.tempo,
       );
 
   /// Check if set has valid data (weight or reps)

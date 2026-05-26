@@ -178,7 +178,7 @@ ClientProgramsState get activeProgramState {
     updatedAt: now,
   );
 
-  final progress = ActiveProgramProgress(
+  const progress = ActiveProgramProgress(
     completedCount: 0,
     totalCount: 1,
     progressPercentage: 0,

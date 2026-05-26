@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/features/workout/services/voice_feedback_service.dart';

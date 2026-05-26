@@ -25,14 +25,14 @@ const List<_RpeEntry> _kRpeValues = [
   _RpeEntry(value: 5.0, label: '5.0', description: 'Light'),
   _RpeEntry(value: 5.5, label: '5.5', description: 'Warm up'),
   _RpeEntry(value: 6.0, label: '6.0', description: '4+ reps left'),
-  _RpeEntry(value: 6.5, label: '6.5', description: 'Maybe 3–4 reps left'),
+  _RpeEntry(value: 6.5, label: '6.5', description: 'Maybe 3-4 reps left'),
   _RpeEntry(value: 7.0, label: '7.0', description: '3 reps left'),
-  _RpeEntry(value: 7.5, label: '7.5', description: 'Maybe 2–3 reps left'),
+  _RpeEntry(value: 7.5, label: '7.5', description: 'Maybe 2-3 reps left'),
   _RpeEntry(value: 8.0, label: '8.0', description: '2 reps left'),
-  _RpeEntry(value: 8.5, label: '8.5', description: 'Maybe 1–2 reps left'),
+  _RpeEntry(value: 8.5, label: '8.5', description: 'Maybe 1-2 reps left'),
   _RpeEntry(value: 9.0, label: '9.0', description: '1 rep left'),
   _RpeEntry(value: 9.5, label: '9.5', description: 'Maybe 0 reps left'),
-  _RpeEntry(value: 10.0, label: '10.0', description: 'Max effort'),
+  _RpeEntry(value: 10.0, label: '10.0', description: 'Max Effort'),
 ];
 
 const List<_RirEntry> _kRirValues = [
@@ -113,7 +113,7 @@ class _RPEPickerOverlayState extends ConsumerState<RPEPickerOverlay> {
   }
 
   void _onSelectRpe(double value) {
-    HapticService().mediumImpact();
+    HapticService().lightImpact();
     setState(() => _selectedRpe = value);
     // Also clear RIR when RPE is selected (they're complementary)
     if (_selectedRir != null) {

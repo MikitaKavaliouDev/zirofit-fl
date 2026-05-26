@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/client_exercise_log.dart';
-import 'package:zirofit_fl/data/models/workout_summary.dart';
 import 'package:zirofit_fl/features/workout/data/workout_remote_source.dart';
 
 // ---------------------------------------------------------------------------
@@ -91,6 +90,7 @@ class SessionExerciseData {
   final int bestReps;
   final double totalVolume;
   final DateTime date;
+  final int setsCompleted;
 
   const SessionExerciseData({
     required this.exerciseId,
@@ -98,6 +98,7 @@ class SessionExerciseData {
     required this.bestReps,
     required this.totalVolume,
     required this.date,
+    this.setsCompleted = 0,
   });
 
   SessionExerciseData copyWith({
@@ -106,6 +107,7 @@ class SessionExerciseData {
     int? bestReps,
     double? totalVolume,
     DateTime? date,
+    int? setsCompleted,
   }) {
     return SessionExerciseData(
       exerciseId: exerciseId ?? this.exerciseId,
@@ -113,6 +115,7 @@ class SessionExerciseData {
       bestReps: bestReps ?? this.bestReps,
       totalVolume: totalVolume ?? this.totalVolume,
       date: date ?? this.date,
+      setsCompleted: setsCompleted ?? this.setsCompleted,
     );
   }
 
@@ -124,7 +127,8 @@ class SessionExerciseData {
           bestWeight == other.bestWeight &&
           bestReps == other.bestReps &&
           totalVolume == other.totalVolume &&
-          date == other.date;
+          date == other.date &&
+          setsCompleted == other.setsCompleted;
 
   @override
   int get hashCode => Object.hash(
@@ -133,12 +137,14 @@ class SessionExerciseData {
         bestReps,
         totalVolume,
         date,
+        setsCompleted,
       );
 
   @override
   String toString() =>
       'SessionExerciseData(exerciseId: $exerciseId, bestWeight: $bestWeight, '
-      'bestReps: $bestReps, totalVolume: $totalVolume, date: $date)';
+      'bestReps: $bestReps, totalVolume: $totalVolume, date: $date, '
+      'setsCompleted: $setsCompleted)';
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +161,9 @@ class ExerciseStatsState {
   /// exerciseId → cumulative lifetime volume (all sets from all sessions).
   final Map<String, int> volumeByExercise;
 
+  /// exerciseId → all historical session entries (chronological order).
+  final Map<String, List<SessionExerciseData>> sessionHistoryData;
+
   final bool isLoading;
   final bool isLoaded;
   final String? error;
@@ -163,6 +172,7 @@ class ExerciseStatsState {
     this.prByExercise = const {},
     this.lastSessionData = const {},
     this.volumeByExercise = const {},
+    this.sessionHistoryData = const {},
     this.isLoading = false,
     this.isLoaded = false,
     this.error,
@@ -172,6 +182,7 @@ class ExerciseStatsState {
     Map<String, ExercisePR>? prByExercise,
     Map<String, SessionExerciseData>? lastSessionData,
     Map<String, int>? volumeByExercise,
+    Map<String, List<SessionExerciseData>>? sessionHistoryData,
     bool? isLoading,
     bool? isLoaded,
     String? error,
@@ -181,6 +192,7 @@ class ExerciseStatsState {
       prByExercise: prByExercise ?? this.prByExercise,
       lastSessionData: lastSessionData ?? this.lastSessionData,
       volumeByExercise: volumeByExercise ?? this.volumeByExercise,
+      sessionHistoryData: sessionHistoryData ?? this.sessionHistoryData,
       isLoading: isLoading ?? this.isLoading,
       isLoaded: isLoaded ?? this.isLoaded,
       error: clearError ? null : (error ?? this.error),
@@ -194,6 +206,7 @@ class ExerciseStatsState {
           prByExercise == other.prByExercise &&
           lastSessionData == other.lastSessionData &&
           volumeByExercise == other.volumeByExercise &&
+          sessionHistoryData == other.sessionHistoryData &&
           isLoading == other.isLoading &&
           isLoaded == other.isLoaded &&
           error == other.error;
@@ -203,6 +216,7 @@ class ExerciseStatsState {
         prByExercise,
         lastSessionData,
         volumeByExercise,
+        sessionHistoryData,
         isLoading,
         isLoaded,
         error,
@@ -213,6 +227,7 @@ class ExerciseStatsState {
       'ExerciseStatsState(prs: ${prByExercise.length}, '
       'lastSession: ${lastSessionData.length}, '
       'volumes: ${volumeByExercise.length}, '
+      'history: ${sessionHistoryData.length}, '
       'isLoading: $isLoading, isLoaded: $isLoaded)';
 }
 
@@ -269,6 +284,7 @@ class ExerciseStatsNotifier extends StateNotifier<ExerciseStatsState> {
               bestWeight: ex.bestWeight ?? 0,
               totalReps: ex.totalReps,
               totalVolume: ex.totalVolume,
+              setsCompleted: ex.setsCompleted,
             );
             allExerciseSummaries
                 .putIfAbsent(ex.exerciseId, () => [])
@@ -362,6 +378,7 @@ class ExerciseStatsNotifier extends StateNotifier<ExerciseStatsState> {
           bestReps: latest.totalReps,
           totalVolume: latest.totalVolume,
           date: latest.sessionDate,
+          setsCompleted: latest.setsCompleted,
         );
 
         // Track latest date per exercise for the PR date update
@@ -371,10 +388,27 @@ class ExerciseStatsNotifier extends StateNotifier<ExerciseStatsState> {
         }
       }
 
+      // --- Build session-history data (sorted chronologically) ---
+      final sessionHistoryData = <String, List<SessionExerciseData>>{};
+      for (final entry in allExerciseSummaries.entries) {
+        final eid = entry.key;
+        final sorted = List<_SessionExerciseEntry>.from(entry.value)
+          ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
+        sessionHistoryData[eid] = sorted.map((e) => SessionExerciseData(
+          exerciseId: eid,
+          bestWeight: e.bestWeight,
+          bestReps: e.totalReps,
+          totalVolume: e.totalVolume,
+          date: e.sessionDate,
+          setsCompleted: e.setsCompleted,
+        )).toList();
+      }
+
       state = ExerciseStatsState(
         prByExercise: prByExercise,
         lastSessionData: lastSessionData,
         volumeByExercise: volumeByExercise,
+        sessionHistoryData: sessionHistoryData,
         isLoaded: true,
       );
     } catch (e, st) {
@@ -533,11 +567,13 @@ class _SessionExerciseEntry {
   final double bestWeight;
   final int totalReps;
   final double totalVolume;
+  final int setsCompleted;
 
   const _SessionExerciseEntry({
     required this.sessionDate,
     required this.bestWeight,
     required this.totalReps,
     required this.totalVolume,
+    this.setsCompleted = 0,
   });
 }

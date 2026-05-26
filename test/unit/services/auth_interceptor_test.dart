@@ -108,7 +108,7 @@ const _publicPaths = [
 void main() {
   late MockSecureStorage mockSecureStorage;
   late MockDio mockDio;
-  late void Function() onLogout;
+  late void Function(String) onUnauthorized;
 
   setUpAll(() {
     registerFallbackValue(RequestOptions(path: ''));
@@ -117,7 +117,7 @@ void main() {
   setUp(() {
     mockSecureStorage = MockSecureStorage();
     mockDio = MockDio();
-    onLogout = () {};
+    onUnauthorized = (mode) {};
   });
 
   group('AuthInterceptor', () {
@@ -374,7 +374,7 @@ void main() {
         final interceptor = AuthInterceptor(
           secureStorage: mockSecureStorage,
           dio: mockDio,
-          onLogout: () => logoutCalled = true,
+          onUnauthorized: (mode) => logoutCalled = true,
         );
         final err = _dioException(statusCode: 401, path: '/original/path');
         final handler = TestErrorHandler();
@@ -407,7 +407,7 @@ void main() {
         final interceptor = AuthInterceptor(
           secureStorage: mockSecureStorage,
           dio: mockDio,
-          onLogout: () => logoutCalled = true,
+          onUnauthorized: (mode) => logoutCalled = true,
         );
         final err = _dioException(statusCode: 401, path: '/original/path');
         final handler = TestErrorHandler();
@@ -439,7 +439,7 @@ void main() {
         final interceptor = AuthInterceptor(
           secureStorage: mockSecureStorage,
           dio: mockDio,
-          onLogout: () => logoutCalled = true,
+          onUnauthorized: (mode) => logoutCalled = true,
         );
         final err = _dioException(statusCode: 401, path: '/original/path');
         final handler = TestErrorHandler();
@@ -462,7 +462,7 @@ void main() {
         // Intentionally no dio (null) passed.
         final interceptor = AuthInterceptor(
           secureStorage: mockSecureStorage,
-          onLogout: () => logoutCalled = true,
+          onUnauthorized: (mode) => logoutCalled = true,
         );
         final err = _dioException(statusCode: 401, path: '/original/path');
         final handler = TestErrorHandler();
@@ -674,7 +674,7 @@ void main() {
         final interceptor = AuthInterceptor(
           secureStorage: mockSecureStorage,
           dio: mockDio,
-          onLogout: () => logoutCalled = true,
+          onUnauthorized: (mode) => logoutCalled = true,
         );
 
         final err1 = _dioException(statusCode: 401, path: '/resource/1');

@@ -352,13 +352,13 @@ class _DayCell extends StatelessWidget {
           height: 36,
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.blue
+                ? themeColors.accent
                 : isToday
-                    ? Colors.blue.withValues(alpha: 0.1)
+                    ? themeColors.accent.withValues(alpha: 0.1)
                     : Colors.transparent,
             shape: BoxShape.circle,
             border: isToday && !isSelected
-                ? Border.all(color: Colors.blue, width: 1.5)
+                ? Border.all(color: themeColors.accent, width: 1.5)
                 : null,
           ),
           alignment: Alignment.center,

@@ -200,7 +200,7 @@ class _ClientActiveProgramScreenState
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: assignedPrograms.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     // assignedPrograms is List<AssignedProgram>
                     final assignment = assignedPrograms[index];

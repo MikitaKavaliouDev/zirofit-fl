@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zirofit_fl/core/theme/theme_colors.dart';
+import 'package:zirofit_fl/shared/widgets/cached_async_image.dart';
 
 /// A generic header widget matching iOS [ZiroHeader].
 ///
@@ -115,13 +116,12 @@ class ZiroHeader<Leading extends Widget, Trailing extends Widget>
 
     Widget avatarContent;
     if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      avatarContent = Image.network(
-        avatarUrl!,
+      avatarContent = CachedAsyncImage(
+        imageUrl: avatarUrl,
         width: 32,
         height: 32,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            _buildInitialsCircle(themeColors, initial),
+        errorWidget: _buildInitialsCircle(themeColors, initial),
       );
     } else {
       avatarContent = _buildInitialsCircle(themeColors, initial);

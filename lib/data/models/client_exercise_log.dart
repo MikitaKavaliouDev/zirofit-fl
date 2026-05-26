@@ -17,6 +17,8 @@ class ClientExerciseLog {
   final double? rpe;
   final double? rir;
   final String? exerciseName;
+  final String? notes;
+  final String? videoUrl;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -38,6 +40,8 @@ class ClientExerciseLog {
     this.rpe,
     this.rir,
     this.exerciseName,
+    this.notes,
+    this.videoUrl,
     required this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -89,6 +93,8 @@ class ClientExerciseLog {
     rpe: (json['rpe'] as num?)?.toDouble(),
     rir: (json['rir'] as num?)?.toDouble(),
     exerciseName: readStringOrNull(json, 'exercise_name', 'exerciseName'),
+    notes: readStringOrNull(json, 'notes', 'notes'),
+    videoUrl: readStringOrNull(json, 'video_url', 'videoUrl'),
     createdAt: readDateTime(json, 'created_at', 'createdAt'),
     updatedAt: readDateTimeOrNull(json, 'updated_at', 'updatedAt'),
     deletedAt: readDateTimeOrNull(json, 'deleted_at', 'deletedAt'),
@@ -119,6 +125,8 @@ class ClientExerciseLog {
     'rpe': rpe,
     'rir': rir,
     'exercise_name': exerciseName,
+    'notes': notes,
+    'video_url': videoUrl,
     'created_at': dateTimeToJson(createdAt),
     'updated_at': dateTimeToJson(updatedAt),
     'deleted_at': dateTimeToJson(deletedAt),
@@ -155,12 +163,14 @@ class ClientExerciseLog {
           rpe == other.rpe &&
           rir == other.rir &&
           exerciseName == other.exerciseName &&
+          notes == other.notes &&
+          videoUrl == other.videoUrl &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
           deletedAt == other.deletedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     clientId,
     exerciseId,
@@ -177,8 +187,10 @@ class ClientExerciseLog {
     rpe,
     rir,
     exerciseName,
+    notes,
+    videoUrl,
     createdAt,
     updatedAt,
     deletedAt,
-  );
+  ]);
 }

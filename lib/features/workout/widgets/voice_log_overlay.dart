@@ -12,12 +12,14 @@ class VoiceLogOverlay extends StatefulWidget {
     super.key,
     required this.service,
     this.knownExercises = const [],
+    this.libraryExercises = const [],
     required this.onChangeExercise,
     required this.onConfirm,
   });
 
   final VoiceLogService service;
   final List<String> knownExercises;
+  final List<String> libraryExercises;
   final void Function(String exerciseName) onChangeExercise;
   final void Function(ParsedVoiceInput) onConfirm;
 
@@ -67,7 +69,7 @@ class _VoiceLogOverlayState extends State<VoiceLogOverlay>
       setState(() { _transcription = text; _phase = _VoicePhase.processing; });
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
-      final parsed = widget.service.parse(text, knownExercises: widget.knownExercises);
+      final parsed = widget.service.parse(text, knownExercises: widget.knownExercises, libraryExercises: widget.libraryExercises);
       if (parsed == null) {
         setState(() { _phase = _VoicePhase.error; _errorText = 'Could not understand. Try: "Bench press 50 kg 5 reps"'; });
       } else {
@@ -111,7 +113,7 @@ class _VoiceLogOverlayState extends State<VoiceLogOverlay>
       )),
       SafeArea(child: Column(children: [
         const Spacer(flex: 2),
-        SizedBox(height: 160, child: AnimatedBuilder(animation: _audioAnim, builder: (_, __) {
+        SizedBox(height: 160, child: AnimatedBuilder(animation: _audioAnim, builder: (_, _) {
           final lv = _audioAnim.value, rec = _phase == _VoicePhase.listening;
           final c = rec ? Colors.red : (_phase == _VoicePhase.command ? Colors.green : Colors.blue);
           return Center(child: Stack(alignment: Alignment.center, children: [

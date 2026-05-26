@@ -93,7 +93,7 @@ class TabButton extends StatelessWidget {
             style: TextStyle(
               fontSize: 15, // subheadline ≈ 15pt
               fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.blue : Colors.grey,
+              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
             ),
           ),
           const SizedBox(height: 8),
@@ -118,7 +118,7 @@ class SelectedUnderline extends StatelessWidget {
     return Container(
       height: 2,
       width: double.infinity,
-      color: isSelected ? Colors.blue : Colors.transparent,
+      color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
     );
   }
 }

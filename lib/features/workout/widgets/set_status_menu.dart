@@ -238,7 +238,7 @@ class InlineRestTimerRow extends ConsumerWidget {
       padding: const EdgeInsets.only(left: 44, right: 16),
       child: Row(
         children: [
-          Icon(Icons.timer, size: 14, color: Colors.orange),
+          const Icon(Icons.timer, size: 14, color: Colors.orange),
           const SizedBox(width: 4),
           Text(
             restState.formattedTime,

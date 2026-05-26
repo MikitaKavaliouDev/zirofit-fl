@@ -5,10 +5,13 @@ import 'package:zirofit_fl/data/models/client_exercise_log.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/exercise_library_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/exercise_stats_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_enhancement_provider.dart';
 import 'package:zirofit_fl/features/workout/models/workout_focus_state.dart';
 import 'package:zirofit_fl/features/workout/widgets/enhanced_workout_set_row.dart';
+import 'package:zirofit_fl/features/workout/widgets/coach_notes_card.dart';
 import 'package:zirofit_fl/features/workout/widgets/section_header_label.dart';
+import 'package:zirofit_fl/features/workout/widgets/youtube_sheet_view.dart';
 
 /// Enhanced exercise list builder matching iOS WorkoutSessionContent
 ///
@@ -43,6 +46,28 @@ class EnhancedExerciseListBuilder extends ConsumerStatefulWidget {
 
 class _EnhancedExerciseListBuilderState
     extends ConsumerState<EnhancedExerciseListBuilder> {
+  final Set<String> _collapsedExerciseIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-load exercise stats for previous set comparison display.
+    // Stats are cached by the provider — subsequent calls are no-ops.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(exerciseStatsProvider.notifier).fetchExerciseStats();
+    });
+  }
+
+  void _toggleCollapse(String exerciseId) {
+    setState(() {
+      if (_collapsedExerciseIds.contains(exerciseId)) {
+        _collapsedExerciseIds.remove(exerciseId);
+      } else {
+        _collapsedExerciseIds.add(exerciseId);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(activeWorkoutProvider);
@@ -99,6 +124,7 @@ class _EnhancedExerciseListBuilderState
           exercises,
           supersetGroup,
           theme,
+          sectionLabel: currentLabel,
         ),
       );
     }
@@ -107,7 +133,7 @@ class _EnhancedExerciseListBuilderState
     for (final exercise in nonSupersetExercises) {
       final currentLabel = sectionLabelFor(exercise);
       addSectionHeaderIfNeeded(currentLabel);
-      items.add(_buildExerciseCard(context, exercise, theme));
+      items.add(_buildExerciseCard(context, exercise, theme, sectionLabel: currentLabel));
     }
 
     // Add button at bottom
@@ -152,8 +178,9 @@ class _EnhancedExerciseListBuilderState
     String groupKey,
     List<ClientExerciseLog> exercises,
     SupersetGroup? supersetGroup,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    String? sectionLabel,
+  }) {
     const accentColor = Color(0xFF3B82F6);
     
     return Container(
@@ -173,7 +200,7 @@ class _EnhancedExerciseListBuilderState
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.link,
                   color: accentColor,
                   size: 18,
@@ -213,6 +240,7 @@ class _EnhancedExerciseListBuilderState
                       exercise,
                       theme,
                       isInSuperset: true,
+                      sectionLabel: sectionLabel,
                     ))
                 .toList(),
           ),
@@ -227,10 +255,12 @@ class _EnhancedExerciseListBuilderState
     ClientExerciseLog exercise,
     ThemeData theme, {
     bool isInSuperset = false,
+    String? sectionLabel,
   }) {
     final state = ref.watch(activeWorkoutProvider);
     final exerciseName = state.exerciseNames[exercise.exerciseId] ?? 'Exercise';
     final sets = _parseSets(exercise);
+    final statsState = ref.watch(exerciseStatsProvider);
 
     return Container(
       margin: EdgeInsets.symmetric(
@@ -252,70 +282,81 @@ class _EnhancedExerciseListBuilderState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildExerciseHeader(context, exercise, exerciseName, theme),
-          _buildSetsTableHeader(theme),
-          ...sets.asMap().entries.map((entry) {
-            final index = entry.key;
-            final set = entry.value;
-            final previousSet = _getPreviousSet(exercise.exerciseId, index);
+          _buildExerciseHeader(context, exercise, exerciseName, theme, sectionLabel: sectionLabel),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _collapsedExerciseIds.contains(exercise.exerciseId)
+                ? const SizedBox.shrink()
+                : Column(
+                    children: [
+                      _buildSetsTableHeader(theme),
+                      ...sets.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final set = entry.value;
+                        final previousSet = _getPreviousSet(exercise.exerciseId, index, statsState);
 
-            return Dismissible(
-              key: ValueKey('set-${set.id}'),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const Icon(Icons.delete_outline, color: Colors.white),
-              ),
-              onDismissed: (_) {
-                HapticFeedback.mediumImpact();
-                ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
-              },
-              child: EnhancedWorkoutSetRow(
-                set: set,
-                index: index,
-                previousSet: previousSet,
-                isActive: widget.inputState.overlay == WorkoutInputOverlay.keyboard ||
-                    widget.inputState.overlay == WorkoutInputOverlay.rpePicker ||
-                    widget.inputState.overlay == WorkoutInputOverlay.plateCalculator,
-                focusedField: widget.inputState.focusedField,
-                activeText: widget.inputState.activeSetId == set.id
-                    ? widget.inputState.activeText
-                    : '',
-                isInputSelected: widget.inputState.isInputSelected,
-                onFocus: widget.onFocus,
-                onWeightChanged: (weight) {
-                  widget.onWeightChanged(weight ?? 0);
-                },
-                onRepsChanged: (reps) {
-                  widget.onRepsChanged(reps ?? 0);
-                },
-                onRpeChanged: (rpe) {
-                  widget.onRpeChanged(rpe ?? 0);
-                },
-                onStatusChanged: (status) {
-                  ref.read(activeWorkoutProvider.notifier).updateSetStatus(set.id, status);
-                },
-                onDelete: () {
-                  ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
-                },
-                onComplete: () {
-                  HapticFeedback.mediumImpact();
-                  ref.read(activeWorkoutProvider.notifier).completeSet(
-                    exercise.id,
-                    exerciseName: exercise.exerciseName,
-                  );
-                },
-                activeSetId: widget.inputState.activeSetId,
-              ),
-            );
-          }),
-          _buildAddSetButton(context, exercise, theme),
+                        return Dismissible(
+                          key: ValueKey('set-${set.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade400,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: const Icon(Icons.delete_outline, color: Colors.white),
+                          ),
+                          onDismissed: (_) {
+                            HapticFeedback.mediumImpact();
+                            ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
+                          },
+                          child: EnhancedWorkoutSetRow(
+                            set: set,
+                            index: index,
+                            previousSet: previousSet,
+                            isActive: widget.inputState.overlay == WorkoutInputOverlay.keyboard ||
+                                widget.inputState.overlay == WorkoutInputOverlay.rpePicker ||
+                                widget.inputState.overlay == WorkoutInputOverlay.plateCalculator,
+                            focusedField: widget.inputState.focusedField,
+                            activeText: widget.inputState.activeSetId == set.id
+                                ? widget.inputState.activeText
+                                : '',
+                            isInputSelected: widget.inputState.isInputSelected,
+                            onFocus: widget.onFocus,
+                            onWeightChanged: (weight) {
+                              widget.onWeightChanged(weight ?? 0);
+                            },
+                            onRepsChanged: (reps) {
+                              widget.onRepsChanged(reps ?? 0);
+                            },
+                            onRpeChanged: (rpe) {
+                              widget.onRpeChanged(rpe ?? 0);
+                            },
+                            onStatusChanged: (status) {
+                              ref.read(activeWorkoutProvider.notifier).updateSetStatus(set.id, status);
+                            },
+                            onDelete: () {
+                              ref.read(activeWorkoutProvider.notifier).deleteSet(set.id);
+                            },
+                            onComplete: () {
+                              HapticFeedback.mediumImpact();
+                              ref.read(activeWorkoutProvider.notifier).completeSet(
+                                exercise.id,
+                                exerciseName: exercise.exerciseName,
+                              );
+                            },
+                            activeSetId: widget.inputState.activeSetId,
+                          ),
+                        );
+                      }),
+                      _buildAddSetButton(context, exercise, theme),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
@@ -325,74 +366,224 @@ class _EnhancedExerciseListBuilderState
     BuildContext context,
     ClientExerciseLog exercise,
     String exerciseName,
-    ThemeData theme,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  exerciseName.toUpperCase(),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (exercise.side != 'BOTH')
+    ThemeData theme, {
+    String? sectionLabel,
+  }) {
+    final isCollapsed = _collapsedExerciseIds.contains(exercise.exerciseId);
+    final state = ref.watch(activeWorkoutProvider);
+    final sets = _parseSets(exercise);
+    final currentMetric = sets.isNotEmpty ? sets.first.focusMetric : FocusMetric.none;
+
+    return GestureDetector(
+      onTap: () => _toggleCollapse(exercise.exerciseId),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+        child: Row(
+          children: [
+            AnimatedRotation(
+              turns: isCollapsed ? -0.25 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    exercise.side,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
+                    exerciseName.toUpperCase(),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
                     ),
                   ),
+                  if (exercise.side != 'BOTH')
+                    Text(
+                      exercise.side,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  if (sectionLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        sectionLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Coach notes button - per-exercise notes (matching iOS)
+            if (exercise.notes != null && exercise.notes!.isNotEmpty)
+              IconButton(
+                icon: const Icon(
+                  Icons.lightbulb_outline,
+                  size: 18,
+                  color: Colors.orange,
+                ),
+                tooltip: 'Coach notes',
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    useSafeArea: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                      ),
+                      child: CoachNotesCard(
+                        note: exercise.notes!,
+                        videoUrl: exercise.videoUrl,
+                        trainerName: state.clientName ?? 'Coach',
+                        onWatchVideo: exercise.videoUrl != null
+                            ? () {
+                                Navigator.of(context).pop();
+                                YouTubeSheetView.show(context, exercise.videoUrl!);
+                              }
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            PopupMenuButton<FocusMetric>(
+              tooltip: 'Focus metric',
+              onSelected: (metric) {
+                ref.read(activeWorkoutProvider.notifier).updateFocusMetric(
+                  exercise.id,
+                  metric,
+                );
+              },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: FocusMetric.none,
+                  child: _buildFocusMenuItem('None', FocusMetric.none, currentMetric),
+                ),
+                PopupMenuItem(
+                  value: FocusMetric.volume,
+                  child: _buildFocusMenuItem('Volume', FocusMetric.volume, currentMetric),
+                ),
+                PopupMenuItem(
+                  value: FocusMetric.maxWeight,
+                  child: _buildFocusMenuItem('Max Weight', FocusMetric.maxWeight, currentMetric),
+                ),
+                PopupMenuItem(
+                  value: FocusMetric.maxReps,
+                  child: _buildFocusMenuItem('Max Reps', FocusMetric.maxReps, currentMetric),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getFocusMetricIcon(currentMetric),
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      currentMetric != FocusMetric.none
+                          ? _calculateFocusValue(exercise, currentMetric)
+                          : '-',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.expand_more,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_horiz,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              onSelected: (value) {
+                switch (value) {
+                  case 'delete':
+                    ref.read(activeWorkoutProvider.notifier).removeExercise(exercise.exerciseId);
+                    break;
+                  case 'superset':
+                    ref.read(workoutEnhancementProvider.notifier).createSuperset([exercise.exerciseId]);
+                    break;
+                  case 'focus_info':
+                    HapticFeedback.lightImpact();
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => _FocusMetricInfoSheet(),
+                    );
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'focus_info',
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      const Text('About Focus Metrics'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'superset',
+                  child: Row(
+                    children: [
+                      Icon(Icons.link, size: 18, color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      const Text('Create Superset'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                      SizedBox(width: 12),
+                      Text('Remove Exercise', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_horiz,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            onSelected: (value) {
-              switch (value) {
-                case 'delete':
-                  ref.read(activeWorkoutProvider.notifier).removeExercise(exercise.exerciseId);
-                  break;
-                case 'superset':
-                  ref.read(workoutEnhancementProvider.notifier).createSuperset([exercise.exerciseId]);
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'superset',
-                child: Row(
-                  children: [
-                    Icon(Icons.link, size: 18, color: theme.colorScheme.primary),
-                    const SizedBox(width: 12),
-                    const Text('Create Superset'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                    const SizedBox(width: 12),
-                    Text('Remove Exercise', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -406,6 +597,8 @@ class _EnhancedExerciseListBuilderState
           Expanded(child: Center(child: Text('KG', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
           const SizedBox(width: 8),
           Expanded(child: Center(child: Text('REPS', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
+          const SizedBox(width: 8),
+          SizedBox(width: 60, child: Center(child: Text('TEMPO', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
           const SizedBox(width: 8),
           SizedBox(width: 44, child: Center(child: Text('RPE', style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)))),
           const SizedBox(width: 40),
@@ -532,6 +725,32 @@ class _EnhancedExerciseListBuilderState
     );
   }
 
+  /// Get icon for a focus metric
+  IconData _getFocusMetricIcon(FocusMetric metric) {
+    switch (metric) {
+      case FocusMetric.volume:
+        return Icons.auto_graph;
+      case FocusMetric.maxWeight:
+        return Icons.monitor_weight_outlined;
+      case FocusMetric.maxReps:
+        return Icons.repeat;
+      case FocusMetric.none:
+        return Icons.touch_app_outlined;
+    }
+  }
+
+  Widget _buildFocusMenuItem(String label, FocusMetric value, FocusMetric current) {
+    return Row(
+      children: [
+        Icon(_getFocusMetricIcon(value), size: 18),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label)),
+        if (value == current)
+          const Icon(Icons.check, size: 18, color: Colors.green),
+      ],
+    );
+  }
+
   /// Parse workout sets from ClientExerciseLog
   List<WorkoutSet> _parseSets(ClientExerciseLog log) {
     // The sets are stored in the log - need to convert
@@ -558,13 +777,181 @@ class _EnhancedExerciseListBuilderState
         weight: log.weight,
         rpe: log.rpe,
         isCompleted: log.isCompleted ?? false,
+        tempo: log.tempo,
       ),
     ];
   }
 
-  /// Get previous set data for comparison (mock for now)
-  WorkoutSet? _getPreviousSet(String exerciseId, int setIndex) {
-    // TODO: Fetch from exercise stats provider
-    return null;
+  /// Get previous set data for comparison.
+  /// Uses the best weight/reps from the last session for this exercise
+  /// (via [ExerciseStatsState.lastSessionData]), converted to a [WorkoutSet]
+  /// so the set row can display historical comparison data in gray.
+  WorkoutSet? _getPreviousSet(
+    String exerciseId,
+    int setIndex,
+    ExerciseStatsState statsState,
+  ) {
+    final lastSession = statsState.lastSessionData[exerciseId];
+    if (lastSession == null) return null;
+    // Only show previous data if we have meaningful values.
+    if (lastSession.bestWeight <= 0 && lastSession.bestReps <= 0) return null;
+
+    return WorkoutSet(
+      id: 'prev_${exerciseId}_$setIndex',
+      logId: 'prev_${exerciseId}_log',
+      reps: lastSession.bestReps,
+      weight: lastSession.bestWeight,
+      isCompleted: true,
+    );
+  }
+
+  /// Calculate the computed focus metric value for an exercise, matching iOS.
+  String _calculateFocusValue(ClientExerciseLog exercise, FocusMetric metric) {
+    final sets = _parseSets(exercise);
+    final completedSets = sets.where((s) => s.isCompleted);
+    switch (metric) {
+      case FocusMetric.volume:
+        final volume = completedSets.fold<double>(
+          0,
+          (sum, s) => sum + ((s.weight ?? 0) * (s.reps ?? 0)),
+        );
+        return '${volume.toStringAsFixed(0)} kg';
+      case FocusMetric.maxWeight:
+        final maxW = completedSets
+            .map((s) => s.weight ?? 0.0)
+            .fold<double>(0.0, (a, b) => a > b ? a : b);
+        return maxW > 0.0 ? '${maxW.toStringAsFixed(1)} kg' : '-';
+      case FocusMetric.maxReps:
+        final maxR = completedSets
+            .map<double>((s) => (s.reps ?? 0).toDouble())
+            .fold<double>(0.0, (a, b) => a > b ? a : b);
+        return maxR > 0.0 ? maxR.toStringAsFixed(0) : '-';
+      case FocusMetric.none:
+        return '-';
+    }
+  }
+}
+
+/// A bottom sheet explaining focus metrics, matching iOS FocusMetricInfoSheet.
+class _FocusMetricInfoSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'About Focus Metrics',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _FocusMetricInfoRow(
+            theme: theme,
+            icon: Icons.auto_graph,
+            title: 'Volume',
+            description:
+                'Total weight lifted across all completed sets.\n'
+                'Calculated as Σ(weight × reps) for each set.',
+          ),
+          const SizedBox(height: 20),
+          _FocusMetricInfoRow(
+            theme: theme,
+            icon: Icons.monitor_weight_outlined,
+            title: 'Max Weight',
+            description:
+                'The heaviest weight lifted in any single completed set.\n'
+                'Tracks your peak load for this exercise.',
+          ),
+          const SizedBox(height: 20),
+          _FocusMetricInfoRow(
+            theme: theme,
+            icon: Icons.repeat,
+            title: 'Max Reps',
+            description:
+                'The most repetitions completed in any single set.\n'
+                'Measures muscular endurance.',
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Focus metrics only count completed sets. '
+            'Tap the metric name to switch between them for each exercise.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single row in the focus metric info sheet.
+class _FocusMetricInfoRow extends StatelessWidget {
+  final ThemeData theme;
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _FocusMetricInfoRow({
+    required this.theme,
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 24, color: theme.colorScheme.primary),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

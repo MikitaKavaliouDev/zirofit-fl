@@ -28,10 +28,15 @@ class AddMeasurementSheet extends StatefulWidget {
   const AddMeasurementSheet({
     super.key,
     required this.type,
+    this.currentWeightKg,
   });
 
   /// The measurement type being recorded (e.g. weight, chest, neck).
   final MeasurementType type;
+
+  /// The most recent weight value (kg), used for weight-change warnings.
+  /// Only relevant when [type] is `weight`.
+  final double? currentWeightKg;
 
   @override
   State<AddMeasurementSheet> createState() => _AddMeasurementSheetState();
@@ -112,6 +117,17 @@ class _AddMeasurementSheetState extends State<AddMeasurementSheet> {
                 return null;
               },
             ),
+            // Unit display below the value field
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 12),
+              child: Text(
+                unit,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
 
             // Date picker
@@ -180,9 +196,61 @@ class _AddMeasurementSheetState extends State<AddMeasurementSheet> {
   Future<void> _onSave() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final value = double.parse(_valueController.text.trim());
+
+    // Weight change warning
+    if (widget.type.id == 'weight' && widget.currentWeightKg != null) {
+      final change = (value - widget.currentWeightKg!).abs();
+      if (change > 5) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Large Weight Change'),
+            content: Text(
+              'You are about to record a weight change of '
+              '${change.toStringAsFixed(1)} kg. This is a significant '
+              'change. Are you sure?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text("Yes, I'm sure"),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      } else if (change > 2) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Weight Change Notice'),
+            content: Text(
+              'You are about to record a weight change of '
+              '${change.toStringAsFixed(1)} kg. Save anyway?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Save Anyway'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
+    }
+
     setState(() => _isSubmitting = true);
 
-    final value = double.parse(_valueController.text.trim());
     final notes = _notesController.text.trim().isEmpty
         ? null
         : _notesController.text.trim();

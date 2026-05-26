@@ -69,7 +69,7 @@ class CoachNotesCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.format_quote,
                   color: Colors.blue,
                   size: 22,
@@ -204,7 +204,7 @@ class _VideoSection extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.play_circle_outline,
                 color: Colors.blue,
                 size: 22,

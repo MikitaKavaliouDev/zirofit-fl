@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/features/exercises/providers/exercise_provider.dart';

@@ -83,7 +83,7 @@ class _RestTimerSheetState extends ConsumerState<RestTimerSheet> {
     ref.listen(restTimerFinishedProvider, (_, next) {
       if (next.valueOrNull == null) return;
       if (!mounted) return;
-      HapticFeedback.heavyImpact();
+      HapticFeedback.mediumImpact();
       setState(() => _showToast = true);
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) setState(() => _showToast = false);
@@ -119,13 +119,13 @@ class _RestTimerSheetState extends ConsumerState<RestTimerSheet> {
   void _onStartTimer() {
     final total = (_selectedMinutes * 60) + _selectedSeconds;
     if (total <= 0) return;
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
     ref.read(restTimerManagerProvider.notifier).start(duration: total);
     Navigator.of(context).pop();
   }
 
   void _onPresetTap(int seconds) {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
     ref.read(restTimerManagerProvider.notifier).start(duration: seconds);
     Navigator.of(context).pop();
   }
@@ -532,11 +532,11 @@ class _QuickSelectSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'QUICK SELECT',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.grey,
@@ -608,11 +608,11 @@ class _CustomDurationSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'CUSTOM DURATION',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.grey,
@@ -630,11 +630,11 @@ class _CustomDurationSection extends StatelessWidget {
           child: Column(
             children: [
               // Column headers
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Minutes',
                         textAlign: TextAlign.center,
@@ -649,7 +649,7 @@ class _CustomDurationSection extends StatelessWidget {
                       child: Text(
                         'Seconds',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey,

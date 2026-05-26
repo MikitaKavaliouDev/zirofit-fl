@@ -68,4 +68,10 @@ class SecureStorage {
     final token = await _storage.read(key: '${role}_access_token');
     return token != null;
   }
+
+  /// Clears tokens stored for [role] only (leaves other roles untouched).
+  Future<void> clearRoleTokens(String role) async {
+    await _storage.delete(key: '${role}_access_token');
+    await _storage.delete(key: '${role}_refresh_token');
+  }
 }

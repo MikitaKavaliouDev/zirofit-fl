@@ -6,197 +6,91 @@ import 'package:zirofit_fl/features/dashboard/widgets/ziro_tab_bar.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_mini_player.dart';
 import 'package:zirofit_fl/features/workout/widgets/workout_sheet_overlay.dart';
+import 'package:zirofit_fl/features/notifications/providers/notifications_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Tab helpers
 // ---------------------------------------------------------------------------
 
-// Personal‑mode icon mapping (mirrors iOS CustomTabBar.swift):
-//   programs / Explore → Icons.auto_awesome  (sparkles)
-//   clients  / Workouts → Icons.schedule      (clock)
-//   home     / Home     → Icons.home          (house.fill – default)
-//   analytics           → Icons.analytics     (chart.xyaxis.line)
-//   more     / More     → Icons.more_horiz    (ellipsis.circle – default)
+List<ZiroTab> _trainerTabs(AppMode mode) {
+  final isTrainerMode = mode == AppMode.trainer;
+  return [
+    ZiroTab(
+      label: isTrainerMode ? 'Calendar' : 'Calendar',
+      icon: Icons.calendar_today_outlined,
+      selectedIcon: Icons.calendar_today,
+      route: '/trainer/calendar',
+    ),
+    ZiroTab(
+      label: isTrainerMode ? 'Programs' : 'Programs',
+      icon: isTrainerMode ? Icons.fitness_center_outlined : Icons.fitness_center_outlined,
+      selectedIcon: isTrainerMode ? Icons.fitness_center : Icons.fitness_center,
+      route: '/trainer/programs',
+    ),
+    const ZiroTab(
+      label: 'Home',
+      icon: Icons.dashboard_outlined,
+      selectedIcon: Icons.dashboard,
+      route: '/trainer/dashboard',
+    ),
+    const ZiroTab(
+      label: 'Clients',
+      icon: Icons.people_outline,
+      selectedIcon: Icons.people,
+      route: '/trainer/clients',
+    ),
+    const ZiroTab(
+      label: 'More',
+      icon: Icons.more_horiz_outlined,
+      selectedIcon: Icons.more_horiz,
+      route: '/trainer/more',
+    ),
+  ];
+}
 
-/// Trainer‑mode tabs for the trainer shell.
-List<ZiroTab> _trainerTrainerTabs() => const [
-      ZiroTab(
-        label: 'Dashboard',
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard,
-        route: '/trainer/dashboard',
-      ),
-      ZiroTab(
-        label: 'Clients',
-        icon: Icons.people_outline,
-        selectedIcon: Icons.people,
-        route: '/trainer/clients',
-      ),
-      ZiroTab(
-        label: 'Check-Ins',
-        icon: Icons.checklist_outlined,
-        selectedIcon: Icons.checklist,
-        route: '/trainer/check-ins',
-      ),
-      ZiroTab(
-        label: 'Calendar',
-        icon: Icons.calendar_today_outlined,
-        selectedIcon: Icons.calendar_today,
-        route: '/trainer/calendar',
-      ),
-      ZiroTab(
-        label: 'Profile',
-        icon: Icons.person_outline,
-        selectedIcon: Icons.person,
-        route: '/trainer/profile',
-      ),
-      ZiroTab(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
-        route: '/trainer/settings',
-      ),
-    ];
-
-/// Personal‑mode tabs for the trainer shell (tab rebinding).
-List<ZiroTab> _trainerPersonalTabs() => const [
-      ZiroTab(
-        label: 'Dashboard',
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard,
-        route: '/trainer/dashboard',
-      ),
-      ZiroTab(
-        label: 'Workouts',
-        icon: Icons.schedule_outlined,
-        selectedIcon: Icons.schedule,
-        route: '/trainer/clients',
-      ),
-      ZiroTab(
-        label: 'Progress',
-        icon: Icons.trending_up_outlined,
-        selectedIcon: Icons.trending_up,
-        route: '/trainer/check-ins',
-      ),
-      ZiroTab(
-        label: 'Calendar',
-        icon: Icons.calendar_today_outlined,
-        selectedIcon: Icons.calendar_today,
-        route: '/trainer/calendar',
-      ),
-      ZiroTab(
-        label: 'Profile',
-        icon: Icons.person_outline,
-        selectedIcon: Icons.person,
-        route: '/trainer/profile',
-      ),
-      ZiroTab(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
-        route: '/trainer/settings',
-      ),
-    ];
-
-/// Trainer‑mode tabs for the client shell.
-List<ZiroTab> _clientTrainerTabs() => const [
-      ZiroTab(
-        label: 'Dashboard',
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard,
-        route: '/client/dashboard',
-      ),
-      ZiroTab(
-        label: 'Workout',
-        icon: Icons.fitness_center_outlined,
-        selectedIcon: Icons.fitness_center,
-        route: '/client/workout',
-      ),
-      ZiroTab(
-        label: 'Progress',
-        icon: Icons.trending_up_outlined,
-        selectedIcon: Icons.trending_up,
-        route: '/client/progress',
-      ),
-      ZiroTab(
-        label: 'Check-in',
-        icon: Icons.check_circle_outline,
-        selectedIcon: Icons.check_circle,
-        route: '/client/check-in',
-      ),
-      ZiroTab(
-        label: 'Explore',
-        icon: Icons.explore_outlined,
-        selectedIcon: Icons.explore,
-        route: '/client/explore',
-      ),
-      ZiroTab(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
-        route: '/client/settings',
-      ),
-    ];
-
-/// Personal‑mode tabs for the client shell (tab rebinding).
-List<ZiroTab> _clientPersonalTabs() => const [
-      ZiroTab(
-        label: 'Dashboard',
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard,
-        route: '/client/dashboard',
-      ),
-      ZiroTab(
-        label: 'Workout',
-        icon: Icons.fitness_center_outlined,
-        selectedIcon: Icons.fitness_center,
-        route: '/client/workout',
-      ),
-      ZiroTab(
-        label: 'Progress',
-        icon: Icons.trending_up_outlined,
-        selectedIcon: Icons.trending_up,
-        route: '/client/progress',
-      ),
-      ZiroTab(
-        label: 'Check-in',
-        icon: Icons.check_circle_outline,
-        selectedIcon: Icons.check_circle,
-        route: '/client/check-in',
-      ),
-      ZiroTab(
-        label: 'Explore',
-        icon: Icons.explore_outlined,
-        selectedIcon: Icons.explore,
-        route: '/client/explore',
-      ),
-      ZiroTab(
-        label: 'Settings',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
-        route: '/client/settings',
-      ),
-    ];
+List<ZiroTab> _clientTabs(AppMode mode) {
+  final isTrainerMode = mode == AppMode.trainer;
+  return [
+    ZiroTab(
+      label: isTrainerMode ? 'Explore' : 'Explore',
+      icon: Icons.explore_outlined,
+      selectedIcon: Icons.explore,
+      route: '/client/explore',
+    ),
+    ZiroTab(
+      label: isTrainerMode ? 'Workouts' : 'Workouts',
+      icon: Icons.fitness_center_outlined,
+      selectedIcon: Icons.fitness_center,
+      route: '/client/workout',
+    ),
+    const ZiroTab(
+      label: 'Home',
+      icon: Icons.dashboard_outlined,
+      selectedIcon: Icons.dashboard,
+      route: '/client/dashboard',
+    ),
+    ZiroTab(
+      label: isTrainerMode ? 'Progress' : 'Analytics',
+      icon: Icons.trending_up_outlined,
+      selectedIcon: Icons.trending_up,
+      route: '/client/progress',
+    ),
+    const ZiroTab(
+      label: 'More',
+      icon: Icons.more_horiz_outlined,
+      selectedIcon: Icons.more_horiz,
+      route: '/client/more',
+    ),
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Detect whether location resembles a client route.
-bool _isClientShell(String location) => location.startsWith('/client');
-
-/// Determine the correct tab list based on prefix and current [mode].
 List<ZiroTab> _tabsFor(String location, AppMode mode) {
-  final isClient = _isClientShell(location);
-  if (isClient) {
-    return mode == AppMode.trainer
-        ? _clientTrainerTabs()
-        : _clientPersonalTabs();
-  }
-  // Default: trainer shell
-  return mode == AppMode.trainer
-      ? _trainerTrainerTabs()
-      : _trainerPersonalTabs();
+  final isClient = location.startsWith('/client');
+  return isClient ? _clientTabs(mode) : _trainerTabs(mode);
 }
 
 // ---------------------------------------------------------------------------
@@ -226,40 +120,33 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
   // ---------------------------------------------------------------------------
 
   int _selectedIndex(String location) {
-    final isClient = _isClientShell(location);
-
+    final isClient = location.startsWith('/client');
     if (isClient) {
-      if (location.startsWith('/client/dashboard')) return 0;
+      if (location.startsWith('/client/explore')) return 0;
       if (location.startsWith('/client/workout')) return 1;
-      if (location.startsWith('/client/progress')) return 2;
-      if (location.startsWith('/client/check-in')) return 3;
-      if (location.startsWith('/client/explore')) return 4;
-      if (location.startsWith('/client/settings')) return 5;
-      return 0;
+      if (location.startsWith('/client/dashboard')) return 2;
+      if (location.startsWith('/client/progress')) return 3;
+      if (location.startsWith('/client/more')) return 4;
+      return 2; // default to home
     }
-
-    // Trainer shell
-    if (location.startsWith('/trainer/dashboard')) return 0;
-    if (location.startsWith('/trainer/clients')) return 1;
-    if (location.startsWith('/trainer/check-ins')) return 2;
-    if (location.startsWith('/trainer/calendar')) return 3;
-    if (location.startsWith('/trainer/profile')) return 4;
-    if (location.startsWith('/trainer/settings')) return 5;
-    return 0;
+    // Trainer
+    if (location.startsWith('/trainer/calendar')) return 0;
+    if (location.startsWith('/trainer/programs')) return 1;
+    if (location.startsWith('/trainer/dashboard')) return 2;
+    if (location.startsWith('/trainer/clients')) return 3;
+    if (location.startsWith('/trainer/more')) return 4;
+    return 2; // default to home
   }
 
   void _onTabTap(int index, String location) {
     final mode = ref.read(modeSwitchProvider);
     final tabs = _tabsFor(location, mode);
-
     if (index < 0 || index >= tabs.length) return;
     final route = tabs[index].route;
-
-    // Collapse mode selector when navigating
     setState(() => _isModeExpanded = false);
-
-    // Special handling: client workout tab toggles overlay
-    if (_isClientShell(location) && route == '/client/workout') {
+    
+    // Client workout tab toggles overlay
+    if (location.startsWith('/client') && route == '/client/workout') {
       final overlayState = ref.read(sessionOverlayProvider);
       if (overlayState == SessionOverlayState.hidden) {
         ref.read(sessionOverlayProvider.notifier).showFull();
@@ -268,7 +155,7 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
       }
       return;
     }
-
+    
     context.go(route);
   }
 
@@ -282,7 +169,20 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
     final index = _selectedIndex(location);
     final mode = ref.watch(modeSwitchProvider);
     final tabs = _tabsFor(location, mode);
+    final unreadCount = ref.watch(notificationsProvider).unreadCount;
     final overlayState = ref.watch(sessionOverlayProvider);
+
+    // Gap 2: Reset to home tab when mode switches and current tab is invalid
+    // for the new mode's tab list (matches iOS behavior: onChange(of: currentMode))
+    ref.listen(modeSwitchProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        final newTabs = _tabsFor(location, next);
+        if (index >= newTabs.length) {
+          final homeIndex = newTabs.length > 2 ? 2 : newTabs.length - 1;
+          context.go(newTabs[homeIndex].route);
+        }
+      }
+    });
 
     final showMiniPlayer = overlayState == SessionOverlayState.mini;
     final position = ref.watch(workoutOverlayPositionProvider);
@@ -336,19 +236,32 @@ class _ZiroShellState extends ConsumerState<ZiroShell> {
             ),
         ],
       ),
-      bottomNavigationBar: ZiroTabBar(
-        selectedIndex: index,
-        onTap: (i) => _onTabTap(i, location),
-        tabs: tabs,
-        isModeExpanded: _isModeExpanded,
-        onToggleModeExpanded: () =>
-            setState(() => _isModeExpanded = !_isModeExpanded),
-        currentMode: mode,
-        onModeChanged: (newMode) {
-          ref.read(modeSwitchProvider.notifier).setMode(newMode);
-          setState(() => _isModeExpanded = false);
-        },
-      ),
+      // Gap 1: Hide tab bar when full-screen workout overlay is active
+      // (matches iOS behavior: tab bar hidden during active session)
+      bottomNavigationBar: overlayState == SessionOverlayState.full
+          ? null
+          : ZiroTabBar(
+              selectedIndex: index,
+              onTap: (i) => _onTabTap(i, location),
+              tabs: tabs,
+              isModeExpanded: _isModeExpanded,
+              onToggleModeExpanded: () =>
+                  setState(() => _isModeExpanded = !_isModeExpanded),
+              currentMode: mode,
+              onModeChanged: (newMode) {
+                ref.read(modeSwitchProvider.notifier).setMode(newMode);
+                setState(() => _isModeExpanded = false);
+              },
+              onDoubleTapTab: () {
+                final route = tabs[index].route;
+                // Skip route navigation for overlay-based tabs (client Workout)
+                if (location.startsWith('/client') && route == '/client/workout') {
+                  return;
+                }
+                context.go(route);
+              },
+              homeBadgeCount: unreadCount,
+            ),
     );
   }
 }

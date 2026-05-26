@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -199,7 +200,7 @@ class _AboutTab extends StatelessWidget {
                 value: '${exercise.recommendedRestSeconds} seconds',
               ),
             if (exercise.isUnilateral)
-              _DetailRow(
+              const _DetailRow(
                 icon: Icons.alt_route,
                 label: 'Type',
                 value: 'Unilateral',
@@ -260,14 +261,12 @@ class _HistoryTab extends ConsumerWidget {
       );
     }
 
-    // Get data for this exercise
-    final lastSession = statsState.lastSessionData[exerciseId];
-    final pr = statsState.prByExercise[exerciseId];
+    final sessions = statsState.sessionHistoryData[exerciseId] ?? [];
     final volume = statsState.volumeByExercise[exerciseId] ?? 0;
 
     // Empty state
-    if (lastSession == null && pr == null) {
-      return _EmptyStateView(
+    if (sessions.isEmpty) {
+      return const _EmptyStateView(
         icon: Icons.history,
         message: 'No history found for this exercise yet.',
       );
@@ -292,7 +291,7 @@ class _HistoryTab extends ConsumerWidget {
             Expanded(
               child: _StatCard(
                 label: 'Sessions',
-                value: '${pr != null ? '1+' : '0'}',
+                value: '${sessions.length}',
                 icon: Icons.fitness_center_outlined,
                 color: theme.colorScheme.secondary,
               ),
@@ -301,78 +300,20 @@ class _HistoryTab extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
 
-        // ── Last session ──
-        if (lastSession != null) ...[
-          Text(
-            'Last Session',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
+        // ── Session history list (recent first) ──
+        for (final session in sessions.reversed) ...[
           _HistorySessionCard(
-            date: lastSession.date,
-            bestWeight: lastSession.bestWeight,
-            bestReps: lastSession.bestReps,
-            totalVolume: lastSession.totalVolume,
+            date: session.date,
+            bestWeight: session.bestWeight,
+            bestReps: session.bestReps,
+            totalVolume: session.totalVolume,
+            setsCompleted: session.setsCompleted,
             exerciseName: '',
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${_formatDate(lastSession.date)} — ${lastSession.bestWeight.toStringAsFixed(1)} kg best set',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-
-        // ── Personal best ──
-        if (pr != null && (lastSession == null ||
-            pr.date.isAfter(lastSession.date))) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Personal Best',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
           const SizedBox(height: 12),
-          _HistorySessionCard(
-            date: pr.date,
-            bestWeight: pr.maxWeight,
-            bestReps: pr.maxReps,
-            totalVolume: pr.maxVolume,
-            exerciseName: '',
-          ),
-        ],
-
-        if (lastSession == null && pr != null) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Personal Best',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _HistorySessionCard(
-            date: pr.date,
-            bestWeight: pr.maxWeight,
-            bestReps: pr.maxReps,
-            totalVolume: pr.maxVolume,
-            exerciseName: '',
-          ),
         ],
       ],
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
 
@@ -391,16 +332,37 @@ class _ChartsTab extends ConsumerWidget {
     final colors = context.themeColors;
     final statsState = ref.watch(exerciseStatsProvider);
     final pr = statsState.prByExercise[exerciseId];
+    final sessions = statsState.sessionHistoryData[exerciseId] ?? [];
 
     if (statsState.isLoading && !statsState.isLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (pr == null) {
-      return _EmptyStateView(
+    if (sessions.length < 2) {
+      return const _EmptyStateView(
         icon: Icons.show_chart,
-        message: 'Record at least 2 sessions to see progress charts.',
+        message: 'Complete at least 2 sessions to see your progress chart.',
       );
+    }
+
+    // Build volume data points
+    final volumeData = sessions.asMap().entries.map((e) =>
+      FlSpot(e.key.toDouble(), e.value.totalVolume),
+    ).toList();
+
+    final maxVolume = volumeData.fold<double>(
+      0, (m, s) => s.y > m ? s.y : m,
+    );
+    final yPadding = maxVolume * 0.15;
+    final yMax = (maxVolume + yPadding).ceilToDouble();
+
+    // Format date for tooltip / axis
+    String formatDate(DateTime d) {
+      final months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ];
+      return '${months[d.month - 1]} ${d.day}';
     }
 
     return SingleChildScrollView(
@@ -408,7 +370,7 @@ class _ChartsTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Volume Progression chart placeholder ──
+          // ── Volume Progression chart ──
           Text(
             'Volume Progression',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -419,36 +381,152 @@ class _ChartsTab extends ConsumerWidget {
 
           Container(
             width: double.infinity,
-            height: 250,
+            height: 280,
             decoration: BoxDecoration(
               color: colors.backgroundSecondary,
               borderRadius: BorderRadius.circular(16),
             ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.show_chart,
-                  size: 48,
-                  color: colors.accent.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Chart visualization coming soon',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+            padding: const EdgeInsets.fromLTRB(8, 20, 16, 8),
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                maxY: yMax,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: yMax > 0 ? (yMax / 4).ceilToDouble() : 50,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: theme.colorScheme.outlineVariant
+                        .withValues(alpha: 0.3),
+                    strokeWidth: 1,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Current best volume: ${pr.maxVolume.toStringAsFixed(0)} kg',
-                  style: theme.textTheme.bodySmall?.copyWith(
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    axisNameWidget: Text(
+                      'Session',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 36,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        final idx = value.toInt();
+                        if (idx < 0 || idx >= sessions.length) {
+                          return const SizedBox.shrink();
+                        }
+                        // Show every Nth label to avoid crowding
+                        if (sessions.length > 6 && idx % 2 != 0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            formatDate(sessions[idx].date),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    axisNameWidget: Text(
+                      'kg',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 48,
+                      interval: yMax > 0 ? (yMax / 4).ceilToDouble() : 50,
+                      getTitlesWidget: (value, meta) {
+                        if (value == 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Text(
+                            '${value.toInt()}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => theme.colorScheme.surfaceContainerHighest,
+                    tooltipRoundedRadius: 8,
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        final idx = spot.spotIndex;
+                        final dateStr = idx < sessions.length
+                            ? formatDate(sessions[idx].date)
+                            : '';
+                        return LineTooltipItem(
+                          '$dateStr\n${spot.y.toStringAsFixed(0)} kg',
+                          TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                  handleBuiltInTouches: true,
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: volumeData,
+                    isCurved: true,
+                    curveSmoothness: 0.3,
+                    preventCurveOverShooting: true,
                     color: colors.accent,
-                    fontWeight: FontWeight.w600,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: colors.accent,
+                          strokeWidth: 2,
+                          strokeColor: theme.colorScheme.surface,
+                        );
+                      },
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          colors.accent.withValues(alpha: 0.25),
+                          colors.accent.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
@@ -459,13 +537,13 @@ class _ChartsTab extends ConsumerWidget {
             children: [
               _MiniStat(
                 label: 'Best Set',
-                value: '${pr.maxWeight.toStringAsFixed(0)} kg × ${pr.maxReps}',
+                value: '${pr?.maxWeight.toStringAsFixed(0) ?? '0'} kg × ${pr?.maxReps ?? 0}',
                 color: colors.accent,
               ),
               const SizedBox(width: 12),
               _MiniStat(
                 label: 'Total Volume',
-                value: '${pr.maxVolume.toStringAsFixed(0)} kg',
+                value: '${(pr?.maxVolume ?? 0).toStringAsFixed(0)} kg',
                 color: theme.colorScheme.secondary,
               ),
             ],
@@ -487,7 +565,6 @@ class _RecordsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final colors = context.themeColors;
     final statsState = ref.watch(exerciseStatsProvider);
 
@@ -496,11 +573,11 @@ class _RecordsTab extends ConsumerWidget {
     }
 
     final pr = statsState.prByExercise[exerciseId];
-    final volume = statsState.volumeByExercise[exerciseId] ?? 0;
+    final sessionCount = statsState.sessionHistoryData[exerciseId]?.length ?? 0;
 
     // Empty state - no records yet
     if (pr == null || (pr.maxWeight <= 0 && pr.maxReps <= 0)) {
-      return _EmptyStateView(
+      return const _EmptyStateView(
         icon: Icons.emoji_events_outlined,
         message: 'Complete sets to log your first personal records!',
       );
@@ -541,8 +618,8 @@ class _RecordsTab extends ConsumerWidget {
 
           // ── Total Sessions ──
           _RecordCard(
-            title: 'Lifetime Volume',
-            value: '${volume.toStringAsFixed(0)} kg',
+            title: 'Total Sessions',
+            value: '$sessionCount',
             icon: Icons.calendar_month_outlined,
             color: Colors.blue,
           ),
@@ -807,51 +884,139 @@ class _HistorySessionCard extends StatelessWidget {
   final int bestReps;
   final double totalVolume;
   final String exerciseName;
+  final int setsCompleted;
 
   const _HistorySessionCard({
     required this.date,
     required this.bestWeight,
     required this.bestReps,
     required this.totalVolume,
-    required this.exerciseName,
+    this.exerciseName = '',
+    this.setsCompleted = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.themeColors;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.themeColors.backgroundSecondary,
-        borderRadius: BorderRadius.circular(16),
+    final bestSetLabel = bestWeight > 0
+        ? '${bestWeight.toStringAsFixed(0)} kg × $bestReps'
+        : '—';
+
+    return InkWell(
+      onTap: () => _showDetailSheet(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.backgroundSecondary,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Date row ──
+            Row(
+              children: [
+                Icon(Icons.fitness_center, size: 16,
+                    color: colors.accent),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(date),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                if (setsCompleted > 0)
+                  _SetInfo(
+                    label: 'Sets',
+                    value: '$setsCompleted',
+                  ),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right, size: 16,
+                    color: theme.colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.3)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _SetInfo(
+                  label: 'Best Set',
+                  value: bestSetLabel,
+                ),
+                const Spacer(),
+                _SetInfo(
+                  label: 'Volume',
+                  value: '${totalVolume.toStringAsFixed(0)} kg',
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.fitness_center, size: 16,
-                  color: context.themeColors.accent),
-              const SizedBox(width: 8),
-              Text(
-                _formatDate(date),
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+    );
+  }
+
+  void _showDetailSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _SetInfo(label: 'Best Set',
-                  value: '${bestWeight.toStringAsFixed(0)} kg × $bestReps'),
-              const Spacer(),
-              _SetInfo(label: 'Volume',
-                  value: '${totalVolume.toStringAsFixed(0)} kg'),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+            Text(_formatDate(date),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                )),
+            const SizedBox(height: 16),
+            _detailRow(theme, 'Best Set',
+                bestWeight > 0
+                    ? '${bestWeight.toStringAsFixed(0)} kg × $bestReps'
+                    : '—'),
+            _detailRow(theme, 'Total Volume',
+                '${totalVolume.toStringAsFixed(0)} kg'),
+            if (setsCompleted > 0)
+              _detailRow(theme, 'Sets Completed', '$setsCompleted'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(ThemeData theme, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              )),
+          Text(value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              )),
         ],
       ),
     );

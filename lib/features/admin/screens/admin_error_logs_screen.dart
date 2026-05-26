@@ -105,7 +105,7 @@ class _AdminErrorLogsScreenState extends ConsumerState<AdminErrorLogsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_outline,
+            const Icon(Icons.check_circle_outline,
                 size: 64, color: Colors.green),
             const SizedBox(height: 16),
             Text('No errors found', style: theme.textTheme.titleMedium),

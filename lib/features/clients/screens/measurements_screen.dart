@@ -220,6 +220,13 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _openAddSheet(MeasurementType type) async {
+    // Get current weight for weight-change warning
+    final clientState = ref.read(clientMeasurementProvider);
+    final currentWeightKg = _latestValue<double>(
+      clientState.measurements,
+      (m) => m.weightKg,
+    );
+
     final result = await showModalBottomSheet<MeasurementSheetResult>(
       context: context,
       isScrollControlled: true,
@@ -227,7 +234,10 @@ class _MeasurementsScreenState extends ConsumerState<MeasurementsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => AddMeasurementSheet(type: type),
+      builder: (_) => AddMeasurementSheet(
+        type: type,
+        currentWeightKg: type.id == 'weight' ? currentWeightKg : null,
+      ),
     );
 
     if (result == null || !mounted) return;

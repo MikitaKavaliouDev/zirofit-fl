@@ -72,7 +72,7 @@ class _InteractivePlateCalculatorState extends State<InteractivePlateCalculator>
   }
 
   void _addPlate(double weight) {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
     setState(() {
       _totalWeight += weight * 2;
     });
@@ -80,7 +80,7 @@ class _InteractivePlateCalculatorState extends State<InteractivePlateCalculator>
   }
 
   void _clear() {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
     setState(() {
       _totalWeight = widget.barWeight;
     });

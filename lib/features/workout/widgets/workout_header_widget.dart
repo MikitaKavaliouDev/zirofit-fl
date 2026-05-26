@@ -189,7 +189,7 @@ class _WorkoutHeaderWidgetState extends ConsumerState<WorkoutHeaderWidget> {
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final restSeconds = workoutState.restSeconds;
-                            final initialRest = 90;
+                            const initialRest = 90;
                             final progress = initialRest > 0 ? (restSeconds / initialRest).clamp(0.0, 1.0) : 0.0;
 
                             return Stack(

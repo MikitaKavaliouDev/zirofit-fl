@@ -21,6 +21,9 @@ class SyncEngine {
   final ConnectivityManager _connectivity;
   final AppDatabase _db;
 
+  /// Maximum retry attempts for a queue item before auto-discard.
+  static const int maxRetries = 5;
+
   final StreamController<SyncUiStatus> _statusController =
       StreamController<SyncUiStatus>.broadcast();
   Stream<SyncUiStatus> get statusStream => _statusController.stream;
@@ -82,7 +85,18 @@ class SyncEngine {
     }
 
     // Check the SyncQueue for additional pending items
-    final queueItems = await _queue.getAllPending();
+    var queueItems = await _queue.getAllPending();
+
+    // Auto-discard items that have exceeded max retries
+    final validItems = <SyncQueueItem>[];
+    for (final item in queueItems) {
+      if (item.retryCount >= maxRetries) {
+        await _queue.remove(item.id);
+      } else {
+        validItems.add(item);
+      }
+    }
+    queueItems = validItems;
 
     // If nothing to push, return early
     if (queueItems.isEmpty &&
@@ -120,9 +134,33 @@ class SyncEngine {
     // Mark all pushed records as synced
     await _localSource.markAllSynced();
 
-    // Remove queue items
-    for (final item in queueItems) {
-      await _queue.remove(item.id);
+    // Process per-item results from the push response.
+    // If the response includes an 'errors' map, handle each queue item individually.
+    // Items without an error entry are treated as successful.
+    final itemErrors = response['errors'] as Map<String, dynamic>? ?? {};
+    if (itemErrors.isEmpty) {
+      // All items succeeded — remove all from queue
+      for (final item in queueItems) {
+        await _queue.remove(item.id);
+      }
+    } else {
+      for (final item in queueItems) {
+        final error = itemErrors[item.id] as Map<String, dynamic>?;
+        if (error == null) {
+          // Item succeeded — remove from queue
+          await _queue.remove(item.id);
+        } else {
+          final statusCode = error['status'] as int? ?? 0;
+          final errorMessage = error['message'] as String? ?? 'Unknown error';
+          if (statusCode == 404) {
+            // Orphaned record — discard silently
+            await _queue.remove(item.id);
+          } else {
+            // Other error — increment retry count and store error message
+            await _queue.markFailed(item.id, errorMessage);
+          }
+        }
+      }
     }
 
     // Remove synced soft-deleted records

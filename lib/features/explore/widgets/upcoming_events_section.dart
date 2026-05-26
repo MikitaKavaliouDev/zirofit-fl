@@ -170,7 +170,7 @@ class _EventListTile extends StatelessWidget {
                       ? Image.network(
                           event.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _eventPlaceholder(theme),
+                          errorBuilder: (_, _, _) => _eventPlaceholder(theme),
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return _eventPlaceholder(theme);

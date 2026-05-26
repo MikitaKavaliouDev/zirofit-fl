@@ -3,9 +3,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
+import 'package:zirofit_fl/data/sync/sync_engine.dart';
 import 'package:zirofit_fl/features/trainer/providers/custom_exercises_provider.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
+class MockSyncEngine extends Mock implements SyncEngine {}
 
 void main() {
   late MockApiClient mockApiClient;
@@ -13,7 +15,8 @@ void main() {
 
   setUp(() {
     mockApiClient = MockApiClient();
-    notifier = TrainerCustomExercisesNotifier(apiClient: mockApiClient);
+    final mockSyncEngine = MockSyncEngine();
+    notifier = TrainerCustomExercisesNotifier(apiClient: mockApiClient, syncEngine: mockSyncEngine);
   });
 
   // ---------------------------------------------------------------------------

@@ -57,7 +57,7 @@ class YouTubeSheetView extends StatelessWidget {
           // Header row: title + close button
           Row(
             children: [
-              Icon(Icons.play_circle_fill, color: Colors.blue, size: 28),
+              const Icon(Icons.play_circle_fill, color: Colors.blue, size: 28),
               const SizedBox(width: 12),
               Text(
                 'Coach Video',
@@ -86,7 +86,7 @@ class YouTubeSheetView extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.link, color: Colors.blue, size: 20),
+                const Icon(Icons.link, color: Colors.blue, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

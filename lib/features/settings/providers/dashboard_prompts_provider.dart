@@ -75,7 +75,7 @@ class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
       // Try API first
       if (_apiClient != null) {
         try {
-          final response = await _apiClient!.get<Map<String, dynamic>>(
+          final response = await _apiClient.get<Map<String, dynamic>>(
             ApiConstants.userPreferences,
           );
           final data = response['data'] ?? response;
@@ -131,7 +131,7 @@ class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'coach_banner_dismissed': dismissed},
         );
@@ -153,7 +153,7 @@ class DashboardPromptsNotifier extends StateNotifier<DashboardPromptsState> {
 
     if (_apiClient != null) {
       try {
-        await _apiClient!.put(
+        await _apiClient.put(
           ApiConstants.userPreferences,
           body: {'check_in_banner_dismissed': dismissed},
         );

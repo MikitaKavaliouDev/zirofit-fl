@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:zirofit_fl/core/services/haptic_service.dart';
 
 /// Service for managing workout-related toast notifications.
 ///
@@ -29,7 +29,7 @@ class WorkoutToastService {
     if (!context.mounted) return;
 
     // Trigger haptic feedback
-    HapticFeedback.lightImpact();
+    HapticService().success();
 
     final overlay = Overlay.of(context);
     _currentRecordToast = OverlayEntry(
@@ -64,7 +64,7 @@ class WorkoutToastService {
     if (!context.mounted) return;
 
     // Trigger haptic feedback
-    HapticFeedback.mediumImpact();
+    HapticService().success();
 
     final overlay = Overlay.of(context);
     _currentRestToast = OverlayEntry(

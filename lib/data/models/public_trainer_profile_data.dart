@@ -4,6 +4,7 @@ import 'package:zirofit_fl/data/models/service.dart';
 import 'package:zirofit_fl/data/models/transformation_photo.dart';
 import 'package:zirofit_fl/data/models/testimonial.dart';
 import 'package:zirofit_fl/data/models/social_link.dart';
+import 'package:zirofit_fl/data/models/external_link.dart';
 
 /// Aggregates all data for a public trainer profile viewable by clients.
 ///
@@ -15,6 +16,7 @@ class PublicTrainerProfileData {
   final List<TransformationPhoto> transformations;
   final List<Testimonial> testimonials;
   final List<SocialLink> socialLinks;
+  final List<ExternalLink> externalLinks;
   final String? connectStatus;
 
   const PublicTrainerProfileData({
@@ -24,6 +26,7 @@ class PublicTrainerProfileData {
     this.transformations = const [],
     this.testimonials = const [],
     this.socialLinks = const [],
+    this.externalLinks = const [],
     this.connectStatus,
   });
 
@@ -81,6 +84,16 @@ class PublicTrainerProfileData {
       socialLinks = [];
     }
 
+    final List<ExternalLink> externalLinks;
+    final rawExternalLinks = json['external_links'] as List?;
+    if (rawExternalLinks != null) {
+      externalLinks = rawExternalLinks
+          .map((e) => ExternalLink.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } else {
+      externalLinks = [];
+    }
+
     final String? connectStatus;
     final rawConnectStatus = json['connect_status'];
     if (rawConnectStatus is String) {
@@ -96,6 +109,7 @@ class PublicTrainerProfileData {
       transformations: transformations,
       testimonials: testimonials,
       socialLinks: socialLinks,
+      externalLinks: externalLinks,
       connectStatus: connectStatus,
     );
   }
@@ -107,6 +121,7 @@ class PublicTrainerProfileData {
         'transformations': transformations.map((e) => e.toJson()).toList(),
         'testimonials': testimonials.map((e) => e.toJson()).toList(),
         'social_links': socialLinks.map((e) => e.toJson()).toList(),
+        'external_links': externalLinks.map((e) => e.toJson()).toList(),
         if (connectStatus != null) 'connect_status': connectStatus,
       };
 }

@@ -18,10 +18,12 @@ import 'package:zirofit_fl/features/auth/screens/login_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/register_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/email_verification_screen.dart';
 import 'package:zirofit_fl/features/auth/screens/update_password_screen.dart';
+import 'package:zirofit_fl/features/auth/screens/reset_password_screen.dart';
 import 'package:zirofit_fl/features/calendar/screens/calendar_screen.dart';
 import 'package:zirofit_fl/features/checkin/screens/check_in_history_screen.dart';
 import 'package:zirofit_fl/features/checkin/screens/check_in_screen.dart';
 import 'package:zirofit_fl/features/checkin/screens/trainer_check_ins_screen.dart';
+import 'package:zirofit_fl/features/clients/screens/client_analytics_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_detail_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_history_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_list_screen.dart';
@@ -32,8 +34,6 @@ import 'package:zirofit_fl/features/dashboard/screens/daily_target_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/sharing_requests_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/trainer_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/my_trainer_screen.dart';
-import 'package:zirofit_fl/features/dashboard/widgets/client_shell.dart';
-import 'package:zirofit_fl/features/dashboard/widgets/trainer_shell.dart';
 import 'package:zirofit_fl/features/onboarding/screens/educational_onboarding_screen.dart';
 import 'package:zirofit_fl/features/onboarding/screens/onboarding_screen.dart';
 import 'package:zirofit_fl/features/programs/screens/create_program_screen.dart';
@@ -69,6 +69,8 @@ import 'package:zirofit_fl/features/settings/screens/subscription_settings_scree
 import 'package:zirofit_fl/features/settings/screens/privacy_security_settings_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/acknowledgements_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/dashboard_prompts_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/language_settings_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/contact_support_screen.dart';
 import 'package:zirofit_fl/features/events/screens/client_event_detail_screen.dart';
 import 'package:zirofit_fl/features/exercises/screens/exercise_list_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/enhanced_active_workout_screen.dart';
@@ -91,23 +93,40 @@ import 'package:zirofit_fl/features/bookings/screens/client_booking_screen.dart'
 import 'package:zirofit_fl/features/blog/screens/blog_list_screen.dart';
 import 'package:zirofit_fl/features/blog/screens/blog_post_screen.dart';
 import 'package:zirofit_fl/data/models/profile.dart';
+import 'package:zirofit_fl/features/dashboard/widgets/ziro_shell.dart';
+import 'package:zirofit_fl/features/more/screens/more_screen.dart';
+import 'package:zirofit_fl/features/settings/screens/whats_new_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Whether to redirect to the What's New screen on this launch.
+final showWhatsNewProvider = StateProvider<bool>((ref) => false);
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
+  // Listenable to trigger redirect re-evaluation when What's New check completes
+  final whatsNewListenable = ValueNotifier(0);
+
+  // Fire-and-forget: check for What's New on startup
+  _checkWhatsNew(ref, whatsNewListenable);
+
   return GoRouter(
     initialLocation: '/auth/login',
+    refreshListenable: whatsNewListenable,
     redirect: (context, state) {
       final isLoggedIn = authState.status == AuthStatus.authenticated;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
       final isOnboarding = state.matchedLocation.startsWith('/onboarding');
       final isUpdatePassword = state.matchedLocation == '/auth/update-password';
+      final isResetPassword = state.matchedLocation.startsWith('/auth/reset-password');
 
       // Not logged in → auth routes only
       if (!isLoggedIn && !isAuthRoute) return '/auth/login';
 
-      // Logged in but on an auth route → dashboard (except update-password)
-      if (isLoggedIn && isAuthRoute && !isUpdatePassword) {
+      // Logged in but on an auth route → dashboard (except update-password
+      // and reset-password which are token-authenticated flows)
+      if (isLoggedIn && isAuthRoute && !isUpdatePassword && !isResetPassword) {
         return _getDefaultRoute(authState.role);
       }
 
@@ -136,9 +155,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             !location.startsWith('/settings/') &&
             !location.startsWith('/chat') &&
             !location.startsWith('/notifications') &&
-            !location.startsWith('/blog')) {
+            !location.startsWith('/blog') &&
+            location != '/whats-new') {
           return _getDefaultRoute(authState.role);
         }
+      }
+
+      // What's New: redirect first-time visitors of a new version
+      if (isLoggedIn && ref.read(showWhatsNewProvider) &&
+          state.matchedLocation == _getDefaultRoute(authState.role)) {
+        ref.read(showWhatsNewProvider.notifier).state = false;
+        return '/whats-new';
       }
 
       return null;
@@ -172,6 +199,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/update-password',
         builder: (_, _) => const UpdatePasswordScreen(),
+      ),
+      GoRoute(
+        path: '/auth/reset-password',
+        builder: (_, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return ResetPasswordScreen(resetToken: token);
+        },
       ),
 
       // -- Onboarding --
@@ -241,6 +275,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings/dashboard-prompts',
         builder: (_, _) => const DashboardPromptsScreen(),
       ),
+      GoRoute(
+        path: '/settings/language',
+        builder: (_, _) => const LanguageSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/contact-support',
+        builder: (_, _) => const ContactSupportScreen(),
+      ),
 
       // -- Admin routes --
       ShellRoute(
@@ -279,7 +321,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // -- Trainer routes --
       ShellRoute(
-        builder: (_, _, child) => TrainerShell(child: child),
+        builder: (_, _, child) => ZiroShell(child: child),
         routes: [
           GoRoute(
             path: '/trainer/dashboard',
@@ -309,6 +351,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'live-session',
                     builder: (_, state) => LiveSessionMonitorScreen(
                       clientId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'analytics',
+                    builder: (_, state) => ClientAnalyticsScreen(
+                      clientId: state.pathParameters['id']!,
+                      clientName: state.uri.queryParameters['name'] ?? '',
                     ),
                   ),
                 ],
@@ -458,12 +507,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          GoRoute(
+            path: '/trainer/more',
+            builder: (_, _) => const MoreScreen(),
+          ),
         ],
       ),
 
       // -- Client routes --
       ShellRoute(
-        builder: (_, _, child) => ClientShell(child: child),
+        builder: (_, _, child) => ZiroShell(child: child),
         routes: [
           GoRoute(
             path: '/client/dashboard',
@@ -577,6 +630,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/client/trainer',
             builder: (_, _) => const MyTrainerScreen(),
           ),
+          GoRoute(
+            path: '/client/more',
+            builder: (_, _) => const MoreScreen(),
+          ),
         ],
       ),
 
@@ -629,6 +686,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ],
+      ),
+
+      GoRoute(
+        path: '/whats-new',
+        builder: (_, _) => const WhatsNewScreen(),
       ),
 
       GoRoute(
@@ -686,5 +748,24 @@ String _getRolePrefix(String? role) {
       return '/admin';
     default:
       return '/auth';
+  }
+}
+
+/// Check for What's New on version change. Fire-and-forget; updates
+/// [showWhatsNewProvider] and bumps [listenable] so GoRouter re-evaluates
+/// its redirect after the async check completes.
+Future<void> _checkWhatsNew(Ref ref, ValueNotifier<int> listenable) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final packageInfo = await PackageInfo.fromPlatform();
+    final lastSeen = prefs.getString('last_seen_version') ?? '';
+    final version = 'v${packageInfo.version}';
+    if (lastSeen != version) {
+      await prefs.setString('last_seen_version', version);
+      ref.read(showWhatsNewProvider.notifier).state = true;
+      listenable.value++; // triggers redirect re-evaluation
+    }
+  } catch (_) {
+    // Silently fail — What's New is non-critical
   }
 }

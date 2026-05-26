@@ -73,8 +73,8 @@ class DashboardSkeleton extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: 3,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, __) {
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (_, _) {
           return _buildStatCard();
         },
       ),

@@ -1,26 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/features/voice_coach/voice_coach_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 
 class WorkoutSessionControls extends ConsumerWidget {
-  final VoidCallback onVoicePressed;
+  final VoidCallback onRecordingStart;
+  final VoidCallback onRecordingEnd;
+  final VoidCallback onCoachRecordingStart;
+  final VoidCallback onCoachRecordingEnd;
   final VoidCallback onFinishPressed;
   final VoidCallback onCancelPressed;
+  final VoidCallback? onOpenVoiceSettings;
   final bool isRecording;
 
   const WorkoutSessionControls({
     super.key,
-    required this.onVoicePressed,
+    required this.onRecordingStart,
+    required this.onRecordingEnd,
+    this.onCoachRecordingStart = _noop,
+    this.onCoachRecordingEnd = _noop,
     required this.onFinishPressed,
     required this.onCancelPressed,
+    this.onOpenVoiceSettings,
     this.isRecording = false,
   });
+
+  static void _noop() {}
+
+  static const Color _indigo = Color(0xFF4F46E5);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activeWorkoutProvider);
+    final coachState = ref.watch(voiceCoachProvider);
     final theme = Theme.of(context);
+    final isCoachMode = coachState.voiceMode == VoiceMode.coach;
 
     final bool isBlank = state.logs.isEmpty;
 
@@ -44,18 +59,47 @@ class WorkoutSessionControls extends ConsumerWidget {
           borderRadius: BorderRadius.circular(40),
           child: Row(
             children: [
-              // Voice Button (iOS-aligned: left side)
+              // Voice Button (iOS-aligned: left side, push-to-talk)
+              // Color: blue for dictation, indigo for coach, red when recording
               _VoiceControlButton(
-                isRecording: isRecording,
-                onPressed: onVoicePressed,
+                isRecording: isCoachMode
+                    ? coachState.isRecording
+                    : isRecording,
+                color: isCoachMode ? _indigo : Colors.blue,
+                onRecordingStart: isCoachMode
+                    ? onCoachRecordingStart
+                    : onRecordingStart,
+                onRecordingEnd: isCoachMode
+                    ? onCoachRecordingEnd
+                    : onRecordingEnd,
               ),
+              if (isCoachMode) ...[
+                const SizedBox(width: 4),
+                // Settings gear for coach mode
+                GestureDetector(
+                  onTap: onOpenVoiceSettings,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: _indigo.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.settings_rounded,
+                      size: 18,
+                      color: _indigo,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(width: 12),
               
               // Finish/Cancel Button (iOS-aligned: right side, no pause button)
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    HapticFeedback.heavyImpact();
+                    HapticFeedback.mediumImpact();
                     if (isBlank) {
                       onCancelPressed();
                     } else {
@@ -91,11 +135,15 @@ class WorkoutSessionControls extends ConsumerWidget {
 
 class _VoiceControlButton extends StatelessWidget {
   final bool isRecording;
-  final VoidCallback onPressed;
+  final Color color;
+  final VoidCallback onRecordingStart;
+  final VoidCallback onRecordingEnd;
 
   const _VoiceControlButton({
     required this.isRecording,
-    required this.onPressed,
+    this.color = Colors.blue,
+    required this.onRecordingStart,
+    required this.onRecordingEnd,
   });
 
   @override
@@ -103,7 +151,13 @@ class _VoiceControlButton extends StatelessWidget {
     return GestureDetector(
       onTapDown: (_) {
         HapticFeedback.lightImpact();
-        onPressed();
+        onRecordingStart();
+      },
+      onTapUp: (_) {
+        onRecordingEnd();
+      },
+      onTapCancel: () {
+        onRecordingEnd();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -111,7 +165,7 @@ class _VoiceControlButton extends StatelessWidget {
         height: 56,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isRecording ? Colors.red : Colors.blue,
+          color: isRecording ? Colors.red : color,
           boxShadow: isRecording ? [
             BoxShadow(
               color: Colors.red.withValues(alpha: 0.3),

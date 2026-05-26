@@ -1,27 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/rest_timer_manager_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 
 class WorkoutSessionHeader extends ConsumerWidget {
   final VoidCallback onShowRestTimer;
   final VoidCallback? onMinimize;
+  final VoidCallback? onSaveTemplate;
 
   const WorkoutSessionHeader({
     super.key,
     required this.onShowRestTimer,
     this.onMinimize,
+    this.onSaveTemplate,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(activeWorkoutProvider);
     final timerData = ref.watch(workoutTimerProvider);
+    final restState = ref.watch(restTimerManagerProvider);
     final theme = Theme.of(context);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // -- Syncing indicator (inline, not full-screen overlay) --
+        if (state.isSyncingWorkout || state.isSyncingLibrary)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            color: theme.colorScheme.primaryContainer,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  state.isSyncingWorkout ? 'Saving...' : 'Syncing library...',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // Grabber handle
         Container(
           width: 40,
@@ -102,6 +134,15 @@ class WorkoutSessionHeader extends ConsumerWidget {
                 ),
               ),
               
+              // Save as Template button
+              if (onSaveTemplate != null)
+                IconButton(
+                  icon: const Icon(Icons.save_outlined, size: 20),
+                  tooltip: 'Save as Template',
+                  onPressed: onSaveTemplate,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              
               // Timer Capsule
               GestureDetector(
                 onTap: onShowRestTimer,
@@ -110,6 +151,7 @@ class WorkoutSessionHeader extends ConsumerWidget {
                   isRunning: timerData.isRunning,
                   isResting: state.isRestRunning,
                   restSeconds: state.restSeconds,
+                  restProgress: restState.progress,
                 ),
               ),
             ],
@@ -135,47 +177,58 @@ class _WorkoutTimerDisplay extends StatelessWidget {
   final bool isRunning;
   final bool isResting;
   final int restSeconds;
+  final double restProgress;
 
   const _WorkoutTimerDisplay({
     required this.formattedTime,
     required this.isRunning,
     required this.isResting,
     required this.restSeconds,
+    required this.restProgress,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // If resting, show a simplified rest progress or just the rest timer
-    // If resting, show a simplified rest progress or just the rest timer
+    // Resting state: REST label + progress bar
     if (isResting) {
       return Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: theme.colorScheme.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
         ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.timer, size: 14, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'REST: ${_formatRestTime(restSeconds)}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
-                  fontFamily: 'monospace',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.timer, size: 14, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'REST: ${_formatRestTime(restSeconds)}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                    fontFamily: 'monospace',
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                minHeight: 4,
+                value: restProgress,
+                backgroundColor: Colors.white.withValues(alpha: 0.3),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6B00)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }

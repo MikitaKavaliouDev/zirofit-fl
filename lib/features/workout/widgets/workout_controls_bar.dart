@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 
 /// Floating bottom control bar for active workout session
@@ -50,6 +51,27 @@ class FloatingControlsBar extends ConsumerWidget {
                           color: Colors.white,
                         ),
                       ),
+                    ),
+                    
+                    // Sync indicator (shown briefly during save operations)
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final state = ref.watch(activeWorkoutProvider);
+                        if (!state.isSyncingWorkout && !state.isSyncingLibrary) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     
                     // Pause/Resume Button - Center

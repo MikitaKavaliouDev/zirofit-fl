@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zirofit_fl/data/models/workout_set.dart';
 import 'package:zirofit_fl/features/workout/models/workout_focus_state.dart';
-import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 
 /// Enhanced WorkoutSetRow matching iOS WorkoutSetRow.swift
 ///
@@ -154,6 +153,10 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
 
               // Reps input
               Expanded(child: _buildRepsInput(theme)),
+              const SizedBox(width: 8),
+
+              // Tempo input
+              _buildTempoInput(theme),
               const SizedBox(width: 8),
 
               // RPE button
@@ -331,6 +334,64 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
     );
   }
 
+  Widget _buildTempoInput(ThemeData theme) {
+    final isFocused = widget.isActive &&
+        widget.focusedField?.isTempo == true &&
+        widget.focusedField?.setId == widget.set.id;
+
+    final hasValue = widget.set.tempo != null && widget.set.tempo!.isNotEmpty;
+    final displayText = isFocused
+        ? widget.activeText
+        : (hasValue ? widget.set.tempo! : 'Tempo');
+
+    return GestureDetector(
+      onTapDown: (_) {
+        _clearError();
+        widget.onFocus(SessionFocusField.tempo(widget.set.id));
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 36,
+        width: 60,
+        decoration: BoxDecoration(
+          color: isFocused
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isFocused ? theme.colorScheme.primary : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Center(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                displayText,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                  color: isFocused
+                      ? theme.colorScheme.primary
+                      : (hasValue
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+                ),
+              ),
+              if (isFocused)
+                Positioned(
+                  right: 2,
+                  child: _BlinkingCursor(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRpeButton(ThemeData theme) {
     final hasRpe = widget.set.rpe != null && widget.set.rpe! > 0;
     return GestureDetector(
@@ -364,6 +425,12 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
   Widget _buildCompletionToggle(ThemeData theme) {
     return GestureDetector(
       onTap: () {
+        // Validate reps before completing
+        if (widget.set.reps == null || widget.set.reps! <= 0) {
+          HapticFeedback.mediumImpact(); // error notification equivalent
+          setState(() => _showError = true);
+          return;
+        }
         HapticFeedback.mediumImpact();
         widget.onComplete();
       },
@@ -397,7 +464,7 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
       padding: const EdgeInsets.only(left: 44, right: 16),
       child: Row(
         children: [
-          Icon(Icons.timer, size: 14, color: Colors.orange),
+          const Icon(Icons.timer, size: 14, color: Colors.orange),
           const SizedBox(width: 4),
           Text(
             '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
@@ -465,5 +532,46 @@ class _EnhancedWorkoutSetRowState extends ConsumerState<EnhancedWorkoutSetRow> {
   String _formatReps(int? reps) {
     if (reps == null || reps == 0) return '-';
     return reps.toString();
+  }
+}
+
+/// Blinking cursor indicator shown when the tempo input is focused.
+class _BlinkingCursor extends StatefulWidget {
+  @override
+  State<_BlinkingCursor> createState() => _BlinkingCursorState();
+}
+
+class _BlinkingCursorState extends State<_BlinkingCursor>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1.0, end: 0.0).animate(_controller),
+      child: Container(
+        width: 2,
+        height: 14,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      ),
+    );
   }
 }

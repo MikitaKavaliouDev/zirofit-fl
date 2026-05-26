@@ -7,6 +7,7 @@ import 'package:zirofit_fl/features/onboarding/providers/onboarding_provider.dar
 import 'package:zirofit_fl/features/onboarding/widgets/onboarding_progress_indicator.dart';
 import 'package:zirofit_fl/features/onboarding/widgets/onboarding_nav_buttons.dart';
 import 'package:zirofit_fl/features/onboarding/widgets/steps/welcome_step.dart';
+import 'package:zirofit_fl/features/onboarding/widgets/steps/language_selection_step.dart';
 import 'package:zirofit_fl/features/onboarding/widgets/steps/map_location_step.dart';
 import 'package:zirofit_fl/features/onboarding/widgets/steps/avatar_photo_step.dart';
 import 'package:zirofit_fl/features/onboarding/widgets/steps/physical_stats_step.dart';
@@ -94,19 +95,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   bool _isNextEnabled() {
     final state = ref.read(onboardingProvider);
     switch (state.currentStep) {
-      case 1: // Map Location — optional
+      case 1: // Language Selection — always has default
         return true;
-      case 2: // Avatar Photo — optional
+      case 2: // Map Location — optional
         return true;
-      case 3: // Physical Stats — optional
+      case 3: // Avatar Photo — optional
         return true;
-      case 4: // Experience Level — always has default
+      case 4: // Physical Stats — optional
         return true;
-      case 5: // Fitness Goals — at least 1 required
+      case 5: // Experience Level — always has default
+        return true;
+      case 6: // Fitness Goals — at least 1 required
         return state.hasFitnessGoals;
-      case 6: // Trainer Finder — optional
+      case 7: // Trainer Finder — optional
         return true;
-      case 7: // Permissions — optional (can skip non-essential)
+      case 8: // Permissions — optional (can skip non-essential)
         return true;
       default:
         return true;
@@ -184,6 +187,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     physics: const ClampingScrollPhysics(),
                     children: const [
                       WelcomeStep(),
+                      LanguageSelectionStep(),
                       MapLocationStep(),
                       AvatarPhotoStep(),
                       PhysicalStatsStep(),

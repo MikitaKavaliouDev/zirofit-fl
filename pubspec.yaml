@@ -19,6 +19,8 @@ dependencies:
 
   # Networking
   dio: ^5.7.0
+  dio_cookie_manager: ^3.1.0
+  cookie_jar: ^4.0.8
 
   # Local Database
   drift: ^2.25.1
@@ -29,6 +31,8 @@ dependencies:
   # Auth
   supabase_flutter: ^2.8.4
   flutter_secure_storage: ^9.2.4
+  sign_in_with_apple: ^6.1.0
+  crypto: ^3.0.6
 
   # Connectivity
   connectivity_plus: ^6.1.4
@@ -69,6 +73,9 @@ dependencies:
   # Text-to-Speech
   flutter_tts: ^4.2.3
 
+  # Audio playback for ElevenLabs TTS streaming
+  audioplayers: ^6.4.0
+
   # Deep Linking
   app_links: ^6.3.2
 
@@ -80,6 +87,9 @@ dependencies:
   firebase_messaging: ^15.2.4
 
   timezone: any
+  qr_flutter: ^4.1.0
+  qr: ^3.0.2
+  mobile_scanner: ^7.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

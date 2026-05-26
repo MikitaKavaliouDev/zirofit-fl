@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/shared/widgets/success_view.dart';
@@ -104,6 +105,29 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
         _isSubmitting = false;
         _error = _extractErrorMessage(e);
       });
+    }
+  }
+
+  Future<void> _launchEmailFallback() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'contact@ziro.fit',
+      queryParameters: {
+        'subject': 'Ziro Fit Support: ${_subjects.firstWhere((s) => s.$1 == _selectedSubject).$2}',
+        'body': '\n\n---\nApp Version: $_appVersion\nOS: $_osVersion',
+      },
+    );
+    try {
+      await launchUrl(uri);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open email client'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -330,6 +354,33 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // -----------------------------------------------------------------
+              // Email fallback
+              // -----------------------------------------------------------------
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Prefer email? ',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _launchEmailFallback(),
+                    child: Text(
+                      'contact@ziro.fit',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

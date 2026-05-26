@@ -5,12 +5,16 @@ import 'package:zirofit_fl/core/network/api_client.dart';
 import 'package:zirofit_fl/data/models/exercise.dart';
 import 'package:zirofit_fl/features/trainer/providers/custom_exercises_provider.dart';
 import 'package:zirofit_fl/features/trainer/screens/custom_exercises_screen.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:zirofit_fl/data/sync/sync_engine.dart';
 import '../../helpers/test_setup.dart';
+
+class MockSyncEngine extends Mock implements SyncEngine {}
 
 class FakeCustomExercisesNotifier extends TrainerCustomExercisesNotifier {
   TrainerCustomExercisesState _s;
   FakeCustomExercisesNotifier(this._s)
-      : super(apiClient: ApiClient.instance) {
+      : super(apiClient: ApiClient.instance, syncEngine: MockSyncEngine()) {
     super.state = _s;
   }
 

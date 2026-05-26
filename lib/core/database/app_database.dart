@@ -60,7 +60,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.withExecutor(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      // Future migrations go here as from/to version blocks
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA journal_mode=WAL');
+      await customStatement('PRAGMA foreign_keys=ON');
+    },
+  );
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {

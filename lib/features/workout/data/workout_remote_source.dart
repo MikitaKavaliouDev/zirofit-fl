@@ -8,6 +8,7 @@ import 'package:zirofit_fl/data/models/workout_session.dart';
 import 'package:zirofit_fl/data/models/workout_summary.dart';
 import 'package:zirofit_fl/data/models/sync_action.dart';
 import 'package:zirofit_fl/data/models/workout_program.dart';
+import 'package:zirofit_fl/data/models/template_exercise.dart';
 import 'package:zirofit_fl/data/models/workout_template.dart';
 
 /// Provider for [WorkoutRemoteSource] singleton.
@@ -125,8 +126,8 @@ class WorkoutRemoteSource {
               return ClientExerciseLog.fromJson(
                 {
                   ...logJson,
-                  if (exerciseId != null) 'exerciseId': exerciseId,
-                  if (exerciseName != null) 'exerciseName': exerciseName,
+                  'exerciseId': ?exerciseId,
+                  'exerciseName': ?exerciseName,
                 },
                 sessionClientId: sessionClientId,
                 workoutSessionId: session.id,
@@ -187,8 +188,8 @@ return (session: session, logs: logsList);
   final log = ClientExerciseLog.fromJson(
     {
       ...logJson,
-      if (nestedExerciseId != null) 'exerciseId': nestedExerciseId,
-      if (exerciseName != null) 'exerciseName': exerciseName,
+      'exerciseId': ?nestedExerciseId,
+      'exerciseName': ?exerciseName,
     },
   );
 
@@ -330,7 +331,7 @@ return (session: session, logs: logsList);
   }) async {
     final body = <String, dynamic>{
       'name': name,
-      if (description != null) 'description': description,
+      'description': ?description,
     };
 
     await _apiClient.post<Map<String, dynamic>>(
@@ -363,6 +364,19 @@ return (session: session, logs: logsList);
     return WorkoutSession.fromJson(sessionMap ?? data);
   }
 
+  /// GET /api/trainer/programs/templates/{templateId}/exercises
+  /// Fetches the exercise steps for a given workout template.
+  Future<List<TemplateExercise>> fetchTemplateExercises(String templateId) async {
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      ApiConstants.templateExercises(templateId),
+    );
+    final data = response['data'] as Map<String, dynamic>? ?? response;
+    final exercisesList = data['exercises'] as List<dynamic>? ?? [];
+    return exercisesList
+        .map((e) => TemplateExercise.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// POST /api/exercises/custom
   /// Creates a new custom exercise for the client.
   Future<Exercise> createCustomExercise({
@@ -373,9 +387,9 @@ return (session: session, logs: logsList);
   }) async {
     final body = <String, dynamic>{
       'name': name,
-      if (muscleGroup != null) 'muscleGroup': muscleGroup,
-      if (equipment != null) 'equipment': equipment,
-      if (description != null) 'description': description,
+      'muscleGroup': ?muscleGroup,
+      'equipment': ?equipment,
+      'description': ?description,
     };
 
     final response = await _apiClient.post<ApiResponse<Exercise>>(

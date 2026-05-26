@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:zirofit_fl/core/constants/api_constants.dart';
 import 'package:zirofit_fl/core/network/api_exception.dart';
 import 'package:zirofit_fl/core/network/auth_interceptor.dart';
+import 'package:zirofit_fl/core/network/cookie_storage.dart';
 import 'package:zirofit_fl/core/network/retry_interceptor.dart';
 import 'package:zirofit_fl/core/network/secure_storage.dart';
 
@@ -14,7 +16,7 @@ import 'package:zirofit_fl/core/network/secure_storage.dart';
 /// // Bootstrap (once at app startup)
 /// ApiClient.configure(
 ///   secureStorage: SecureStorage(),
-///   onLogout: () => GoRouter.of(context).go('/login'),
+///   onUnauthorized: (mode) => GoRouter.of(context).go('/login'),
 /// );
 ///
 /// // Anywhere else
@@ -45,15 +47,27 @@ class ApiClient {
 
   /// Initialises the singleton with the given dependencies.
   ///
+  /// [isTrainer] sets the initial auth mode. When `true` the client uses
+  /// cookie-based auth (trainer mode); when `false` (default) the existing
+  /// Bearer-token auth is used (client mode). The mode can be changed later
+  /// via [setMode].
+  ///
+  /// [onUnauthorized] is called with the failing mode ('trainer' or 'client')
+  /// when a 401 response cannot be resolved by a token refresh. The receiver
+  /// should surgically clear only that mode's tokens and show a session-expired
+  /// message.
+  ///
   /// Safe to call multiple times – only the first call takes effect.
   static void configure({
     required SecureStorage secureStorage,
-    void Function()? onLogout,
+    void Function(String mode)? onUnauthorized,
+    bool isTrainer = false,
   }) {
     if (_instance != null) return;
     _instance = ApiClient._(
       secureStorage: secureStorage,
-      onLogout: onLogout,
+      onUnauthorized: onUnauthorized,
+      isTrainer: isTrainer,
     );
   }
 
@@ -73,19 +87,32 @@ class ApiClient {
   final AuthInterceptor authInterceptor;
   final RetryInterceptor retryInterceptor;
 
+  /// Role-scoped cookie jar. Non-null when the client was configured with
+  /// cookie support; `null` in configurations that disable cookies entirely.
+  final CookieStorage? cookieStorage;
+
+  /// Cookie-manager interceptor. Added to [dio] only while in trainer mode;
+  /// removed when switching to client mode.
+  CookieManager? _cookieManager;
+
   // ---------------------------------------------------------------------------
   // Private constructor
   // ---------------------------------------------------------------------------
 
   ApiClient._({
     required SecureStorage secureStorage,
-    void Function()? onLogout,
+    void Function(String mode)? onUnauthorized,
+    bool isTrainer = false,
   })  : authInterceptor = AuthInterceptor(
           secureStorage: secureStorage,
-          onLogout: onLogout,
+          onUnauthorized: onUnauthorized,
         ),
         retryInterceptor = RetryInterceptor(),
+        cookieStorage = CookieStorage(),
         dio = Dio() {
+    // -- Create cookie infrastructure --------------------------------------
+    _cookieManager = CookieManager(cookieStorage!);
+
     // Wire the Dio instance into the auth interceptor for token-refresh requests.
     authInterceptor.attachDio(dio);
 
@@ -104,15 +131,23 @@ class ApiClient {
 
     // -- Register interceptors --------------------------------------------
     // Order matters:
-    //   Request:  Retry → Auth → Log
-    //   Error:    Log   → Auth → Retry
+    //   Request:  CookieManager → Retry → Auth → Log
+    //   Error:    Log           → Auth → Retry → CookieManager
     //
     // AuthInterceptor handles 401s first (refresh + retry). For non-401
     // errors RetryInterceptor retries transient network failures.
+    // CookieManager is only added when trainer mode is active.
     dio.interceptors.addAll([
       retryInterceptor,
       authInterceptor,
     ]);
+
+    // Attach the CookieManager interceptor if the initial mode is trainer.
+    // We insert it at index 0 so it runs before Retry on request and after
+    // Retry on error/response (Dio executes response interceptors in reverse).
+    if (isTrainer) {
+      _insertCookieManager();
+    }
 
     if (kDebugMode) {
       dio.interceptors.add(
@@ -122,6 +157,68 @@ class ApiClient {
         ),
       );
     }
+
+    // Sync auth-interceptor mode with the initial setting.
+    authInterceptor.setMode(isTrainer);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mode switching
+  // ---------------------------------------------------------------------------
+
+  /// Switches the client between **trainer mode** (cookie-based auth) and
+  /// **client mode** (Bearer-token auth).
+  ///
+  /// In trainer mode a [CookieManager] interceptor is inserted at the front of
+  /// the interceptor chain so that cookies are attached to every request and
+  /// `Set-Cookie` headers are captured from every response. The auth
+  /// interceptor also stops attaching Bearer tokens.
+  ///
+  /// In client mode the [CookieManager] is removed and the existing Bearer-
+  /// token logic takes over.
+  void setMode(bool isTrainer) {
+    authInterceptor.setMode(isTrainer);
+
+    if (isTrainer) {
+      // Activate the trainer cookie jar so loadForRequest/saveFromResponse
+      // operate on the correct role scope.
+      cookieStorage!.activateRole('trainer');
+      _insertCookieManager();
+    } else {
+      cookieStorage!.deactivate();
+      _removeCookieManager();
+    }
+  }
+
+  /// Inserts the [CookieManager] interceptor at the front of the chain if it
+  /// is not already present.
+  void _insertCookieManager() {
+    if (_cookieManager == null) return;
+    if (!dio.interceptors.contains(_cookieManager)) {
+      dio.interceptors.insert(0, _cookieManager!);
+    }
+  }
+
+  /// Removes the [CookieManager] interceptor from the chain if present.
+  void _removeCookieManager() {
+    if (_cookieManager == null) return;
+    if (dio.interceptors.contains(_cookieManager)) {
+      dio.interceptors.remove(_cookieManager);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cookie management
+  // ---------------------------------------------------------------------------
+
+  /// Deletes all cookies stored for [role].
+  Future<void> clearCookiesForRole(String role) async {
+    await cookieStorage?.clearCookies(role);
+  }
+
+  /// Deletes cookies for every role.
+  Future<void> clearAllCookies() async {
+    await cookieStorage?.clearAllCookies();
   }
 
   // ---------------------------------------------------------------------------
