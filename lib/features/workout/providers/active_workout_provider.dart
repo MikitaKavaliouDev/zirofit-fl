@@ -382,6 +382,12 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
   /// POST /api/workout-sessions/start
   /// Starts a new workout, optionally from a template.
   Future<void> startWorkout({String? templateId}) async {
+    if (state.hasActiveSession) {
+      state = state.copyWith(error: 'A workout is already in progress. Please finish it before starting a new one.');
+      setSyncingWorkout(false);
+      return;
+    }
+
     setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -395,8 +401,13 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       timerNotifier.onLongSessionWarning = () {
         state = state.copyWith(showLongSessionWarning: true);
       };
+      timerNotifier.on4HourAutoEnd = () {
+        state = state.copyWith(showLongSessionWarning: true, longSessionWarningAcknowledged: false);
+      };
       timerNotifier.onAutoEnd = () {
-        finishWorkoutWithOption(FinishOption.completeUnfinished);
+        // 4-hour auto-end is handled by on4HourAutoEnd + dialog flow.
+        // The UI dialog shows "Still Active" / "End Workout".
+        // "End Workout" calls finishWorkoutWithOption via _finishWorkoutDirectly.
       };
 
       // Start workout timer with actual session start time for accurate elapsed calculation
@@ -431,6 +442,12 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     required String clientId,
     required String clientName,
   }) async {
+    if (state.hasActiveSession) {
+      state = state.copyWith(error: 'A workout session is already active for this client.');
+      setSyncingWorkout(false);
+      return;
+    }
+
     setSyncingWorkout(true);
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -444,8 +461,11 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       timerNotifier.onLongSessionWarning = () {
         state = state.copyWith(showLongSessionWarning: true);
       };
+      timerNotifier.on4HourAutoEnd = () {
+        state = state.copyWith(showLongSessionWarning: true, longSessionWarningAcknowledged: false);
+      };
       timerNotifier.onAutoEnd = () {
-        finishWorkoutWithOption(FinishOption.completeUnfinished);
+        // 4-hour auto-end is handled by on4HourAutoEnd + dialog flow
       };
 
       // Start workout timer with actual session start time for accurate elapsed calculation
@@ -554,8 +574,11 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       timerNotifier.onLongSessionWarning = () {
         state = state.copyWith(showLongSessionWarning: true);
       };
+      timerNotifier.on4HourAutoEnd = () {
+        state = state.copyWith(showLongSessionWarning: true, longSessionWarningAcknowledged: false);
+      };
       timerNotifier.onAutoEnd = () {
-        finishWorkoutWithOption(FinishOption.completeUnfinished);
+        // 4-hour auto-end is handled by on4HourAutoEnd + dialog flow
       };
 
       // Resume rest timer if one was active on the server

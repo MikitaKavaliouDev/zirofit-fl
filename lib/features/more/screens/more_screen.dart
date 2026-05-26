@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zirofit_fl/features/settings/screens/contact_support_screen.dart';
 import 'package:zirofit_fl/features/settings/screens/language_settings_screen.dart';
 
@@ -14,11 +15,17 @@ class MoreScreen extends ConsumerStatefulWidget {
 
 class _MoreScreenState extends ConsumerState<MoreScreen> {
   String _appVersion = '';
+  bool _personalRoutinesEnabled = false;
+  bool _voiceLogEnabled = false;
+  bool _voiceFeedbackEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVersion());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadVersion();
+      _loadToggleStates();
+    });
   }
 
   Future<void> _loadVersion() async {
@@ -32,6 +39,35 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
         setState(() => _appVersion = 'v1.0.6');
       }
     }
+  }
+
+  Future<void> _loadToggleStates() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _personalRoutinesEnabled =
+          prefs.getBool('personal_routines_enabled') ?? false;
+      _voiceLogEnabled = prefs.getBool('voice_log_enabled') ?? false;
+      _voiceFeedbackEnabled = prefs.getBool('voice_feedback_enabled') ?? false;
+    });
+  }
+
+  Future<void> _setPersonalRoutinesEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('personal_routines_enabled', value);
+    if (mounted) setState(() => _personalRoutinesEnabled = value);
+  }
+
+  Future<void> _setVoiceLogEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('voice_log_enabled', value);
+    if (mounted) setState(() => _voiceLogEnabled = value);
+  }
+
+  Future<void> _setVoiceFeedbackEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('voice_feedback_enabled', value);
+    if (mounted) setState(() => _voiceFeedbackEnabled = value);
   }
 
   @override
@@ -129,6 +165,27 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
           ),
           const _SectionHeader(title: 'SUPPORT & PREFERENCES'),
           const SizedBox(height: 8),
+          _MoreSwitchTile(
+            icon: Icons.fitness_center_outlined,
+            title: 'Personal Routines',
+            subtitle: 'Enable experimental personal routines',
+            value: _personalRoutinesEnabled,
+            onChanged: _setPersonalRoutinesEnabled,
+          ),
+          _MoreSwitchTile(
+            icon: Icons.mic_outlined,
+            title: 'Voice Log',
+            subtitle: 'Log workouts using voice commands',
+            value: _voiceLogEnabled,
+            onChanged: _setVoiceLogEnabled,
+          ),
+          _MoreSwitchTile(
+            icon: Icons.volume_up_outlined,
+            title: 'Voice Feedback',
+            subtitle: 'Hear voice feedback during workouts',
+            value: _voiceFeedbackEnabled,
+            onChanged: _setVoiceFeedbackEnabled,
+          ),
           _MoreListTile(
             icon: Icons.language_rounded,
             title: 'Language',
@@ -216,6 +273,41 @@ class _MoreListTile extends StatelessWidget {
           title: Text(title),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreSwitchTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _MoreSwitchTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: SwitchListTile(
+          secondary: Icon(icon),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          value: value,
+          onChanged: onChanged,
         ),
       ),
     );

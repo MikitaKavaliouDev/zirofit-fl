@@ -15,6 +15,7 @@ import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dar
 /// expand chevron, pause/resume, and swipe gestures.
 ///
 /// Tapping expand or swiping up expands to full session.
+/// Swiping down dismisses/collapses the mini player.
 /// Tap anywhere else also expands.
 class WorkoutMiniPlayer extends ConsumerStatefulWidget {
   const WorkoutMiniPlayer({
@@ -85,10 +86,21 @@ class _WorkoutMiniPlayerState extends ConsumerState<WorkoutMiniPlayer>
       _dragAccumulator = 0;
       _isDragging = false;
       widget.onExpand?.call();
+    } else if (_dragAccumulator <= -80) {
+      // Threshold reached: dismiss with haptic feedback
+      HapticFeedback.mediumImpact();
+      _dragAccumulator = 0;
+      _isDragging = false;
+      _handleClose();
     }
   }
 
   void _handleDragEnd(DragEndDetails details) {
+    // Fast downward swipe (>500 px/s): dismiss immediately
+    if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
+      _handleClose();
+      return;
+    }
     _dragAccumulator = 0;
     _isDragging = false;
   }

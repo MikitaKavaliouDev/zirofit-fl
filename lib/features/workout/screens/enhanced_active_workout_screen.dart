@@ -12,6 +12,7 @@ import 'package:zirofit_fl/features/auth/providers/auth_provider.dart';
 import 'package:zirofit_fl/features/clients/providers/client_list_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/active_workout_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/exercise_library_provider.dart';
+import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/session_overlay_provider.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_summary_screen.dart';
 import 'package:zirofit_fl/core/services/apple_calendar_service.dart';
@@ -556,6 +557,22 @@ class _EnhancedActiveWorkoutScreenState
     }
   }
 
+  /// Shows a non-blocking toast at the 2-hour mark to warn the user
+  /// about the workout duration. Matches iOS behavior where a banner/toast
+  /// appears instead of a blocking dialog.
+  void _showTwoHourWarningToast() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "You've been working out for 2 hours. Consider taking a break.",
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
   // ===========================================================================
   // Voice Input (iOS voiceLogOverlay equivalent)
   // ===========================================================================
@@ -859,12 +876,22 @@ class _EnhancedActiveWorkoutScreenState
     );
 
     // Long session warning listener
+    // At 2-hour mark: show a non-blocking toast (matching iOS behavior)
+    // At 4-hour mark: show the "High Duration Detected" blocking dialog
     ref.listen<bool>(
       activeWorkoutProvider.select((s) => s.showLongSessionWarning),
       (previous, next) {
         if (next == true) {
-          _showHighDurationAlert = true;
-          setState(() {});
+          final elapsed = ref.read(workoutTimerProvider).elapsed;
+          if (elapsed.inHours >= 3) {
+            // 4-hour mark: show blocking dialog with "Still Active" / "End Workout"
+            _showHighDurationAlert = true;
+            setState(() {});
+          } else {
+            // 2-hour mark: show non-blocking toast
+            _showTwoHourWarningToast();
+            ref.read(activeWorkoutProvider.notifier).acknowledgeLongSessionWarning();
+          }
         }
       },
     );
