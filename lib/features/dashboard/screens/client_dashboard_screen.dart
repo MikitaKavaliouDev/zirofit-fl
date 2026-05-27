@@ -917,6 +917,18 @@ class _ClientDashboardScreenState
                 },
               ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.card_giftcard,
+                label: 'Packages',
+                subtitle: 'View & buy',
+                color: Colors.orange,
+                onTap: () {
+                  context.go('/client/packages');
+                },
+              ),
+            ),
           ],
         ),
       ],

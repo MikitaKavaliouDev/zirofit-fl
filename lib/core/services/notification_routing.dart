@@ -41,6 +41,7 @@ class NotificationRoutingService {
     String notificationType, {
     String? id,
     String? role,
+    String? token,
   }) {
     switch (notificationType) {
       case typeNewMessage:
@@ -61,6 +62,11 @@ class NotificationRoutingService {
         return null;
 
       case typeTrainerInvite:
+        // Use the invitation token if provided; otherwise fall back to the
+        // client/trainer screen.
+        if (token != null && token.isNotEmpty) {
+          return '/connect?token=$token';
+        }
         return '/client/trainer';
 
       default:
@@ -93,13 +99,19 @@ class NotificationRoutingService {
     final type = data['notification_type'] as String?;
     final id = data['id'] as String?;
     final role = data['role'] as String?;
+    final token = data['token'] as String?;
 
     if (type == null) {
       router.go('/notifications');
       return;
     }
 
-    final route = routeForNotificationType(type, id: id, role: role);
+    final route = routeForNotificationType(
+      type,
+      id: id,
+      role: role,
+      token: token,
+    );
     if (route != null) {
       router.go(route);
     } else {

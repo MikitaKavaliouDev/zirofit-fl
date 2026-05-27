@@ -18,6 +18,8 @@ import 'package:zirofit_fl/features/workout/providers/workout_timer_provider.dar
 import 'package:zirofit_fl/features/workout/providers/rest_timer_manager_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/exercise_stats_provider.dart';
 import 'package:zirofit_fl/features/workout/providers/exercise_library_provider.dart';
+import 'package:zirofit_fl/features/workout/services/live_activity_data.dart';
+import 'package:zirofit_fl/features/workout/services/live_activity_service.dart';
 import 'package:zirofit_fl/features/workout/services/new_record_detection_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -206,6 +208,7 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
   final ConnectivityManager? _connectivity;
   final db.AppDatabase? _db;
   final NewRecordDetectionService _newRecordDetectionService;
+  final LiveActivityService _liveActivity;
 
   ActiveWorkoutNotifier({
     required WorkoutRemoteSource remoteSource,
@@ -213,11 +216,13 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     SyncEngine? syncEngine,
     ConnectivityManager? connectivity,
     db.AppDatabase? database,
+    LiveActivityService? liveActivity,
   }) : _remoteSource = remoteSource,
         _ref = ref,
         _syncEngine = syncEngine,
         _connectivity = connectivity,
         _db = database,
+        _liveActivity = liveActivity ?? LiveActivityService(),
         _newRecordDetectionService = NewRecordDetectionService(
           getHistoricalLogs: (exerciseId) async {
             return ref.read(exerciseStatsProvider.notifier).getHistoricalLogs(exerciseId);
@@ -424,6 +429,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         restSeconds: 90, // default rest timer
         exerciseNames: const {},
       );
+
+      // iOS Live Activity: show in Dynamic Island / Lock Screen
+      unawaited(_liveActivity.startWorkout(session));
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -478,6 +486,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         exerciseNames: const {},
         clientName: clientName,
       );
+
+      // iOS Live Activity: start with trainer-led session info
+      unawaited(_liveActivity.startWorkout(session));
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
       debugPrint('STACKTRACE: $st');
@@ -565,6 +576,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         logs: result.logs,
         exerciseNames: const {},
       );
+
+      // iOS Live Activity: re-establish for resumed session
+      unawaited(_liveActivity.startWorkout(result.session));
 
       // Start session elapsed timer with actual session start time
       _ref.read(workoutTimerProvider.notifier).reset(result.session.startTime);
@@ -752,6 +766,21 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
 
       state = state.copyWith(logs: syncedLogs);
 
+      // iOS Live Activity: update with current exercise/set info
+      final exName = state.exerciseNames[existingLog.exerciseId] ?? exerciseName ?? 'Exercise';
+      final totalExercises = state.exerciseNames.length;
+      final exerciseLogs = state.logs.where((l) => l.exerciseId == existingLog.exerciseId).toList();
+      final currentSetIndex = exerciseLogs.indexWhere((l) => l.id == actualLogId) + 1;
+      unawaited(_liveActivity.updateExercise(
+        exerciseName: exName,
+        setCount: currentSetIndex > 0 ? currentSetIndex : exerciseLogs.length,
+        totalSets: exerciseLogs.length,
+        exerciseIndex: state.exerciseNames.keys.toList().indexOf(existingLog.exerciseId) + 1,
+        totalExercises: totalExercises > 0 ? totalExercises : 1,
+        reps: log.reps?.toDouble() ?? existingLog.reps?.toDouble() ?? 0,
+        weight: log.weight ?? existingLog.weight ?? 0,
+      ));
+
       // Check for new personal record (iOS-aligned: uses full historical data)
       final result = await _newRecordDetectionService.checkForNewRecord(
         existingLog.exerciseId,
@@ -811,6 +840,15 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       // Stop workout timer
       _ref.read(workoutTimerProvider.notifier).stop();
       final finishedSession = await _remoteSource.finishWorkout(sessionId);
+
+      // iOS Live Activity: end with workout summary
+      final timer = _ref.read(workoutTimerProvider);
+      unawaited(_liveActivity.endWithSummary(
+        duration: timer.elapsed,
+        totalSets: state.completedSets,
+        totalVolume: _calculateTotalVolume(),
+      ));
+
       state = const ActiveWorkoutState();
       return finishedSession;
     } catch (e, st) {
@@ -841,6 +879,10 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
             data: log.toJson(),
           );
         }
+
+        // iOS Live Activity: end even in offline mode
+        unawaited(_liveActivity.endActivity());
+
         state = const ActiveWorkoutState();
         return currentSession;
       } else {
@@ -871,6 +913,10 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       // Stop workout timer
       _ref.read(workoutTimerProvider.notifier).stop();
       await _remoteSource.cancelWorkout(sessionId);
+
+      // iOS Live Activity: end the activity
+      unawaited(_liveActivity.endActivity());
+
       state = const ActiveWorkoutState();
     } catch (e, st) {
       debugPrint('WORKOUT_ERROR: $e');
@@ -916,6 +962,18 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
       await _remoteSource.startRest(sessionId);
       // Delegate to RestTimerManager — it handles ticking internally
       _ref.read(restTimerManagerProvider.notifier).start(duration: 90);
+
+      // iOS Live Activity: show rest countdown in Dynamic Island
+      final currentLog = state.logs.lastOrNull;
+      final nextExerciseName = currentLog != null
+          ? state.exerciseNames[currentLog.exerciseId]
+          : null;
+      unawaited(_liveActivity.setRestTimer(
+        secondsRemaining: 90,
+        totalSeconds: 90,
+        nextExerciseName: nextExerciseName,
+      ));
+
       // restSeconds & isRestRunning synced via listener in constructor
     } catch (e, st) {
       debugPrint('REST_TIMER_ERROR: $e');
@@ -931,6 +989,17 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         await _persistSessionUpdate(sessionId);
         // Still start the rest timer locally
         _ref.read(restTimerManagerProvider.notifier).start(duration: 90);
+
+        // iOS Live Activity: show rest countdown even in offline mode
+        final currentLog = state.logs.lastOrNull;
+        final nextExerciseName = currentLog != null
+            ? state.exerciseNames[currentLog.exerciseId]
+            : null;
+        unawaited(_liveActivity.setRestTimer(
+          secondsRemaining: 90,
+          totalSeconds: 90,
+          nextExerciseName: nextExerciseName,
+        ));
       } else {
         state = state.copyWith(error: e.toString());
       }
@@ -952,6 +1021,10 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
     try {
       await _remoteSource.endRest(sessionId);
       _ref.read(restTimerManagerProvider.notifier).stop();
+
+      // iOS Live Activity: clear rest timer display
+      unawaited(_liveActivity.updateRestTimer(0));
+
       // restSeconds & isRestRunning synced via listener in constructor
     } catch (e, st) {
       debugPrint('REST_TIMER_ERROR: $e');
@@ -966,6 +1039,9 @@ class ActiveWorkoutNotifier extends StateNotifier<ActiveWorkoutState> {
         });
         await _persistSessionUpdate(sessionId);
         _ref.read(restTimerManagerProvider.notifier).stop();
+
+        // iOS Live Activity: clear rest timer even in offline mode
+        unawaited(_liveActivity.updateRestTimer(0));
       } else {
         state = state.copyWith(error: e.toString());
       }
@@ -1424,6 +1500,17 @@ try {
     );
   }
 
+  /// Calculates total workout volume (sum of reps × weight across all logs).
+  double _calculateTotalVolume() {
+    double volume = 0;
+    for (final log in state.logs) {
+      if (log.reps != null && log.weight != null) {
+        volume += log.reps! * log.weight!;
+      }
+    }
+    return volume;
+  }
+
   // ---------------------------------------------------------------------------
   // iOS-aligned: Finish workout with option
   // ---------------------------------------------------------------------------
@@ -1455,6 +1542,12 @@ try {
   /// set up in the constructor.
   void togglePause() {
     _ref.read(workoutTimerProvider.notifier).togglePause();
+
+    // iOS Live Activity: update pause state in Dynamic Island
+    final isPaused = _ref.read(workoutTimerProvider).isPaused;
+    unawaited(_liveActivity.updateActivity(
+      LiveActivityData(isPaused: isPaused),
+    ));
   }
 
   /// Acknowledges and dismisses the long-session warning.

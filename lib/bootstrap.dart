@@ -175,6 +175,16 @@ class AppBootstrap {
             router.go('/auth/reset-password?token=$token');
           }
 
+        case DeepLinkRouteType.trainerInvitation:
+          final token = route.invitationToken;
+          if (token != null && token.isNotEmpty) {
+            final trainerName = route.trainerName;
+            final queryParams = trainerName != null
+                ? '?token=$token&trainerName=$trainerName'
+                : '?token=$token';
+            router.go('/connect$queryParams');
+          }
+
         case DeepLinkRouteType.stripeReturn:
           // Forward the raw URI to StripeConnectService for processing.
           if (route.rawUri != null) {

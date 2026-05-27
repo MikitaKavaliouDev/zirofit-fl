@@ -27,8 +27,10 @@ import 'package:zirofit_fl/features/clients/screens/client_analytics_screen.dart
 import 'package:zirofit_fl/features/clients/screens/client_detail_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_history_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/client_list_screen.dart';
+import 'package:zirofit_fl/features/clients/screens/client_packages_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/invite_client_screen.dart';
 import 'package:zirofit_fl/features/clients/screens/live_session_monitor_screen.dart';
+import 'package:zirofit_fl/features/clients/screens/trainer_invitation_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/client_dashboard_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/daily_target_screen.dart';
 import 'package:zirofit_fl/features/dashboard/screens/sharing_requests_screen.dart';
@@ -79,6 +81,7 @@ import 'package:zirofit_fl/features/events/screens/event_map_screen.dart';
 import 'package:zirofit_fl/features/exercises/screens/exercise_list_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/enhanced_active_workout_screen.dart';
 import 'package:zirofit_fl/features/workout/screens/workout_history_screen.dart';
+import 'package:zirofit_fl/features/workout/screens/upcoming_session_detail_screen.dart';
 import 'package:zirofit_fl/features/chat/screens/conversations_list_screen.dart';
 import 'package:zirofit_fl/features/chat/screens/chat_screen.dart';
 import 'package:zirofit_fl/features/notifications/screens/notifications_screen.dart';
@@ -158,6 +161,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             location != '/ai-coach' &&
             !location.startsWith('/events/') &&
             !location.startsWith('/workout/') &&
+            !location.startsWith('/connect') &&
             !location.startsWith('/public-trainer/') &&
             !location.startsWith('/settings/') &&
             !location.startsWith('/chat') &&
@@ -564,6 +568,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(
+            path: '/client/sessions/:id',
+            builder: (_, state) => UpcomingSessionDetailScreen(
+              sessionId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
             path: '/client/progress',
             builder: (_, _) => const PersonalAnalyticsScreen(),
           ),
@@ -666,6 +676,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const MoreScreen(),
           ),
           GoRoute(
+            path: '/client/packages',
+            builder: (_, _) => const ClientPackagesScreen(),
+          ),
+          GoRoute(
             path: '/client/transactions',
             builder: (_, _) => const TransactionHistoryScreen(),
           ),
@@ -688,6 +702,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => EnhancedActiveWorkoutScreen(
           templateId: state.pathParameters['id'],
         ),
+      ),
+      GoRoute(
+        path: '/sessions/:id',
+        builder: (_, state) => UpcomingSessionDetailScreen(
+          sessionId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/connect',
+        builder: (_, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          final trainerName = state.uri.queryParameters['trainerName'];
+          return TrainerInvitationScreen(
+            token: token,
+            trainerName: trainerName,
+          );
+        },
       ),
       GoRoute(
         path: '/movement/:exerciseName',

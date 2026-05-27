@@ -8,7 +8,7 @@ import 'package:zirofit_fl/data/models/check_in.dart';
 import 'package:zirofit_fl/features/checkin/providers/check_in_provider.dart';
 
 // ---------------------------------------------------------------------------
-// Nutrition Compliance enum for segmented picker
+// Nutrition Compliance enum (shared with provider)
 // ---------------------------------------------------------------------------
 
 enum NutritionComplianceOption {
@@ -44,7 +44,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   final DateTime _selectedDate = DateTime.now();
   double _energyLevel = 5;
   double _stressLevel = 5;
-  double _hungerLevel = 5;
   double _digestionLevel = 5;
   NutritionComplianceOption? _nutritionCompliance;
   XFile? _frontPhoto;
@@ -52,7 +51,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   XFile? _backPhoto;
   bool _hasAttemptedNext = false;
 
-  static const _stepLabels = ['Body Metrics', 'How You Feel', 'Photos', 'Notes'];
+  static const _stepCount = 3;
 
   @override
   void initState() {
@@ -79,11 +78,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
     switch (_currentStep) {
       case 0:
-        final weight = _weightController.text.trim();
-        if (weight.isEmpty) return false;
-        final parsed = double.tryParse(weight);
-        if (parsed == null || parsed <= 0) return false;
-        return true;
+        return _weightController.text.trim().isNotEmpty &&
+            double.tryParse(_weightController.text.trim()) != null;
       case 1:
         return _nutritionCompliance != null;
       default:
@@ -92,7 +88,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   void _goToStep(int step) {
-    if (step < 0 || step > 3) return;
+    if (step < 0 || step >= _stepCount) return;
     _pageController.animateToPage(
       step,
       duration: const Duration(milliseconds: 300),
@@ -185,7 +181,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               : null,
           energyLevel: _energyLevel.round(),
           stressLevel: _stressLevel.round(),
-          hungerLevel: _hungerLevel.round(),
+          hungerLevel: null,
           digestionLevel: _digestionLevel.round(),
           nutritionCompliance: _nutritionCompliance!.value,
           clientNotes: _notesController.text.trim(),
@@ -225,12 +221,18 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
     // Show success state
     if (checkInState.isSuccess) {
-      return _buildSuccessView(theme);
+      return _CheckInSuccessView(onDismiss: _dismissSuccess);
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weekly Check-in'),
+        title: Text(
+          _currentStep == 0
+              ? 'Weekly Review'
+              : _currentStep == 1
+                  ? 'Biofeedback'
+                  : 'Visual Progress',
+        ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -243,8 +245,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           if (checkInState.lastCheckIn != null)
             _buildLastCheckInBanner(theme, checkInState.lastCheckIn!),
 
-          // Step indicator
-          _buildStepIndicator(theme),
+          // Capsule progress bar (iOS style)
+          _buildCapsuleProgress(theme),
 
           // Page content
           Expanded(
@@ -252,15 +254,46 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildQuantitativeStep(theme),
-                _buildQualitativeStep(theme),
-                _buildPhotosStep(theme),
-                _buildNotesStep(theme),
+                _CheckInStep1(
+                  weightController: _weightController,
+                  waistController: _waistController,
+                  sleepController: _sleepController,
+                  hasAttemptedNext: _hasAttemptedNext,
+                ),
+                _CheckInStep2(
+                  energyLevel: _energyLevel,
+                  stressLevel: _stressLevel,
+                  digestionLevel: _digestionLevel,
+                  nutritionCompliance: _nutritionCompliance,
+                  hasAttemptedNext: _hasAttemptedNext,
+                  onEnergyChanged: (v) => setState(() => _energyLevel = v),
+                  onStressChanged: (v) => setState(() => _stressLevel = v),
+                  onDigestionChanged: (v) => setState(() => _digestionLevel = v),
+                  onNutritionChanged: (v) =>
+                      setState(() => _nutritionCompliance = v),
+                ),
+                _CheckInStep3(
+                  frontPhoto: _frontPhoto,
+                  sidePhoto: _sidePhoto,
+                  backPhoto: _backPhoto,
+                  notesController: _notesController,
+                  onPickPhoto: _pickPhotoForSlot,
+                  onClearPhoto: (slot) => setState(() {
+                    switch (slot) {
+                      case 'front':
+                        _frontPhoto = null;
+                      case 'side':
+                        _sidePhoto = null;
+                      case 'back':
+                        _backPhoto = null;
+                    }
+                  }),
+                ),
               ],
             ),
           ),
 
-          // Bottom navigation
+          // Bottom navigation (iOS style)
           _buildBottomNavigation(theme, checkInState),
         ],
       ),
@@ -268,778 +301,105 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   // -------------------------------------------------------------------------
-  // Success view
+  // iOS-style capsule progress bar
   // -------------------------------------------------------------------------
 
-  Widget _buildSuccessView(ThemeData theme) {
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.elasticOut,
-              builder: (context, scale, child) {
-                return Transform.scale(
-                  scale: scale,
-                  child: child,
-                );
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.check_circle,
-                      size: 64,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Check-in Submitted!',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Your trainer has been notified.',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  FilledButton(
-                    onPressed: _dismissSuccess,
-                    child: const Text('Done'),
-                  ),
-                ],
+  Widget _buildCapsuleProgress(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+      child: Row(
+        children: List.generate(_stepCount, (i) {
+          final isFilled = i <= _currentStep;
+          return Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              height: 6,
+              margin: EdgeInsets.only(
+                left: i > 0 ? 6 : 0,
+                right: i < _stepCount - 1 ? 6 : 0,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color: isFilled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outlineVariant,
               ),
             ),
-          ),
-        ),
+          );
+        }),
       ),
     );
   }
 
   // -------------------------------------------------------------------------
-  // Step indicator
-  // -------------------------------------------------------------------------
-
-  Widget _buildStepIndicator(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Column(
-        children: [
-          // Step circles + connecting line
-          Row(
-            children: List.generate(_stepLabels.length, (i) {
-              final isCompleted = i < _currentStep;
-              final isCurrent = i == _currentStep;
-
-              return Expanded(
-                child: _buildStepDot(theme, i, isCompleted, isCurrent),
-              );
-            }),
-          ),
-          const SizedBox(height: 6),
-          // Labels
-          Row(
-            children: List.generate(_stepLabels.length, (i) {
-              final isActive = i <= _currentStep;
-              return Expanded(
-                child: Text(
-                  _stepLabels[i],
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                    color: isActive
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepDot(ThemeData theme, int index, bool isCompleted, bool isCurrent) {
-    return Row(
-      children: [
-        // Dot
-        if (index > 0)
-          Expanded(
-            child: Container(
-              height: 2,
-              color: index <= _currentStep
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
-            ),
-          ),
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isCompleted
-                ? theme.colorScheme.primary
-                : isCurrent
-                    ? theme.colorScheme.primaryContainer
-                    : Colors.transparent,
-            border: Border.all(
-              color: isCurrent || isCompleted
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
-              width: 2,
-            ),
-          ),
-          child: Center(
-            child: isCompleted
-                ? Icon(Icons.check, size: 16, color: theme.colorScheme.onPrimary)
-                : Text(
-                    '${index + 1}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isCurrent
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-          ),
-        ),
-        if (index < _stepLabels.length - 1)
-          Expanded(
-            child: Container(
-              height: 2,
-              color: index < _currentStep
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
-            ),
-          ),
-      ],
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // Bottom navigation
+  // Bottom navigation (iOS style)
   // -------------------------------------------------------------------------
 
   Widget _buildBottomNavigation(ThemeData theme, CheckInState checkInState) {
+    final isLastStep = _currentStep == _stepCount - 1;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Row(
         children: [
-          // Back button
+          // Back button (iOS style circle)
           if (_currentStep > 0)
-            TextButton(
-              onPressed: checkInState.isSubmitting ? null : _previousStep,
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurfaceVariant,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              ),
-              child: const Text('Back'),
-            ),
-
-          if (_currentStep > 0) const Spacer(),
-
-          // Next or Submit button
-          FilledButton(
-            onPressed: checkInState.isSubmitting
-                ? null
-                : (_currentStep < 3 ? _nextStep : _submit),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: checkInState.isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    _currentStep == 3 ? 'Submit' : 'Next',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // PAGE 1 — QuantitativeStep
-  // -------------------------------------------------------------------------
-
-  Widget _buildQuantitativeStep(ThemeData theme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'How did your body change?',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Track your key body metrics for this week',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Weight
-          Text(
-            'Weight (kg) *',
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _weightController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              hintText: 'Enter your weight',
-              prefixIcon: Icon(Icons.monitor_weight_outlined),
-              suffixText: 'kg',
-            ),
-            onChanged: (_) {
-              if (_hasAttemptedNext) setState(() {});
-            },
-          ),
-          if (_hasAttemptedNext && _weightController.text.trim().isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 16),
-              child: Text(
-                'Weight is required',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
+            GestureDetector(
+              onTap: checkInState.isSubmitting ? null : _previousStep,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-          const SizedBox(height: 20),
 
-          // Waist
-          Text(
-            'Waist (cm)',
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _waistController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              hintText: 'Optional',
-              prefixIcon: Icon(Icons.straighten_outlined),
-              suffixText: 'cm',
-            ),
-          ),
-          const SizedBox(height: 20),
+          if (_currentStep > 0) const SizedBox(width: 16),
 
-          // Sleep
-          Text(
-            'Sleep (hrs)',
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _sleepController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              hintText: 'Optional',
-              prefixIcon: Icon(Icons.bedtime_outlined),
-              suffixText: 'hrs',
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // PAGE 2 — QualitativeStep
-  // -------------------------------------------------------------------------
-
-  Widget _buildQualitativeStep(ThemeData theme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'How do you feel?',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Rate each on a scale of 1–10',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          _buildSliderCard(
-            theme: theme,
-            label: 'Energy Level',
-            value: _energyLevel,
-            onChanged: (v) => setState(() => _energyLevel = v),
-            minLabel: 'Very Low',
-            maxLabel: 'High Energy',
-            icon: Icons.bolt,
-          ),
-          const SizedBox(height: 8),
-
-          _buildSliderCard(
-            theme: theme,
-            label: 'Stress Level',
-            value: _stressLevel,
-            onChanged: (v) => setState(() => _stressLevel = v),
-            minLabel: 'Relaxed',
-            maxLabel: 'Very Stressed',
-            icon: Icons.psychology,
-          ),
-          const SizedBox(height: 8),
-
-          _buildSliderCard(
-            theme: theme,
-            label: 'Hunger Level',
-            value: _hungerLevel,
-            onChanged: (v) => setState(() => _hungerLevel = v),
-            minLabel: 'Not Hungry',
-            maxLabel: 'Very Hungry',
-            icon: Icons.restaurant,
-          ),
-          const SizedBox(height: 8),
-
-          _buildSliderCard(
-            theme: theme,
-            label: 'Digestion Level',
-            value: _digestionLevel,
-            onChanged: (v) => setState(() => _digestionLevel = v),
-            minLabel: 'Poor',
-            maxLabel: 'Great',
-            icon: Icons.monitor_heart_outlined,
-          ),
-          const SizedBox(height: 24),
-
-          // Nutrition compliance
-          Text(
-            'Nutrition Compliance *',
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<NutritionComplianceOption>(
-            emptySelectionAllowed: true,
-            segments: NutritionComplianceOption.values.map((opt) {
-              return ButtonSegment(
-                value: opt,
-                label: Text(opt.label, style: const TextStyle(fontSize: 13)),
-              );
-            }).toList(),
-            selected: _nutritionCompliance != null
-                ? {_nutritionCompliance!}
-                : <NutritionComplianceOption>{},
-            onSelectionChanged: (selected) {
-              setState(() => _nutritionCompliance = selected.first);
-            },
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              shape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          // Next / Submit button
+          Expanded(
+            child: SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: checkInState.isSubmitting
+                    ? null
+                    : (isLastStep ? _submit : _nextStep),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isLastStep
+                      ? Colors.green
+                      : theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  elevation: 0,
                 ),
-              ),
-            ),
-          ),
-          if (_hasAttemptedNext && _nutritionCompliance == null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 16),
-              child: Text(
-                'Please select nutrition compliance',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSliderCard({
-    required ThemeData theme,
-    required String label,
-    required double value,
-    required ValueChanged<double> onChanged,
-    required String minLabel,
-    required String maxLabel,
-    required IconData icon,
-  }) {
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    value.round().toString(),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Slider(
-              value: value,
-              min: 1,
-              max: 10,
-              divisions: 9,
-              onChanged: onChanged,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    minLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    maxLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // PAGE 3 — PhotosStep
-  // -------------------------------------------------------------------------
-
-  Widget _buildPhotosStep(ThemeData theme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Progress Photos',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Front, Side, Back (Optional)',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Front photo slot
-          _buildPhotoSlot(
-            theme: theme,
-            label: 'Front',
-            photo: _frontPhoto,
-            onPick: () => _pickPhotoForSlot('front'),
-            onClear: () => setState(() => _frontPhoto = null),
-          ),
-          const SizedBox(height: 16),
-
-          // Side photo slot
-          _buildPhotoSlot(
-            theme: theme,
-            label: 'Side',
-            photo: _sidePhoto,
-            onPick: () => _pickPhotoForSlot('side'),
-            onClear: () => setState(() => _sidePhoto = null),
-          ),
-          const SizedBox(height: 16),
-
-          // Back photo slot (optional)
-          _buildPhotoSlot(
-            theme: theme,
-            label: 'Back (Optional)',
-            photo: _backPhoto,
-            onPick: () => _pickPhotoForSlot('back'),
-            onClear: () => setState(() => _backPhoto = null),
-            optional: true,
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  /// A single photo picker slot matching iOS PhotoPickerBox style.
-  /// Shows a 120x150 rounded-rect with label, photo preview (or add button),
-  /// and a remove button overlay when a photo is selected.
-  Widget _buildPhotoSlot({
-    required ThemeData theme,
-    required String label,
-    required XFile? photo,
-    required VoidCallback onPick,
-    required VoidCallback onClear,
-    bool optional = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Label row
-        Row(
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (photo != null) ...[
-              const Spacer(),
-              GestureDetector(
-                onTap: onClear,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.delete_outline,
-                        size: 14,
-                        color: theme.colorScheme.onErrorContainer,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Remove',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onErrorContainer,
-                          fontWeight: FontWeight.w600,
+                child: checkInState.isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        isLastStep ? 'Submit Review' : 'Continue',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Photo box — rounded rect container
-        GestureDetector(
-          onTap: onPick,
-          child: Container(
-            width: double.infinity,
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: photo != null
-                  ? Colors.transparent
-                  : theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.35),
-              border: Border.all(
-                color: photo != null
-                    ? theme.colorScheme.outlineVariant
-                    : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-                width: photo != null ? 1.0 : 1.5,
-                strokeAlign: BorderSide.strokeAlignInside,
               ),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(13),
-              child: photo != null
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(
-                          File(photo.path),
-                          fit: BoxFit.cover,
-                        ),
-                        // Semi-transparent overlay with label at bottom
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.6),
-                                ],
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.photo_camera_outlined,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Tap to change',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_a_photo_outlined,
-                          size: 36,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Add Photo',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        if (optional)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              '(Optional)',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // PAGE 4 — NotesStep
-  // -------------------------------------------------------------------------
-
-  Widget _buildNotesStep(ThemeData theme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Weekly Notes',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Share how your week went with your trainer',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          TextFormField(
-            controller: _notesController,
-            maxLines: 8,
-            maxLength: 500,
-            decoration: const InputDecoration(
-              hintText: 'How was your week? Any challenges or wins?',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Anything else to tell your trainer?',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -1093,5 +453,698 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       ),
     );
   }
+}
 
+// =============================================================================
+// STEP 1 — The Numbers (iOS: PremiumInputCard style)
+// =============================================================================
+
+class _CheckInStep1 extends StatelessWidget {
+  final TextEditingController weightController;
+  final TextEditingController waistController;
+  final TextEditingController sleepController;
+  final bool hasAttemptedNext;
+
+  const _CheckInStep1({
+    required this.weightController,
+    required this.waistController,
+    required this.sleepController,
+    required this.hasAttemptedNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'The Numbers',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tracking your physical progress helps us adjust your plan.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          _PremiumInputCard(
+            icon: Icons.monitor_weight_outlined,
+            title: 'Current Weight',
+            subtitle: 'kg',
+            controller: weightController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            hasError: hasAttemptedNext && weightController.text.trim().isEmpty,
+          ),
+          const SizedBox(height: 12),
+
+          _PremiumInputCard(
+            icon: Icons.straighten_outlined,
+            title: 'Waist Circumference',
+            subtitle: 'cm (Optional)',
+            controller: waistController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: 12),
+
+          _PremiumInputCard(
+            icon: Icons.bedtime_outlined,
+            title: 'Avg. Sleep',
+            subtitle: 'hrs / night',
+            controller: sleepController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// STEP 2 — Biofeedback (iOS: PremiumSliderCard style)
+// =============================================================================
+
+class _CheckInStep2 extends StatelessWidget {
+  final double energyLevel;
+  final double stressLevel;
+  final double digestionLevel;
+  final NutritionComplianceOption? nutritionCompliance;
+  final bool hasAttemptedNext;
+  final ValueChanged<double> onEnergyChanged;
+  final ValueChanged<double> onStressChanged;
+  final ValueChanged<double> onDigestionChanged;
+  final ValueChanged<NutritionComplianceOption?> onNutritionChanged;
+
+  const _CheckInStep2({
+    required this.energyLevel,
+    required this.stressLevel,
+    required this.digestionLevel,
+    required this.nutritionCompliance,
+    required this.hasAttemptedNext,
+    required this.onEnergyChanged,
+    required this.onStressChanged,
+    required this.onDigestionChanged,
+    required this.onNutritionChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Biofeedback',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'How is your body responding to the training?',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          _PremiumSliderCard(
+            title: 'Energy Levels',
+            icon: Icons.bolt,
+            color: Colors.amber,
+            value: energyLevel,
+            onChanged: onEnergyChanged,
+          ),
+          const SizedBox(height: 12),
+
+          _PremiumSliderCard(
+            title: 'Stress Levels',
+            icon: Icons.psychology,
+            color: Colors.purple,
+            value: stressLevel,
+            onChanged: onStressChanged,
+          ),
+          const SizedBox(height: 12),
+
+          _PremiumSliderCard(
+            title: 'Digestion',
+            icon: Icons.monitor_heart_outlined,
+            color: Colors.green,
+            value: digestionLevel,
+            onChanged: onDigestionChanged,
+          ),
+          const SizedBox(height: 20),
+
+          // Nutrition compliance
+          Text(
+            'Nutrition Compliance',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<NutritionComplianceOption>(
+            emptySelectionAllowed: true,
+            segments: NutritionComplianceOption.values.map((opt) {
+              return ButtonSegment(
+                value: opt,
+                label: Text(opt.label, style: const TextStyle(fontSize: 13)),
+              );
+            }).toList(),
+            selected: nutritionCompliance != null
+                ? {nutritionCompliance!}
+                : <NutritionComplianceOption>{},
+            onSelectionChanged: (selected) {
+              onNutritionChanged(selected.firstOrNull);
+            },
+            showSelectedIcon: false,
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          if (hasAttemptedNext && nutritionCompliance == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 16),
+              child: Text(
+                'Please select nutrition compliance',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// STEP 3 — Visual Progress (iOS: PremiumPhotoPicker style + notes)
+// =============================================================================
+
+class _CheckInStep3 extends StatelessWidget {
+  final XFile? frontPhoto;
+  final XFile? sidePhoto;
+  final XFile? backPhoto;
+  final TextEditingController notesController;
+  final void Function(String slot) onPickPhoto;
+  final void Function(String slot) onClearPhoto;
+
+  const _CheckInStep3({
+    required this.frontPhoto,
+    required this.sidePhoto,
+    required this.backPhoto,
+    required this.notesController,
+    required this.onPickPhoto,
+    required this.onClearPhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Visual Progress',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Photos provide the most honest feedback.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Photo strip (Front, Side, Back)
+          Row(
+            children: [
+              Expanded(
+                child: _PremiumPhotoPicker(
+                  label: 'Front',
+                  icon: Icons.person,
+                  photo: frontPhoto,
+                  onPick: () => onPickPhoto('front'),
+                  onClear: () => onClearPhoto('front'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _PremiumPhotoPicker(
+                  label: 'Side',
+                  icon: Icons.arrow_right_alt,
+                  photo: sidePhoto,
+                  onPick: () => onPickPhoto('side'),
+                  onClear: () => onClearPhoto('side'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _PremiumPhotoPicker(
+                  label: 'Back',
+                  icon: Icons.switch_account,
+                  photo: backPhoto,
+                  onPick: () => onPickPhoto('back'),
+                  onClear: () => onClearPhoto('back'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Weekly Notes
+          Text(
+            'Weekly Notes',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: notesController,
+            maxLines: 6,
+            maxLength: 500,
+            decoration: InputDecoration(
+              hintText:
+                  'Tell your coach about your week, wins, or struggles...',
+              hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// PremiumInputCard (iOS-style)
+// =============================================================================
+
+class _PremiumInputCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final bool hasError;
+
+  const _PremiumInputCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.controller,
+    this.keyboardType,
+    this.hasError = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          // Icon circle
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: colorScheme.primary, size: 22),
+          ),
+          const SizedBox(width: 16),
+
+          // Title + subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Input field
+          SizedBox(
+            width: 80,
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              textAlign: TextAlign.right,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: hasError
+                      ? BorderSide(color: colorScheme.error)
+                      : BorderSide.none,
+                ),
+                filled: true,
+                fillColor: colorScheme.surface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// PremiumSliderCard (iOS-style)
+// =============================================================================
+
+class _PremiumSliderCard extends StatefulWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  const _PremiumSliderCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  State<_PremiumSliderCard> createState() => _PremiumSliderCardState();
+}
+
+class _PremiumSliderCardState extends State<_PremiumSliderCard> {
+  late double _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(_PremiumSliderCard old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) {
+      _value = widget.value;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(widget.icon, size: 18, color: widget.color),
+              const SizedBox(width: 8),
+              Text(
+                widget.title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: widget.color,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: widget.color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_value.round()}/10',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: widget.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: widget.color,
+              thumbColor: widget.color,
+              inactiveTrackColor: widget.color.withValues(alpha: 0.2),
+              overlayColor: widget.color.withValues(alpha: 0.1),
+            ),
+            child: Slider(
+              value: _value,
+              min: 1,
+              max: 10,
+              divisions: 9,
+              onChanged: (v) {
+                setState(() => _value = v);
+                widget.onChanged(v);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// PremiumPhotoPicker (iOS-style)
+// =============================================================================
+
+class _PremiumPhotoPicker extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final XFile? photo;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  const _PremiumPhotoPicker({
+    required this.label,
+    required this.icon,
+    required this.photo,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onPick,
+          child: Container(
+            width: double.infinity,
+            height: 140,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: photo != null
+                  ? Colors.transparent
+                  : theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.4),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: photo != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(photo!.path),
+                          fit: BoxFit.cover,
+                        ),
+                        // Remove button overlay
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: onClear,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, size: 28, color: theme.colorScheme.primary),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Add',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// Success View (iOS-style)
+// =============================================================================
+
+class _CheckInSuccessView extends StatelessWidget {
+  final VoidCallback onDismiss;
+
+  const _CheckInSuccessView({required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.elasticOut,
+              builder: (context, scale, child) {
+                return Transform.scale(scale: scale, child: child);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Checkmark seal
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.green,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 56,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Great Work!',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your check-in has been submitted. Your trainer will review it shortly.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  FilledButton(
+                    onPressed: onDismiss,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -8,6 +8,7 @@ export 'flow_layout.dart';
 export 'gif_image.dart';
 export 'linked_trainer_card.dart';
 export 'list_skeleton.dart';
+export 'membership_card.dart';
 export 'rounded_corner.dart';
 export 'sheet_background_modifier.dart';
 export 'success_view.dart';

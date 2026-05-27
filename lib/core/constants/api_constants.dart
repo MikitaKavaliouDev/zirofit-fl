@@ -281,6 +281,11 @@ class ApiConstants {
   static const String supportTickets = '/support/tickets';
   static const String supportFeedback = '/support/feedback';
 
+  // Client Packages
+  static const String clientMyPackages = '/client/packages';
+  static const String clientAvailablePackages = '/client/packages/available';
+  static const String clientPurchasePackage = '/client/packages/purchase';
+
   // Client Progress
   static const String clientProgress = '/client/progress';
 
@@ -304,6 +309,11 @@ class ApiConstants {
 
   // Public Trainer Profile
   static String trainerPublicProfile(String username) => '/trainers/$username';
+
+  // Client Invitation
+  static String invitationDetail(String token) => '/invitations/$token';
+  static const String acceptInvitation = '/client/accept-invitation';
+  static const String declineInvitation = '/client/decline-invitation';
 
   // Client Connect Requests
   static String clientConnectTrainer(String trainerId) => '/client/trainers/$trainerId/connect';

@@ -8,6 +8,7 @@ import 'package:zirofit_fl/core/network/auth_interceptor.dart';
 import 'package:zirofit_fl/core/network/secure_storage.dart';
 import 'package:zirofit_fl/core/services/subscription_manager.dart';
 import 'package:zirofit_fl/features/auth/services/apple_sign_in_helper.dart';
+import 'package:zirofit_fl/features/auth/services/google_sign_in_helper.dart';
 
 // ---------------------------------------------------------------------------
 // User model
@@ -338,7 +339,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return;
     }
 
-    // Google OAuth — opens the mobile-signin URL in the system browser.
+    if (provider == 'google') {
+      await _signInWithGoogle();
+      return;
+    }
+
+    // Fallback for other providers — opens the URL in the system browser.
     // The server redirects back to zirofitapp://auth/callback?access_token=...
     // which is handled by the deep link service and AuthCallbackScreen.
     final uri = Uri.parse(
@@ -346,6 +352,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
     ).replace(queryParameters: {'provider': provider});
 
     await _launchUrl(uri.toString());
+  }
+
+  /// In-app Google Sign In via [GoogleSignInHelper] (mirrors iOS
+  /// [GoogleSignInHelper] with [ASWebAuthenticationSession]).
+  Future<void> _signInWithGoogle() async {
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
+
+    try {
+      final helper = GoogleSignInHelper();
+      final result = await helper.signIn();
+
+      // User cancelled the in-app browser — return to unauthenticated state
+      // without an error.
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+
+      // Persist tokens from the OAuth callback.
+      await _secureStorage.saveTokens(
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      );
+
+      // Save tokens under the role key for account switching.
+      if (result.role != null) {
+        await _secureStorage.saveRoleTokens(
+          result.role!,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        );
+      }
+
+      // Bootstrap the full auth state (fetch user profile etc.).
+      await refreshSession();
+    } on GoogleSignInException catch (e) {
+      // User cancellation is handled above; other Google-specific errors.
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: e.message,
+      );
+    } catch (e) {
+      final message = _extractErrorMessage(e);
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        error: message,
+      );
+    }
   }
 
   /// Native Apple Sign In via [AppleSignInHelper].

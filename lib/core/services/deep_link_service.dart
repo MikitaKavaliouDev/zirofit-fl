@@ -20,6 +20,9 @@ enum DeepLinkRouteType {
 
   /// zirofitapp://auth/update-password?token=xxx
   authUpdatePassword,
+
+  /// zirofitapp://connect?token=xxx&trainerName=Sarah
+  trainerInvitation,
 }
 
 /// A parsed deep link route containing the route type and extracted parameters.
@@ -61,6 +64,12 @@ class DeepLinkRoute {
 
   /// Reset token from password reset deep link (zirofitapp://auth/update-password?token=xxx).
   String? get resetToken => params['token'];
+
+  /// Invitation token from connect deep link (zirofitapp://connect?token=xxx).
+  String? get invitationToken => params['token'];
+
+  /// Trainer name from connect deep link (zirofitapp://connect?token=xxx&trainerName=Sarah).
+  String? get trainerName => params['trainer_name'];
 
   @override
   bool operator ==(Object other) =>
@@ -218,6 +227,21 @@ class DeepLinkService {
       return DeepLinkRoute(
         type: DeepLinkRouteType.workout,
         params: {'workout_id': id},
+        rawUri: uri,
+      );
+    }
+
+    // zirofitapp://connect?token=xxx&trainerName=Sarah
+    if (host == 'connect') {
+      final token = uri.queryParameters['token'];
+      if (token == null || token.isEmpty) return null;
+      return DeepLinkRoute(
+        type: DeepLinkRouteType.trainerInvitation,
+        params: {
+          'token': token,
+          if (uri.queryParameters['trainerName'] != null)
+            'trainer_name': uri.queryParameters['trainerName']!,
+        },
         rawUri: uri,
       );
     }
